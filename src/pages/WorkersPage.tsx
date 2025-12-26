@@ -1,4 +1,4 @@
-import { mockWorkers } from '../data/mockWorkers'
+import { SHIFT_LABEL, workers } from '../data/mock'
 
 export function WorkersPage() {
   return (
@@ -17,14 +17,14 @@ export function WorkersPage() {
             </tr>
           </thead>
           <tbody>
-            {mockWorkers.map((worker) => (
+            {workers.map((worker) => (
               <tr key={worker.id}>
                 <td>{worker.id}</td>
                 <td>{worker.name}</td>
                 <td>{worker.group}</td>
                 <td>{worker.contract}</td>
                 <td>{worker.shiftMode}</td>
-                <td>{worker.fixedShift ?? '-'}</td>
+                <td>{worker.fixedShift ? SHIFT_LABEL[worker.fixedShift] : '-'}</td>
               </tr>
             ))}
           </tbody>
