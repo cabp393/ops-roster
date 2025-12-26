@@ -40,6 +40,39 @@ export function SummaryPage() {
     return summarizeWeek({ weekStart, workers, assignments })
   }, [assignments, weekStart])
 
+  const tableRows = useMemo(() => {
+    if (!summary) return []
+    return summary.tree.flatMap((shift) => {
+      if (shift.groups.length === 0) {
+        return [
+          {
+            key: `${shift.shift}-empty`,
+            shiftLabel: SHIFT_LABEL[shift.shift],
+            groupLabel: '-',
+            taskLabel: 'No assignments',
+            total: 0,
+          },
+        ]
+      }
+      let isFirstShiftRow = true
+      return shift.groups.flatMap((group) => {
+        let isFirstGroupRow = true
+        return group.tasks.map((task) => {
+          const row = {
+            key: `${shift.shift}-${group.group}-${task.task}`,
+            shiftLabel: isFirstShiftRow ? `${SHIFT_LABEL[shift.shift]} (${shift.total})` : '',
+            groupLabel: isFirstGroupRow ? `${group.group} (${group.total})` : '',
+            taskLabel: task.task,
+            total: task.total,
+          }
+          isFirstShiftRow = false
+          isFirstGroupRow = false
+          return row
+        })
+      })
+    })
+  }, [summary])
+
   return (
     <section>
       <h2>Summary</h2>
@@ -70,31 +103,28 @@ export function SummaryPage() {
               </ul>
             </div>
           ) : null}
-          {summary.tree.map((shift) => (
-            <div key={shift.shift} className="summary-block">
-              <h3>
-                {shift.shiftLabel} ({shift.total})
-              </h3>
-              {shift.groups.length === 0 ? (
-                <p className="summary">No assignments for {SHIFT_LABEL[shift.shift]}.</p>
-              ) : (
-                shift.groups.map((group) => (
-                  <div key={group.group} className="summary-group">
-                    <h4>
-                      {group.group} ({group.total})
-                    </h4>
-                    <ul>
-                      {group.tasks.map((task) => (
-                        <li key={`${group.group}-${task.task}`}>
-                          {task.task}: {task.total}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))
-              )}
-            </div>
-          ))}
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Shift</th>
+                  <th>Group</th>
+                  <th>Task</th>
+                  <th>Count</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tableRows.map((row) => (
+                  <tr key={row.key}>
+                    <td>{row.shiftLabel}</td>
+                    <td>{row.groupLabel}</td>
+                    <td>{row.taskLabel}</td>
+                    <td>{row.total}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
     </section>
