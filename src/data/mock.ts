@@ -18,6 +18,7 @@ export type Worker = {
   constraints?: {
     allowedShifts?: Shift[]
   }
+  specialRole?: string
 }
 
 export const workers: Worker[] = [
@@ -30,7 +31,14 @@ export const workers: Worker[] = [
   { id: 7, name: 'Valentina Araya', group: 'Auxiliar', contract: 'Indefinido', shiftMode: 'Fijo', fixedShift: 'M' },
   { id: 8, name: 'Nicolás Díaz', group: 'Auxiliar', contract: 'Plazo fijo', shiftMode: 'Rotativo' },
   { id: 9, name: 'Javier Torres', group: 'Auxiliar', contract: 'Plazo fijo', shiftMode: 'Rotativo', constraints: { allowedShifts: ['M', 'T'] } },
-  { id: 10, name: 'Sofía Lagos', group: 'Auxiliar', contract: 'Indefinido', shiftMode: 'Rotativo' },
+  {
+    id: 10,
+    name: 'Sofía Lagos',
+    group: 'Auxiliar',
+    contract: 'Indefinido',
+    shiftMode: 'Rotativo',
+    constraints: { allowedShifts: ['M', 'N'] },
+  },
 ]
 
 export const prevWeekShifts: Record<number, Shift> = {

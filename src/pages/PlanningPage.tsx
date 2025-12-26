@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { SHIFT_LABEL, SHIFTS, TASKS_BY_GROUP, prevWeekShifts, workers } from '../data/mock'
-import { generateAssignments } from '../lib/planning'
+import { autoAssignTasks, computeWeekStats, generateWeekPlan, validateWeekPlan } from '../lib/planning'
 import { clearPlanning, loadPlanning, savePlanning } from '../lib/storage'
 import type { Assignment, PlanningRecord, Shift } from '../lib/types'
 
@@ -28,14 +28,6 @@ function getDefaultWeekStart() {
   }
 }
 
-function countAssignments(assignments: Assignment[]) {
-  const counts: Record<Shift, number> = { M: 0, T: 0, N: 0 }
-  assignments.forEach((assignment) => {
-    counts[assignment.shift] += 1
-  })
-  return counts
-}
-
 function makeRecord(weekStart: string, assignments: Assignment[]): PlanningRecord {
   return { weekStart, assignments }
 }
@@ -44,10 +36,15 @@ export function PlanningPage() {
   const [weekStart, setWeekStart] = useState(getDefaultWeekStart)
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [savedLabel, setSavedLabel] = useState<string | null>(null)
+  const [warnings, setWarnings] = useState<string[]>([])
 
   useEffect(() => {
     const saved = loadPlanning(weekStart)
     setAssignments(saved?.assignments ?? [])
+    const savedWarnings = saved?.assignments.length
+      ? validateWeekPlan(saved.assignments, workers, prevWeekShifts)
+      : []
+    setWarnings(savedWarnings)
     setSavedLabel(saved ? 'Saved' : null)
   }, [weekStart])
 
@@ -55,21 +52,23 @@ export function PlanningPage() {
     return new Map(assignments.map((assignment) => [assignment.workerId, assignment]))
   }, [assignments])
 
-  const counts = useMemo(() => countAssignments(assignments), [assignments])
+  const stats = useMemo(() => computeWeekStats(assignments, workers), [assignments])
 
-  function persist(nextAssignments: Assignment[]) {
+  function persist(nextAssignments: Assignment[], nextWarnings?: string[]) {
     setAssignments(nextAssignments)
     savePlanning(weekStart, makeRecord(weekStart, nextAssignments))
     setSavedLabel(`Saved ${new Date().toLocaleTimeString()}`)
+    setWarnings(nextWarnings ?? validateWeekPlan(nextAssignments, workers, prevWeekShifts))
   }
 
   function handleGenerate() {
-    const nextAssignments = generateAssignments({
+    const plan = generateWeekPlan({
       weekStart,
       workers,
       prevWeekShifts,
+      existingAssignments: assignments,
     })
-    persist(nextAssignments)
+    persist(plan.assignments, plan.warnings)
   }
 
   function handleClear() {
@@ -83,17 +82,18 @@ export function PlanningPage() {
     const nextAssignments = assignments.map((assignment) => ({ ...assignment }))
     const index = nextAssignments.findIndex((assignment) => assignment.workerId === workerId)
     if (index >= 0) {
+      const currentMeta = nextAssignments[index].meta ?? { shiftSource: 'generated', taskSource: 'generated' }
       nextAssignments[index] = {
         ...nextAssignments[index],
         shift: shift as Shift,
-        source: 'manual',
+        meta: { ...currentMeta, shiftSource: 'manual' },
       }
     } else {
       nextAssignments.push({
         workerId,
         weekStart,
         shift: shift as Shift,
-        source: 'manual',
+        meta: { shiftSource: 'manual', taskSource: 'generated' },
       })
     }
     persist(nextAssignments)
@@ -103,34 +103,17 @@ export function PlanningPage() {
     const nextAssignments = assignments.map((assignment) => ({ ...assignment }))
     const index = nextAssignments.findIndex((assignment) => assignment.workerId === workerId)
     if (index === -1) return
+    const currentMeta = nextAssignments[index].meta ?? { shiftSource: 'generated', taskSource: 'generated' }
     nextAssignments[index] = {
       ...nextAssignments[index],
       task: task || undefined,
-      source: 'manual',
+      meta: { ...currentMeta, taskSource: 'manual' },
     }
     persist(nextAssignments)
   }
 
   function handleAutoTasks() {
-    const nextAssignments = assignments.map((assignment) => ({ ...assignment }))
-    const assignmentsMap = new Map(nextAssignments.map((assignment) => [assignment.workerId, assignment]))
-
-    SHIFTS.forEach((shift) => {
-      GROUPS.forEach((group) => {
-        const tasks = TASKS_BY_GROUP[group]
-        let taskIndex = 0
-        workers
-          .filter((worker) => worker.group === group)
-          .forEach((worker) => {
-            const assignment = assignmentsMap.get(worker.id)
-            if (!assignment || assignment.shift !== shift) return
-            if (assignment.task) return
-            assignment.task = tasks[taskIndex % tasks.length]
-            taskIndex += 1
-          })
-      })
-    })
-
+    const nextAssignments = autoAssignTasks(assignments, workers, TASKS_BY_GROUP)
     persist(nextAssignments)
   }
 
@@ -159,9 +142,26 @@ export function PlanningPage() {
         </div>
       </div>
       <p className="summary">
-        Summary: {SHIFTS.map((shift) => `${shift}: ${counts[shift]}`).join(', ')}
+        Summary: {SHIFTS.map((shift) => `${shift}: ${stats.totals[shift]}`).join(', ')}
+      </p>
+      <p className="summary">
+        Group totals:{' '}
+        {GROUPS.map(
+          (group) =>
+            `${group} (${SHIFTS.map((shift) => `${shift}: ${stats.perGroup[group][shift]}`).join(', ')})`,
+        ).join(' | ')}
       </p>
       {savedLabel ? <p className="summary">{savedLabel}</p> : null}
+      {warnings.length ? (
+        <div className="summary">
+          <strong>Warnings</strong>
+          <ul>
+            {warnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <div className="table-wrap">
         <table>
           <thead>
