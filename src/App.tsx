@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Tabs } from './components/Tabs'
 import { PlanningPage } from './pages/PlanningPage'
+import { SummaryPage } from './pages/SummaryPage'
 import { WorkersPage } from './pages/WorkersPage'
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<'workers' | 'planning'>('workers')
+  const [activeTab, setActiveTab] = useState<'workers' | 'planning' | 'summary'>('workers')
 
   return (
     <div className="app">
@@ -14,7 +15,13 @@ export function App() {
       </header>
       <Tabs activeTab={activeTab} onChange={setActiveTab} />
       <main className="content">
-        {activeTab === 'workers' ? <WorkersPage /> : <PlanningPage />}
+        {activeTab === 'workers' ? (
+          <WorkersPage />
+        ) : activeTab === 'planning' ? (
+          <PlanningPage />
+        ) : (
+          <SummaryPage />
+        )}
       </main>
     </div>
   )
