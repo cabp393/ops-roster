@@ -16,7 +16,6 @@ export function WorkersPage() {
 
   return (
     <section>
-      <h2>Workers</h2>
       <div className="table-wrap">
         <table>
           <thead>

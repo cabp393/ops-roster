@@ -219,7 +219,6 @@ export function PlanningPage() {
 
   return (
     <section>
-      <h2>Planning</h2>
       <div className="planning-controls">
         <label className="field">
           Week start

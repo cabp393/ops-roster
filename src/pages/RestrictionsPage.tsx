@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { SHIFTS } from '../data/mock'
-import { getRestrictions, getTasks, setRestrictions } from '../lib/storage'
-import type { Restrictions, Shift, Task } from '../types'
+import { getRestrictions, getRoles, getTasks, setRestrictions } from '../lib/storage'
+import type { Restrictions, Role, Shift, Task } from '../types'
 
 const fallbackWeekStart = '2025-12-29'
 
@@ -66,13 +66,19 @@ function ensureTaskTargets(restrictions: Restrictions, tasks: Task[]) {
   return next
 }
 
+const compactInputStyle = {
+  width: '56px',
+}
+
 export function RestrictionsPage() {
   const [weekStart, setWeekStart] = useState(getDefaultWeekStart)
+  const [roles, setRoles] = useState<Role[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
   const [restrictions, setRestrictionsState] = useState<Restrictions | null>(null)
   const [savedLabel, setSavedLabel] = useState<string | null>(null)
 
   useEffect(() => {
+    setRoles(getRoles())
     setTasks(getTasks())
   }, [])
 
@@ -84,7 +90,15 @@ export function RestrictionsPage() {
     setSavedLabel(existing ? 'Loaded' : null)
   }, [weekStart, tasks])
 
+  const activeRoles = useMemo(() => roles.filter((role) => role.isActive), [roles])
   const activeTasks = useMemo(() => tasks.filter((task) => task.isActive), [tasks])
+
+  const tasksByRole = useMemo(() => {
+    return activeRoles.map((role) => ({
+      role,
+      tasks: activeTasks.filter((task) => task.allowedRoleCodes.includes(role.code)),
+    }))
+  }, [activeRoles, activeTasks])
 
   function updateTaskTarget(
     shift: Shift,
@@ -93,6 +107,7 @@ export function RestrictionsPage() {
     value: number,
   ) {
     if (!restrictions) return
+    const clampedValue = Math.max(0, Math.min(99, value))
     setRestrictionsState({
       ...restrictions,
       demand: {
@@ -103,7 +118,7 @@ export function RestrictionsPage() {
             ...restrictions.demand.tasks[shift],
             [taskId]: {
               ...restrictions.demand.tasks[shift][taskId],
-              [field]: value,
+              [field]: clampedValue,
             },
           },
         },
@@ -117,31 +132,9 @@ export function RestrictionsPage() {
     setSavedLabel(`Saved ${new Date().toLocaleTimeString()}`)
   }
 
-  function handleHighSeasonPreset() {
-    if (!restrictions) return
-    const coreTasks = ['task-descarga', 'task-carga']
-    const next = { ...restrictions, profileName: 'High Season' }
-    SHIFTS.forEach((shift) => {
-      coreTasks.forEach((taskId) => {
-        if (next.demand.tasks[shift][taskId]) {
-          next.demand.tasks[shift][taskId] = {
-            ...next.demand.tasks[shift][taskId],
-            min: 10,
-            target: 10,
-            max: 12,
-          }
-        }
-      })
-    })
-
-    setRestrictionsState(next)
-    setSavedLabel('High Season preset applied')
-  }
-
   if (!restrictions) {
     return (
       <section>
-        <h2>Restrictions</h2>
         <p className="summary">Loading restrictions...</p>
       </section>
     )
@@ -149,7 +142,6 @@ export function RestrictionsPage() {
 
   return (
     <section>
-      <h2>Restrictions</h2>
       <div className="planning-controls">
         <label className="field">
           Week start
@@ -163,71 +155,89 @@ export function RestrictionsPage() {
           <button type="button" onClick={handleSave}>
             Save
           </button>
-          <button type="button" onClick={handleHighSeasonPreset}>
-            High Season preset
-          </button>
         </div>
       </div>
       {savedLabel ? <p className="summary">{savedLabel}</p> : null}
       {SHIFTS.map((shift) => (
         <div key={shift} className="summary" style={{ marginTop: '1rem' }}>
           <strong>{shift} shift task targets</strong>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Task</th>
-                  <th>Min</th>
-                  <th>Target</th>
-                  <th>Max</th>
-                  <th>Priority</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activeTasks.map((task) => {
-                  const target = restrictions.demand.tasks[shift][task.id] ?? {
-                    min: 0,
-                    target: 0,
-                    max: 0,
-                    priority: task.priority,
-                  }
-                  return (
-                    <tr key={`${shift}-${task.id}`}>
-                      <td>{task.name}</td>
-                      <td>
-                        <input
-                          type="number"
-                          value={target.min}
-                          onChange={(event) =>
-                            updateTaskTarget(shift, task.id, 'min', Number(event.target.value))
-                          }
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          value={target.target}
-                          onChange={(event) =>
-                            updateTaskTarget(shift, task.id, 'target', Number(event.target.value))
-                          }
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          value={target.max}
-                          onChange={(event) =>
-                            updateTaskTarget(shift, task.id, 'max', Number(event.target.value))
-                          }
-                        />
-                      </td>
-                      <td>{target.priority}</td>
-                    </tr>
-                  )}
-                )}
-              </tbody>
-            </table>
-          </div>
+          {tasksByRole.map(({ role, tasks: roleTasks }) => (
+            <div key={`${shift}-${role.code}`} style={{ marginTop: '0.75rem' }}>
+              <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{role.name}</div>
+              {roleTasks.length === 0 ? (
+                <p className="summary">No tasks for this role.</p>
+              ) : (
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Task</th>
+                        <th>Min</th>
+                        <th>Target</th>
+                        <th>Max</th>
+                        <th>Priority</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {roleTasks.map((task) => {
+                        const target = restrictions.demand.tasks[shift][task.id] ?? {
+                          min: 0,
+                          target: 0,
+                          max: 0,
+                          priority: task.priority,
+                        }
+                        return (
+                          <tr key={`${shift}-${role.code}-${task.id}`}>
+                            <td>{task.name}</td>
+                            <td>
+                              <input
+                                type="number"
+                                min={0}
+                                max={99}
+                                inputMode="numeric"
+                                value={target.min}
+                                style={compactInputStyle}
+                                onChange={(event) =>
+                                  updateTaskTarget(shift, task.id, 'min', Number(event.target.value))
+                                }
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="number"
+                                min={0}
+                                max={99}
+                                inputMode="numeric"
+                                value={target.target}
+                                style={compactInputStyle}
+                                onChange={(event) =>
+                                  updateTaskTarget(shift, task.id, 'target', Number(event.target.value))
+                                }
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="number"
+                                min={0}
+                                max={99}
+                                inputMode="numeric"
+                                value={target.max}
+                                style={compactInputStyle}
+                                onChange={(event) =>
+                                  updateTaskTarget(shift, task.id, 'max', Number(event.target.value))
+                                }
+                              />
+                            </td>
+                            <td>{target.priority}</td>
+                          </tr>
+                        )}
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       ))}
     </section>

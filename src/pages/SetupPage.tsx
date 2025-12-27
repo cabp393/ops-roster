@@ -68,7 +68,6 @@ export function SetupPage() {
 
   return (
     <section>
-      <h2>Setup</h2>
       <div className="summary">
         <strong>Roles manager</strong>
       </div>

@@ -84,7 +84,6 @@ export function SummaryPage() {
 
   return (
     <section>
-      <h2>Summary</h2>
       <div className="planning-controls">
         <label className="field">
           Week start

@@ -15,7 +15,6 @@ export function App() {
     <div className="app">
       <header className="header">
         <h1>Ops Roster</h1>
-        <p className="subtitle">Minimal roster overview</p>
       </header>
       <Tabs activeTab={activeTab} onChange={setActiveTab} />
       <main className="content">
