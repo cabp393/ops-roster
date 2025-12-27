@@ -79,8 +79,13 @@ export function generateAssignments({
   const roleByCode = new Map(roles.map((role) => [role.code, role]))
 
   const activeWorkers = workers.filter((worker) => worker.isActive !== false)
-  const plazoFijoWorkers = activeWorkers.filter((worker) => worker.contract === 'Plazo fijo')
-  const fixedOrIndefinido = activeWorkers.filter((worker) => worker.contract === 'Indefinido')
+  const fixedShiftWorkers = activeWorkers.filter((worker) => worker.shiftMode === 'Fijo')
+  const indefinidoRotativo = activeWorkers.filter(
+    (worker) => worker.contract === 'Indefinido' && worker.shiftMode === 'Rotativo',
+  )
+  const plazoFijoRotativo = activeWorkers.filter(
+    (worker) => worker.contract === 'Plazo fijo' && worker.shiftMode === 'Rotativo',
+  )
 
   const incrementCounts = (shift: Shift, roleCode: string) => {
     const role = roleByCode.get(roleCode)
@@ -90,17 +95,12 @@ export function generateAssignments({
     countsByRole[shift][roleCode] = (countsByRole[shift][roleCode] ?? 0) + 1
   }
 
-  fixedOrIndefinido.forEach((worker) => {
-    let shift: Shift
-    if (worker.shiftMode === 'Fijo' && worker.fixedShift) {
-      shift = worker.fixedShift
-    } else {
-      const previousShift = prevWeekShifts[worker.id]
-      shift = previousShift ? rotateStable(previousShift) : 'M'
-    }
+  const chooseShiftForMissingHistory = (worker: { roleCode: string; constraints?: { allowedShifts?: Shift[] } }) =>
+    restrictions && restrictions.policies.balanceByRole
+      ? chooseShiftByTargets(worker.constraints?.allowedShifts, worker.roleCode, counts, countsByRole, restrictions)
+      : chooseBalancedShift(worker.constraints?.allowedShifts, counts)
 
-    shift = ensureAllowedShift(shift, worker.constraints?.allowedShifts, counts)
-
+  const assignWorker = (worker: { id: number; roleCode: string }, shift: Shift) => {
     assignments.push({
       workerId: worker.id,
       weekStart,
@@ -108,23 +108,96 @@ export function generateAssignments({
       source: 'generated',
     })
     incrementCounts(shift, worker.roleCode)
+  }
+
+  // 1) Fixed shifts first (hard rule).
+  fixedShiftWorkers.forEach((worker) => {
+    const shift = worker.fixedShift ?? chooseShiftForMissingHistory(worker)
+    assignWorker(worker, shift)
   })
 
-  plazoFijoWorkers.forEach((worker) => {
+  // 2) Stable rotation for indefinido rotativo (hard rule).
+  indefinidoRotativo.forEach((worker) => {
+    const previousShift = prevWeekShifts[worker.id]
+    const shift = previousShift ? rotateStable(previousShift) : chooseShiftForMissingHistory(worker)
+    assignWorker(worker, shift)
+  })
+
+  // 3) Flexible assignment for plazo fijo rotativo (balancing).
+  plazoFijoRotativo.forEach((worker) => {
     const allowed = worker.constraints?.allowedShifts
     const shift =
       restrictions && restrictions.policies.balanceByRole
         ? chooseShiftByTargets(allowed, worker.roleCode, counts, countsByRole, restrictions)
         : chooseBalancedShift(allowed, counts)
 
-    assignments.push({
-      workerId: worker.id,
-      weekStart,
-      shift,
-      source: 'generated',
-    })
-    incrementCounts(shift, worker.roleCode)
+    assignWorker(worker, shift)
   })
+
+  // 5) Validation phase: surface warnings instead of failing.
+  const warnings: string[] = []
+  const workerById = new Map(activeWorkers.map((worker) => [worker.id, worker]))
+  const countsByShiftRole = assignments.reduce<Record<Shift, Record<string, number>>>(
+    (acc, assignment) => {
+      const roleCode = workerById.get(assignment.workerId)?.roleCode
+      if (!roleCode) return acc
+      acc[assignment.shift][roleCode] = (acc[assignment.shift][roleCode] ?? 0) + 1
+      return acc
+    },
+    { M: {}, T: {}, N: {} },
+  )
+
+  let fixedViolations = 0
+  let rotationViolations = 0
+  let constraintViolations = 0
+
+  assignments.forEach((assignment) => {
+    const worker = workerById.get(assignment.workerId)
+    if (!worker) return
+    if (worker.shiftMode === 'Fijo' && worker.fixedShift && assignment.shift !== worker.fixedShift) {
+      fixedViolations += 1
+    }
+    if (worker.contract === 'Indefinido' && worker.shiftMode === 'Rotativo') {
+      const previousShift = prevWeekShifts[worker.id]
+      if (previousShift && assignment.shift !== rotateStable(previousShift)) {
+        rotationViolations += 1
+      }
+    }
+    const allowed = worker.constraints?.allowedShifts
+    if (allowed && !allowed.includes(assignment.shift)) {
+      constraintViolations += 1
+    }
+  })
+
+  if (fixedViolations > 0) {
+    warnings.push(`Fixed shift violations: ${fixedViolations}.`)
+  }
+  if (rotationViolations > 0) {
+    warnings.push(`Stable rotation violations: ${rotationViolations}.`)
+  }
+  if (constraintViolations > 0) {
+    warnings.push(`Constraint violations: ${constraintViolations}.`)
+  }
+
+  if (restrictions) {
+    const unmetTargets: string[] = []
+    SHIFTS.forEach((shift) => {
+      const roleTargets = restrictions.demand.shifts[shift]?.roleTargets ?? {}
+      Object.entries(roleTargets).forEach(([roleCode, target]) => {
+        const current = countsByShiftRole[shift][roleCode] ?? 0
+        if (current < target.min) {
+          unmetTargets.push(`${shift}/${roleCode} (${current}/${target.min})`)
+        }
+      })
+    })
+    if (unmetTargets.length > 0) {
+      warnings.push(`Unmet demand targets: ${unmetTargets.join(', ')}.`)
+    }
+  }
+
+  if (warnings.length > 0) {
+    console.warn('Planning validation warnings:', warnings)
+  }
 
   return assignments
 }
