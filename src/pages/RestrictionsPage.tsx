@@ -10,7 +10,12 @@ import {
 import type { Restrictions, Role, Shift, Task, TaskPriority } from '../types'
 
 const fallbackWeekStart = '2025-12-29'
-const PRIORITIES: TaskPriority[] = ['HIGH', 'MEDIUM', 'LOW']
+const PRIORITIES: Array<{ value: TaskPriority; label: string }> = [
+  { value: '', label: 'Vacía' },
+  { value: 'LOW', label: 'Baja' },
+  { value: 'MEDIUM', label: 'Media' },
+  { value: 'HIGH', label: 'Alta' },
+]
 const SHIFT_ORDER: Shift[] = ['N', 'M', 'T']
 
 function toDateInputValue(date: Date) {
@@ -65,13 +70,14 @@ function ensureTaskTargets(restrictions: Restrictions, tasks: Task[]) {
   SHIFTS.forEach((shift) => {
     const shiftTargets = { ...next.demand.tasks[shift] }
     Object.entries(shiftTargets).forEach(([taskId, target]) => {
-      if (!target.priority) {
-        shiftTargets[taskId] = { ...target, priority: DEFAULT_TASK_PRIORITY }
+      shiftTargets[taskId] = {
+        max: target.max ?? 0,
+        priority: target.priority ?? DEFAULT_TASK_PRIORITY,
       }
     })
     activeTasks.forEach((task) => {
       if (!shiftTargets[task.id]) {
-        shiftTargets[task.id] = { min: 0, target: 0, max: 0, priority: DEFAULT_TASK_PRIORITY }
+        shiftTargets[task.id] = { max: 0, priority: DEFAULT_TASK_PRIORITY }
       }
     })
     next.demand.tasks[shift] = shiftTargets
@@ -144,7 +150,7 @@ export function RestrictionsPage() {
   function updateTaskTarget(
     shift: Shift,
     taskId: string,
-    field: 'min' | 'target' | 'max',
+    field: 'max',
     value: number,
   ) {
     if (!restrictions) return
@@ -269,15 +275,11 @@ export function RestrictionsPage() {
                     <colgroup>
                       <col />
                       <col style={{ width: '72px' }} />
-                      <col style={{ width: '72px' }} />
-                      <col style={{ width: '72px' }} />
                       <col style={{ width: '110px' }} />
                     </colgroup>
                     <thead>
                       <tr>
                         <th className="task-col">Task</th>
-                        <th className="num-col">Min</th>
-                        <th className="num-col">Target</th>
                         <th className="num-col">Max</th>
                         <th className="prio-col">Pri</th>
                       </tr>
@@ -285,40 +287,12 @@ export function RestrictionsPage() {
                     <tbody>
                       {roleTasks.map((task) => {
                         const target = restrictions.demand.tasks[shift][task.id] ?? {
-                          min: 0,
-                          target: 0,
                           max: 0,
                           priority: DEFAULT_TASK_PRIORITY,
                         }
                         return (
                           <tr key={`${shift}-${role.code}-${task.id}`}>
                             <td className="task-col">{task.name}</td>
-                            <td>
-                              <input
-                                type="number"
-                                min={0}
-                                max={99}
-                                inputMode="numeric"
-                                value={target.min}
-                                style={compactInputStyle}
-                                onChange={(event) =>
-                                  updateTaskTarget(shift, task.id, 'min', Number(event.target.value))
-                                }
-                              />
-                            </td>
-                            <td>
-                              <input
-                                type="number"
-                                min={0}
-                                max={99}
-                                inputMode="numeric"
-                                value={target.target}
-                                style={compactInputStyle}
-                                onChange={(event) =>
-                                  updateTaskTarget(shift, task.id, 'target', Number(event.target.value))
-                                }
-                              />
-                            </td>
                             <td>
                               <input
                                 type="number"
@@ -341,8 +315,8 @@ export function RestrictionsPage() {
                                 }
                               >
                                 {PRIORITIES.map((priority) => (
-                                  <option key={priority} value={priority}>
-                                    {priority}
+                                  <option key={priority.value} value={priority.value}>
+                                    {priority.label}
                                   </option>
                                 ))}
                               </select>

@@ -8,7 +8,7 @@ export type Role = {
   countsForBalance: boolean
 }
 
-export type TaskPriority = 'HIGH' | 'MEDIUM' | 'LOW'
+export type TaskPriority = '' | 'HIGH' | 'MEDIUM' | 'LOW'
 
 // Task priority is defined per shift in Restrictions; defaults are applied when building targets.
 export type Task = {
@@ -74,8 +74,6 @@ export type Restrictions = {
       Record<
         string,
         {
-          min: number
-          target: number
           max: number
           priority: TaskPriority
         }
