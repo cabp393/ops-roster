@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { SHIFTS } from '../data/mock'
-import { getRestrictions, getRoles, setRestrictions } from '../lib/storage'
-import type { Restrictions, Role, Shift } from '../types'
+import { getRestrictions, getTasks, setRestrictions } from '../lib/storage'
+import type { Restrictions, Shift, Task } from '../types'
 
 const fallbackWeekStart = '2025-12-29'
 
@@ -25,22 +25,14 @@ function getDefaultWeekStart() {
   }
 }
 
-function buildRoleTargets(roles: Role[]) {
-  return roles.reduce<Record<string, { min: number; target: number; max: number }>>((acc, role) => {
-    acc[role.code] = { min: 0, target: 0, max: 0 }
-    return acc
-  }, {})
-}
-
-function createEmptyRestrictions(weekStart: string, roles: Role[]): Restrictions {
-  const activeRoles = roles.filter((role) => role.isActive)
+function createEmptyRestrictions(weekStart: string): Restrictions {
   return {
     weekStart,
     demand: {
       shifts: {
-        M: { roleTargets: buildRoleTargets(activeRoles) },
-        T: { roleTargets: buildRoleTargets(activeRoles) },
-        N: { roleTargets: buildRoleTargets(activeRoles) },
+        M: { roleTargets: {} },
+        T: { roleTargets: {} },
+        N: { roleTargets: {} },
       },
       tasks: {
         M: {},
@@ -57,46 +49,61 @@ function createEmptyRestrictions(weekStart: string, roles: Role[]): Restrictions
   }
 }
 
+function ensureTaskTargets(restrictions: Restrictions, tasks: Task[]) {
+  const activeTasks = tasks.filter((task) => task.isActive)
+  const next = { ...restrictions, demand: { ...restrictions.demand, tasks: { ...restrictions.demand.tasks } } }
+
+  SHIFTS.forEach((shift) => {
+    const shiftTargets = { ...next.demand.tasks[shift] }
+    activeTasks.forEach((task) => {
+      if (!shiftTargets[task.id]) {
+        shiftTargets[task.id] = { min: 0, target: 0, max: 0, priority: task.priority }
+      }
+    })
+    next.demand.tasks[shift] = shiftTargets
+  })
+
+  return next
+}
+
 export function RestrictionsPage() {
   const [weekStart, setWeekStart] = useState(getDefaultWeekStart)
-  const [roles, setRoles] = useState<Role[]>([])
+  const [tasks, setTasks] = useState<Task[]>([])
   const [restrictions, setRestrictionsState] = useState<Restrictions | null>(null)
   const [savedLabel, setSavedLabel] = useState<string | null>(null)
 
   useEffect(() => {
-    setRoles(getRoles())
+    setTasks(getTasks())
   }, [])
 
   useEffect(() => {
-    if (roles.length === 0) return
     const existing = getRestrictions(weekStart)
-    if (existing) {
-      setRestrictionsState(existing)
-      setSavedLabel('Loaded')
-    } else {
-      setRestrictionsState(createEmptyRestrictions(weekStart, roles))
-      setSavedLabel(null)
-    }
-  }, [weekStart, roles])
+    const base = existing ?? createEmptyRestrictions(weekStart)
+    const hydrated = ensureTaskTargets(base, tasks)
+    setRestrictionsState(hydrated)
+    setSavedLabel(existing ? 'Loaded' : null)
+  }, [weekStart, tasks])
 
-  const activeRoles = useMemo(() => roles.filter((role) => role.isActive), [roles])
+  const activeTasks = useMemo(() => tasks.filter((task) => task.isActive), [tasks])
 
-  function updateRoleTarget(shift: Shift, roleCode: string, field: 'min' | 'target' | 'max', value: number) {
+  function updateTaskTarget(
+    shift: Shift,
+    taskId: string,
+    field: 'min' | 'target' | 'max',
+    value: number,
+  ) {
     if (!restrictions) return
     setRestrictionsState({
       ...restrictions,
       demand: {
         ...restrictions.demand,
-        shifts: {
-          ...restrictions.demand.shifts,
+        tasks: {
+          ...restrictions.demand.tasks,
           [shift]: {
-            ...restrictions.demand.shifts[shift],
-            roleTargets: {
-              ...restrictions.demand.shifts[shift].roleTargets,
-              [roleCode]: {
-                ...restrictions.demand.shifts[shift].roleTargets[roleCode],
-                [field]: value,
-              },
+            ...restrictions.demand.tasks[shift],
+            [taskId]: {
+              ...restrictions.demand.tasks[shift][taskId],
+              [field]: value,
             },
           },
         },
@@ -112,21 +119,17 @@ export function RestrictionsPage() {
 
   function handleHighSeasonPreset() {
     if (!restrictions) return
-    const presetTargets: Record<Shift, Record<string, number>> = {
-      M: { OG: 14, AL: 19, JT: 2 },
-      T: { OG: 13, AL: 20, JT: 1 },
-      N: { OG: 13, AL: 13, JT: 1 },
-    }
-
+    const coreTasks = ['task-descarga', 'task-carga']
     const next = { ...restrictions, profileName: 'High Season' }
     SHIFTS.forEach((shift) => {
-      const targets = presetTargets[shift]
-      Object.keys(targets).forEach((roleCode) => {
-        const targetValue = targets[roleCode]
-        next.demand.shifts[shift].roleTargets[roleCode] = {
-          min: targetValue,
-          target: targetValue,
-          max: targetValue,
+      coreTasks.forEach((taskId) => {
+        if (next.demand.tasks[shift][taskId]) {
+          next.demand.tasks[shift][taskId] = {
+            ...next.demand.tasks[shift][taskId],
+            min: 10,
+            target: 10,
+            max: 12,
+          }
         }
       })
     })
@@ -168,33 +171,35 @@ export function RestrictionsPage() {
       {savedLabel ? <p className="summary">{savedLabel}</p> : null}
       {SHIFTS.map((shift) => (
         <div key={shift} className="summary" style={{ marginTop: '1rem' }}>
-          <strong>{shift} shift role targets</strong>
+          <strong>{shift} shift task targets</strong>
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Role</th>
+                  <th>Task</th>
                   <th>Min</th>
                   <th>Target</th>
                   <th>Max</th>
+                  <th>Priority</th>
                 </tr>
               </thead>
               <tbody>
-                {activeRoles.map((role) => {
-                  const target = restrictions.demand.shifts[shift].roleTargets[role.code] ?? {
+                {activeTasks.map((task) => {
+                  const target = restrictions.demand.tasks[shift][task.id] ?? {
                     min: 0,
                     target: 0,
                     max: 0,
+                    priority: task.priority,
                   }
                   return (
-                    <tr key={`${shift}-${role.code}`}>
-                      <td>{role.name}</td>
+                    <tr key={`${shift}-${task.id}`}>
+                      <td>{task.name}</td>
                       <td>
                         <input
                           type="number"
                           value={target.min}
                           onChange={(event) =>
-                            updateRoleTarget(shift, role.code, 'min', Number(event.target.value))
+                            updateTaskTarget(shift, task.id, 'min', Number(event.target.value))
                           }
                         />
                       </td>
@@ -203,7 +208,7 @@ export function RestrictionsPage() {
                           type="number"
                           value={target.target}
                           onChange={(event) =>
-                            updateRoleTarget(shift, role.code, 'target', Number(event.target.value))
+                            updateTaskTarget(shift, task.id, 'target', Number(event.target.value))
                           }
                         />
                       </td>
@@ -212,10 +217,11 @@ export function RestrictionsPage() {
                           type="number"
                           value={target.max}
                           onChange={(event) =>
-                            updateRoleTarget(shift, role.code, 'max', Number(event.target.value))
+                            updateTaskTarget(shift, task.id, 'max', Number(event.target.value))
                           }
                         />
                       </td>
+                      <td>{target.priority}</td>
                     </tr>
                   )}
                 )}
