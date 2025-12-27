@@ -102,6 +102,19 @@ th {
   justify-content: space-between;
 }
 
+.planning-week {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.week-range {
+  font-size: 0.85rem;
+  color: #6b7280;
+  padding-bottom: 4px;
+}
+
 .button-row {
   display: flex;
   gap: 8px;

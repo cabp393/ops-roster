@@ -1,38 +1,39 @@
 import { useEffect, useMemo, useState } from 'react'
 import { SHIFTS, SHIFT_LABEL } from '../data/mock'
 import { loadWeekPlan } from '../lib/planningBoard'
+import { formatDate, getIsoWeekNumber, getIsoWeekYear, getWeekLabel, getWeekStartDate } from '../lib/week'
 import { getRoles, getTasks, getWorkers } from '../lib/storage'
 import { summarizeWeek } from '../lib/summary'
 import type { Assignment, Role, Task, Worker } from '../types'
 
-const fallbackWeekStart = '2025-12-29'
-
-function toDateInputValue(date: Date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-function getDefaultWeekStart() {
-  try {
-    const today = new Date()
-    const dayOfWeek = today.getDay()
-    const offset = (dayOfWeek + 6) % 7
-    const monday = new Date(today)
-    monday.setDate(today.getDate() - offset)
-    return toDateInputValue(monday)
-  } catch {
-    return fallbackWeekStart
-  }
-}
+const fallbackWeekNumber = 1
+const fallbackWeekYear = 2025
 
 export function SummaryPage() {
-  const [weekStart, setWeekStart] = useState(getDefaultWeekStart)
+  const today = new Date()
+  const [weekNumber, setWeekNumber] = useState(() => {
+    try {
+      return getIsoWeekNumber(today)
+    } catch {
+      return fallbackWeekNumber
+    }
+  })
+  const [weekYear, setWeekYear] = useState(() => {
+    try {
+      return getIsoWeekYear(today)
+    } catch {
+      return fallbackWeekYear
+    }
+  })
   const [assignments, setAssignments] = useState<Assignment[] | null>(null)
   const [workers, setWorkers] = useState<Worker[]>([])
   const [roles, setRoles] = useState<Role[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
+
+  const weekStart = useMemo(() => {
+    const startDate = getWeekStartDate(weekNumber, weekYear)
+    return formatDate(startDate)
+  }, [weekNumber, weekYear])
 
   useEffect(() => {
     setWorkers(getWorkers())
@@ -103,14 +104,35 @@ export function SummaryPage() {
   return (
     <section>
       <div className="planning-controls">
-        <label className="field">
-          Week start
-          <input
-            type="date"
-            value={weekStart}
-            onChange={(event) => setWeekStart(event.target.value)}
-          />
-        </label>
+        <div className="planning-week">
+          <label className="field">
+            Semana
+            <input
+              type="number"
+              min={1}
+              max={53}
+              value={weekNumber}
+              onChange={(event) => {
+                const value = Number(event.target.value)
+                if (!Number.isNaN(value)) setWeekNumber(value)
+              }}
+            />
+          </label>
+          <label className="field">
+            Año
+            <input
+              type="number"
+              min={2000}
+              max={2100}
+              value={weekYear}
+              onChange={(event) => {
+                const value = Number(event.target.value)
+                if (!Number.isNaN(value)) setWeekYear(value)
+              }}
+            />
+          </label>
+          <div className="week-range">Semana {weekNumber}: {getWeekLabel(weekNumber, weekYear)}</div>
+        </div>
       </div>
       {!summary ? (
         <p className="summary">No plan found for this week. Generate it in Planning.</p>
