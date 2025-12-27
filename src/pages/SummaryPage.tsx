@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { SHIFTS, SHIFT_LABEL, workers } from '../data/mock'
-import { loadPlanning } from '../lib/storage'
+import { SHIFTS, SHIFT_LABEL } from '../data/mock'
+import { getPlanning, getRoles, getTasks, getWorkers } from '../lib/storage'
 import { summarizeWeek } from '../lib/summary'
-import type { Assignment } from '../lib/types'
+import type { Assignment, Role, Task, Worker } from '../types'
 
 const fallbackWeekStart = '2025-12-29'
 
@@ -29,44 +29,53 @@ function getDefaultWeekStart() {
 export function SummaryPage() {
   const [weekStart, setWeekStart] = useState(getDefaultWeekStart)
   const [assignments, setAssignments] = useState<Assignment[] | null>(null)
+  const [workers, setWorkers] = useState<Worker[]>([])
+  const [roles, setRoles] = useState<Role[]>([])
+  const [tasks, setTasks] = useState<Task[]>([])
 
   useEffect(() => {
-    const saved = loadPlanning(weekStart)
+    setWorkers(getWorkers())
+    setRoles(getRoles())
+    setTasks(getTasks())
+  }, [])
+
+  useEffect(() => {
+    const saved = getPlanning(weekStart)
     setAssignments(saved?.assignments ?? null)
   }, [weekStart])
 
   const summary = useMemo(() => {
     if (!assignments) return null
-    return summarizeWeek({ weekStart, workers, assignments })
-  }, [assignments, weekStart])
+    return summarizeWeek({ weekStart, workers, assignments, roles, tasks })
+  }, [assignments, weekStart, workers, roles, tasks])
 
   const tableRows = useMemo(() => {
     if (!summary) return []
     return summary.tree.flatMap((shift) => {
-      if (shift.groups.length === 0) {
+      if (shift.roles.length === 0) {
         return [
           {
             key: `${shift.shift}-empty`,
             shiftLabel: SHIFT_LABEL[shift.shift],
-            groupLabel: '-',
+            roleLabel: '-',
             taskLabel: 'No assignments',
             total: 0,
           },
         ]
       }
       let isFirstShiftRow = true
-      return shift.groups.flatMap((group) => {
-        let isFirstGroupRow = true
-        return group.tasks.map((task) => {
+      return shift.roles.flatMap((role) => {
+        let isFirstRoleRow = true
+        return role.tasks.map((task) => {
           const row = {
-            key: `${shift.shift}-${group.group}-${task.task}`,
+            key: `${shift.shift}-${role.roleCode}-${task.task}`,
             shiftLabel: isFirstShiftRow ? `${SHIFT_LABEL[shift.shift]} (${shift.total})` : '',
-            groupLabel: isFirstGroupRow ? `${group.group} (${group.total})` : '',
+            roleLabel: isFirstRoleRow ? `${role.roleName} (${role.total})` : '',
             taskLabel: task.task,
             total: task.total,
           }
           isFirstShiftRow = false
-          isFirstGroupRow = false
+          isFirstRoleRow = false
           return row
         })
       })
@@ -75,7 +84,6 @@ export function SummaryPage() {
 
   return (
     <section>
-      <h2>Summary</h2>
       <div className="planning-controls">
         <label className="field">
           Week start
@@ -108,7 +116,7 @@ export function SummaryPage() {
               <thead>
                 <tr>
                   <th>Shift</th>
-                  <th>Group</th>
+                  <th>Role</th>
                   <th>Task</th>
                   <th>Count</th>
                 </tr>
@@ -117,7 +125,7 @@ export function SummaryPage() {
                 {tableRows.map((row) => (
                   <tr key={row.key}>
                     <td>{row.shiftLabel}</td>
-                    <td>{row.groupLabel}</td>
+                    <td>{row.roleLabel}</td>
                     <td>{row.taskLabel}</td>
                     <td>{row.total}</td>
                   </tr>

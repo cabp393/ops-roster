@@ -1,4 +1,4 @@
-export type Shift = 'M' | 'T' | 'N'
+import type { Role, Shift, Task, Worker } from '../types'
 
 export const SHIFTS: Shift[] = ['M', 'T', 'N']
 
@@ -8,29 +8,152 @@ export const SHIFT_LABEL: Record<Shift, string> = {
   N: 'Noche',
 }
 
-export type Worker = {
-  id: number
-  name: string
-  group: 'Gruero' | 'Auxiliar'
-  contract: 'Indefinido' | 'Plazo fijo'
-  shiftMode: 'Rotativo' | 'Fijo'
-  fixedShift?: Shift
-  constraints?: {
-    allowedShifts?: Shift[]
-  }
-}
+export const defaultRoles: Role[] = [
+  { id: 'role-og', code: 'OG', name: 'Operador Grúa', isActive: true, countsForBalance: true },
+  { id: 'role-al', code: 'AL', name: 'Auxiliar Logística', isActive: true, countsForBalance: true },
+  { id: 'role-jt', code: 'JT', name: 'Jefe Turno', isActive: true, countsForBalance: true },
+]
 
-export const workers: Worker[] = [
-  { id: 1, name: 'Cristian Soto', group: 'Gruero', contract: 'Indefinido', shiftMode: 'Rotativo' },
-  { id: 2, name: 'Matías Rojas', group: 'Gruero', contract: 'Indefinido', shiftMode: 'Rotativo', constraints: { allowedShifts: ['M', 'T'] } },
-  { id: 3, name: 'Felipe Muñoz', group: 'Gruero', contract: 'Indefinido', shiftMode: 'Fijo', fixedShift: 'N' },
-  { id: 4, name: 'Diego Herrera', group: 'Gruero', contract: 'Plazo fijo', shiftMode: 'Rotativo' },
-  { id: 5, name: 'Sebastián Vidal', group: 'Gruero', contract: 'Plazo fijo', shiftMode: 'Rotativo', constraints: { allowedShifts: ['T', 'N'] } },
-  { id: 6, name: 'Camila Pérez', group: 'Auxiliar', contract: 'Indefinido', shiftMode: 'Rotativo', constraints: { allowedShifts: ['M', 'N'] } },
-  { id: 7, name: 'Valentina Araya', group: 'Auxiliar', contract: 'Indefinido', shiftMode: 'Fijo', fixedShift: 'M' },
-  { id: 8, name: 'Nicolás Díaz', group: 'Auxiliar', contract: 'Plazo fijo', shiftMode: 'Rotativo' },
-  { id: 9, name: 'Javier Torres', group: 'Auxiliar', contract: 'Plazo fijo', shiftMode: 'Rotativo', constraints: { allowedShifts: ['M', 'T'] } },
-  { id: 10, name: 'Sofía Lagos', group: 'Auxiliar', contract: 'Indefinido', shiftMode: 'Rotativo' },
+export const defaultTasks: Task[] = [
+  {
+    id: 'task-operacion-grua',
+    name: 'Operación grúa',
+    allowedRoleCodes: ['OG'],
+    isActive: true,
+    priority: 'MEDIUM',
+  },
+  {
+    id: 'task-apoyo-patio',
+    name: 'Apoyo patio',
+    allowedRoleCodes: ['OG'],
+    isActive: true,
+    priority: 'MEDIUM',
+  },
+  {
+    id: 'task-apoyo-bodega',
+    name: 'Apoyo bodega',
+    allowedRoleCodes: ['AL'],
+    isActive: true,
+    priority: 'MEDIUM',
+  },
+  {
+    id: 'task-control-acceso',
+    name: 'Control acceso',
+    allowedRoleCodes: ['AL'],
+    isActive: true,
+    priority: 'MEDIUM',
+  },
+  {
+    id: 'task-control-ticket',
+    name: 'Control Ticket',
+    allowedRoleCodes: ['AL', 'JT'],
+    isActive: true,
+    priority: 'HIGH',
+  },
+  {
+    id: 'task-control-pallet',
+    name: 'Control Pallet',
+    allowedRoleCodes: ['AL', 'JT'],
+    isActive: true,
+    priority: 'MEDIUM',
+  },
+  {
+    id: 'task-descarga',
+    name: 'Descarga',
+    allowedRoleCodes: ['OG', 'AL'],
+    isActive: true,
+    priority: 'HIGH',
+  },
+  {
+    id: 'task-carga',
+    name: 'Carga',
+    allowedRoleCodes: ['OG', 'AL'],
+    isActive: true,
+    priority: 'HIGH',
+  },
+  {
+    id: 'task-alto-valor',
+    name: 'Alto Valor',
+    allowedRoleCodes: ['AL', 'JT'],
+    isActive: true,
+    priority: 'HIGH',
+  },
+  {
+    id: 'task-transferencia-alto-valor',
+    name: 'Transferencia Alto Valor',
+    allowedRoleCodes: ['AL', 'JT'],
+    isActive: true,
+    priority: 'HIGH',
+  },
+  {
+    id: 'task-remonte-reposicion',
+    name: 'Remonte y Reposición',
+    allowedRoleCodes: ['AL'],
+    isActive: true,
+    priority: 'MEDIUM',
+  },
+  {
+    id: 'task-retorno-envases',
+    name: 'Retorno Envases',
+    allowedRoleCodes: ['AL'],
+    isActive: true,
+    priority: 'LOW',
+  },
+  {
+    id: 'task-retorno-producto',
+    name: 'Retorno Producto',
+    allowedRoleCodes: ['AL'],
+    isActive: true,
+    priority: 'LOW',
+  },
+  {
+    id: 'task-tygard',
+    name: 'Tygard',
+    allowedRoleCodes: ['OG', 'AL'],
+    isActive: true,
+    priority: 'MEDIUM',
+  },
+  {
+    id: 'task-apoyo-tygard',
+    name: 'Apoyo Tygard',
+    allowedRoleCodes: ['OG', 'AL'],
+    isActive: true,
+    priority: 'MEDIUM',
+  },
+  {
+    id: 'task-apoyo-picking',
+    name: 'Apoyo Picking',
+    allowedRoleCodes: ['AL'],
+    isActive: true,
+    priority: 'MEDIUM',
+  },
+  {
+    id: 'task-reempaque-alto-valor',
+    name: 'Reempaque Alto Valor',
+    allowedRoleCodes: ['AL'],
+    isActive: true,
+    priority: 'HIGH',
+  },
+  {
+    id: 'task-picking-alto-valor',
+    name: 'Picking Alto Valor',
+    allowedRoleCodes: ['AL'],
+    isActive: true,
+    priority: 'HIGH',
+  },
+]
+
+export const defaultWorkers: Worker[] = [
+  { id: 1, name: 'Cristian Soto', roleCode: 'OG', contract: 'Indefinido', shiftMode: 'Rotativo' },
+  { id: 2, name: 'Matías Rojas', roleCode: 'OG', contract: 'Indefinido', shiftMode: 'Rotativo', constraints: { allowedShifts: ['M', 'T'] } },
+  { id: 3, name: 'Felipe Muñoz', roleCode: 'OG', contract: 'Indefinido', shiftMode: 'Fijo', fixedShift: 'N' },
+  { id: 4, name: 'Diego Herrera', roleCode: 'OG', contract: 'Plazo fijo', shiftMode: 'Rotativo' },
+  { id: 5, name: 'Sebastián Vidal', roleCode: 'OG', contract: 'Plazo fijo', shiftMode: 'Rotativo', constraints: { allowedShifts: ['T', 'N'] } },
+  { id: 6, name: 'Camila Pérez', roleCode: 'AL', contract: 'Indefinido', shiftMode: 'Rotativo', constraints: { allowedShifts: ['M', 'N'] } },
+  { id: 7, name: 'Valentina Araya', roleCode: 'AL', contract: 'Indefinido', shiftMode: 'Fijo', fixedShift: 'M' },
+  { id: 8, name: 'Nicolás Díaz', roleCode: 'AL', contract: 'Plazo fijo', shiftMode: 'Rotativo' },
+  { id: 9, name: 'Javier Torres', roleCode: 'AL', contract: 'Plazo fijo', shiftMode: 'Rotativo', constraints: { allowedShifts: ['M', 'T'] } },
+  { id: 10, name: 'Sofía Lagos', roleCode: 'AL', contract: 'Indefinido', shiftMode: 'Rotativo' },
 ]
 
 export const prevWeekShifts: Record<number, Shift> = {
@@ -44,9 +167,4 @@ export const prevWeekShifts: Record<number, Shift> = {
   8: 'N',
   9: 'T',
   10: 'N',
-}
-
-export const TASKS_BY_GROUP: Record<Worker['group'], string[]> = {
-  Gruero: ['Operación grúa', 'Apoyo patio'],
-  Auxiliar: ['Apoyo bodega', 'Control acceso'],
 }

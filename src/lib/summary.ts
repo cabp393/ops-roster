@@ -1,13 +1,14 @@
-import { SHIFT_LABEL, SHIFTS, TASKS_BY_GROUP, type Shift, type Worker } from '../data/mock'
-import type { Assignment } from './types'
+import { SHIFT_LABEL, SHIFTS } from '../data/mock'
+import type { Assignment, Role, Shift, Task, Worker } from '../types'
 
 type SummaryTask = {
   task: string
   total: number
 }
 
-type SummaryGroup = {
-  group: string
+type SummaryRole = {
+  roleCode: string
+  roleName: string
   total: number
   tasks: SummaryTask[]
 }
@@ -16,13 +17,15 @@ type SummaryShift = {
   shift: Shift
   shiftLabel: string
   total: number
-  groups: SummaryGroup[]
+  roles: SummaryRole[]
 }
 
 type SummaryInput = {
   weekStart: string
   workers: Worker[]
   assignments: Assignment[]
+  roles: Role[]
+  tasks: Task[]
 }
 
 type SummaryOutput = {
@@ -31,21 +34,13 @@ type SummaryOutput = {
   warnings: string[]
 }
 
-const GROUP_ORDER = ['Gruero', 'Auxiliar']
-const UNKNOWN_GROUP = 'Unknown'
+const UNKNOWN_ROLE = 'Unknown'
 const UNASSIGNED_TASK = 'Unassigned'
 
-function compareGroups(a: string, b: string) {
-  const aIndex = GROUP_ORDER.indexOf(a)
-  const bIndex = GROUP_ORDER.indexOf(b)
-  if (aIndex !== -1 || bIndex !== -1) {
-    if (aIndex === -1) return 1
-    if (bIndex === -1) return -1
-    return aIndex - bIndex
-  }
-  if (a === UNKNOWN_GROUP) return 1
-  if (b === UNKNOWN_GROUP) return -1
-  return a.localeCompare(b)
+function compareRoles(a: SummaryRole, b: SummaryRole) {
+  if (a.roleCode === UNKNOWN_ROLE) return 1
+  if (b.roleCode === UNKNOWN_ROLE) return -1
+  return a.roleName.localeCompare(b.roleName)
 }
 
 function compareTasks(a: SummaryTask, b: SummaryTask) {
@@ -53,8 +48,10 @@ function compareTasks(a: SummaryTask, b: SummaryTask) {
   return a.task.localeCompare(b.task)
 }
 
-export function summarizeWeek({ workers, assignments }: SummaryInput): SummaryOutput {
+export function summarizeWeek({ workers, assignments, roles, tasks }: SummaryInput): SummaryOutput {
   const workerById = new Map(workers.map((worker) => [worker.id, worker]))
+  const roleByCode = new Map(roles.map((role) => [role.code, role]))
+  const taskById = new Map(tasks.map((task) => [task.id, task]))
   const totalsByShift: Record<Shift, number> = { M: 0, T: 0, N: 0 }
   const shiftMap = new Map<Shift, Map<string, Map<string, number>>>()
   const missingWorkerIds = new Set<number>()
@@ -69,45 +66,46 @@ export function summarizeWeek({ workers, assignments }: SummaryInput): SummaryOu
       missingWorkerIds.add(assignment.workerId)
     }
 
-    const group = worker?.group ?? UNKNOWN_GROUP
-    const rawTask = assignment.task?.trim() ?? ''
-    let taskLabel = rawTask || UNASSIGNED_TASK
+    const roleCode = worker?.roleCode ?? UNKNOWN_ROLE
+    const roleName = roleByCode.get(roleCode)?.name ?? roleCode
+    const task = assignment.taskId ? taskById.get(assignment.taskId) : null
+    let taskLabel = task?.name ?? UNASSIGNED_TASK
 
-    if (!rawTask) {
+    if (!assignment.taskId) {
       missingTaskCount += 1
-    } else if (worker && !TASKS_BY_GROUP[worker.group].includes(rawTask)) {
+    } else if (!task || (worker && !task.allowedRoleCodes.includes(worker.roleCode))) {
       invalidTaskCount += 1
-      taskLabel = `${rawTask} (invalid)`
+      taskLabel = `${task?.name ?? 'Unknown task'} (invalid)`
     }
 
     if (!shiftMap.has(assignment.shift)) {
       shiftMap.set(assignment.shift, new Map())
     }
     const groupMap = shiftMap.get(assignment.shift)!
-    if (!groupMap.has(group)) {
-      groupMap.set(group, new Map())
+    if (!groupMap.has(roleCode)) {
+      groupMap.set(roleCode, new Map())
     }
-    const taskMap = groupMap.get(group)!
+    const taskMap = groupMap.get(roleCode)!
     taskMap.set(taskLabel, (taskMap.get(taskLabel) ?? 0) + 1)
   })
 
   const tree = SHIFTS.map((shift) => {
     const groupMap = shiftMap.get(shift) ?? new Map()
-    const groups = Array.from(groupMap.entries())
-      .map(([group, taskMap]) => {
+    const rolesTree = Array.from(groupMap.entries())
+      .map(([roleCode, taskMap]) => {
         const tasks = Array.from(taskMap.entries())
           .map(([task, total]) => ({ task, total }))
           .sort(compareTasks)
         const total = tasks.reduce((sum, task) => sum + task.total, 0)
-        return { group, total, tasks }
+        return { roleCode, roleName: roleByCode.get(roleCode)?.name ?? roleCode, total, tasks }
       })
-      .sort((a, b) => compareGroups(a.group, b.group))
+      .sort(compareRoles)
 
     return {
       shift,
       shiftLabel: SHIFT_LABEL[shift],
       total: totalsByShift[shift],
-      groups,
+      roles: rolesTree,
     }
   })
 
