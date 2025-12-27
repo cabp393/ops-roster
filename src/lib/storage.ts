@@ -1,5 +1,5 @@
-import type { Assignment, PlanningRecord, Restrictions, Role, Task, Worker } from '../types'
-import { defaultRoles, defaultTasks, defaultWorkers } from '../data/mock'
+import type { Assignment, PlanningRecord, Restrictions, Role, Task, TaskPriority, Worker } from '../types'
+import { DEFAULT_TASK_PRIORITY, SHIFTS, defaultRoles, defaultTasks, defaultWorkers } from '../data/mock'
 
 const PLANNING_PREFIX = 'opsRoster:planning'
 const ROLES_KEY = 'opsRoster:roles'
@@ -29,14 +29,47 @@ function normalizeRoles(raw: unknown): Role[] | null {
 
 function normalizeTasks(raw: unknown): Task[] | null {
   if (!Array.isArray(raw)) return null
-  const tasks = raw.filter((task) => task && typeof task === 'object') as Task[]
+  const tasks = raw.filter((task) => task && typeof task === 'object') as Array<Task & { priority?: TaskPriority }>
   if (tasks.length === 0) return null
-  return tasks.map((task) => ({
-    ...task,
-    allowedRoleCodes: Array.isArray(task.allowedRoleCodes) ? task.allowedRoleCodes : [],
-    isActive: task.isActive ?? true,
-    priority: task.priority ?? 'MEDIUM',
-  }))
+  return tasks.map((task) => {
+    const { priority: _priority, ...rest } = task
+    return {
+      ...rest,
+      allowedRoleCodes: Array.isArray(task.allowedRoleCodes) ? task.allowedRoleCodes : [],
+      isActive: task.isActive ?? true,
+    }
+  })
+}
+
+function normalizeRestrictionTaskPriority(
+  tasksByShift: Restrictions['demand']['tasks'],
+): Restrictions['demand']['tasks'] {
+  const next: Restrictions['demand']['tasks'] = { M: {}, T: {}, N: {} }
+  SHIFTS.forEach((shift) => {
+    const shiftTargets = tasksByShift[shift] ?? {}
+    const nextTargets: Record<
+      string,
+      { min: number; target: number; max: number; priority: TaskPriority }
+    > = {}
+    Object.entries(shiftTargets).forEach(([taskId, target]) => {
+      nextTargets[taskId] = {
+        ...target,
+        priority: target.priority ?? DEFAULT_TASK_PRIORITY,
+      }
+    })
+    next[shift] = nextTargets
+  })
+  return next
+}
+
+function normalizeRestrictions(restrictions: Restrictions): Restrictions {
+  return {
+    ...restrictions,
+    demand: {
+      ...restrictions.demand,
+      tasks: normalizeRestrictionTaskPriority(restrictions.demand.tasks),
+    },
+  }
 }
 
 function normalizeWorkers(raw: unknown): Worker[] | null {
@@ -168,7 +201,7 @@ export function getRestrictionPreset(profileName: string): Restrictions | null {
   try {
     const parsed = JSON.parse(raw) as Restrictions
     if (!parsed) return null
-    return { ...parsed, profileName }
+    return normalizeRestrictions({ ...parsed, profileName })
   } catch {
     return null
   }

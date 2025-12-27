@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { SHIFTS } from '../data/mock'
+import { DEFAULT_TASK_PRIORITY, SHIFT_LABEL, SHIFTS } from '../data/mock'
 import {
   getRestrictionPreset,
   getRestrictionPresetNames,
@@ -7,9 +7,11 @@ import {
   getTasks,
   setRestrictionPreset,
 } from '../lib/storage'
-import type { Restrictions, Role, Shift, Task } from '../types'
+import type { Restrictions, Role, Shift, Task, TaskPriority } from '../types'
 
 const fallbackWeekStart = '2025-12-29'
+const PRIORITIES: TaskPriority[] = ['HIGH', 'MEDIUM', 'LOW']
+const SHIFT_ORDER: Shift[] = ['N', 'M', 'T']
 
 function toDateInputValue(date: Date) {
   const year = date.getFullYear()
@@ -62,9 +64,14 @@ function ensureTaskTargets(restrictions: Restrictions, tasks: Task[]) {
 
   SHIFTS.forEach((shift) => {
     const shiftTargets = { ...next.demand.tasks[shift] }
+    Object.entries(shiftTargets).forEach(([taskId, target]) => {
+      if (!target.priority) {
+        shiftTargets[taskId] = { ...target, priority: DEFAULT_TASK_PRIORITY }
+      }
+    })
     activeTasks.forEach((task) => {
       if (!shiftTargets[task.id]) {
-        shiftTargets[task.id] = { min: 0, target: 0, max: 0, priority: task.priority }
+        shiftTargets[task.id] = { min: 0, target: 0, max: 0, priority: DEFAULT_TASK_PRIORITY }
       }
     })
     next.demand.tasks[shift] = shiftTargets
@@ -75,6 +82,14 @@ function ensureTaskTargets(restrictions: Restrictions, tasks: Task[]) {
 
 const compactInputStyle = {
   width: '56px',
+}
+
+const shiftCardStyle = {
+  marginTop: '1rem',
+  padding: '1rem',
+  border: '1px solid #e2e8f0',
+  borderRadius: '12px',
+  background: '#f8fafc',
 }
 
 export function RestrictionsPage() {
@@ -152,6 +167,26 @@ export function RestrictionsPage() {
     })
   }
 
+  function updateTaskPriority(shift: Shift, taskId: string, priority: TaskPriority) {
+    if (!restrictions) return
+    setRestrictionsState({
+      ...restrictions,
+      demand: {
+        ...restrictions.demand,
+        tasks: {
+          ...restrictions.demand.tasks,
+          [shift]: {
+            ...restrictions.demand.tasks[shift],
+            [taskId]: {
+              ...restrictions.demand.tasks[shift][taskId],
+              priority,
+            },
+          },
+        },
+      },
+    })
+  }
+
   function handleSave() {
     if (!restrictions) return
     setRestrictionPreset(presetName, { ...restrictions, profileName: presetName })
@@ -220,9 +255,9 @@ export function RestrictionsPage() {
         </div>
       </div>
       {savedLabel ? <p className="summary">{savedLabel}</p> : null}
-      {SHIFTS.map((shift) => (
-        <div key={shift} className="summary" style={{ marginTop: '1rem' }}>
-          <strong>{shift} shift task targets</strong>
+      {SHIFT_ORDER.map((shift) => (
+        <div key={shift} className="summary shift-card" style={shiftCardStyle}>
+          <strong>{SHIFT_LABEL[shift]} · objetivos de tareas</strong>
           {tasksByRole.map(({ role, tasks: roleTasks }) => (
             <div key={`${shift}-${role.code}`} style={{ marginTop: '0.75rem' }}>
               <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{role.name}</div>
@@ -231,13 +266,20 @@ export function RestrictionsPage() {
               ) : (
                 <div className="table-wrap">
                   <table className="compact-table">
+                    <colgroup>
+                      <col />
+                      <col style={{ width: '72px' }} />
+                      <col style={{ width: '72px' }} />
+                      <col style={{ width: '72px' }} />
+                      <col style={{ width: '110px' }} />
+                    </colgroup>
                     <thead>
                       <tr>
                         <th className="task-col">Task</th>
                         <th className="num-col">Min</th>
                         <th className="num-col">Target</th>
                         <th className="num-col">Max</th>
-                        <th className="num-col">Pri</th>
+                        <th className="prio-col">Pri</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -246,7 +288,7 @@ export function RestrictionsPage() {
                           min: 0,
                           target: 0,
                           max: 0,
-                          priority: task.priority,
+                          priority: DEFAULT_TASK_PRIORITY,
                         }
                         return (
                           <tr key={`${shift}-${role.code}-${task.id}`}>
@@ -290,7 +332,21 @@ export function RestrictionsPage() {
                                 }
                               />
                             </td>
-                            <td className="num-col">{target.priority[0]}</td>
+                            <td className="prio-col">
+                              <select
+                                className="priority-select"
+                                value={target.priority}
+                                onChange={(event) =>
+                                  updateTaskPriority(shift, task.id, event.target.value as TaskPriority)
+                                }
+                              >
+                                {PRIORITIES.map((priority) => (
+                                  <option key={priority} value={priority}>
+                                    {priority}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
                           </tr>
                         )}
                       )}

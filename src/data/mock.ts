@@ -1,4 +1,4 @@
-import type { Role, Shift, Task, Worker } from '../types'
+import type { Role, Shift, Task, TaskPriority, Worker } from '../types'
 
 export const SHIFTS: Shift[] = ['M', 'T', 'N']
 
@@ -7,6 +7,8 @@ export const SHIFT_LABEL: Record<Shift, string> = {
   T: 'Tarde',
   N: 'Noche',
 }
+
+export const DEFAULT_TASK_PRIORITY: TaskPriority = 'LOW'
 
 export const defaultRoles: Role[] = [
   { id: 'role-og', code: 'OG', name: 'Operador Grúa', isActive: true, countsForBalance: true },
@@ -20,126 +22,108 @@ export const defaultTasks: Task[] = [
     name: 'Operación grúa',
     allowedRoleCodes: ['OG'],
     isActive: true,
-    priority: 'MEDIUM',
   },
   {
     id: 'task-apoyo-patio',
     name: 'Apoyo patio',
     allowedRoleCodes: ['OG'],
     isActive: true,
-    priority: 'MEDIUM',
   },
   {
     id: 'task-apoyo-bodega',
     name: 'Apoyo bodega',
     allowedRoleCodes: ['AL'],
     isActive: true,
-    priority: 'MEDIUM',
   },
   {
     id: 'task-control-acceso',
     name: 'Control acceso',
     allowedRoleCodes: ['AL'],
     isActive: true,
-    priority: 'MEDIUM',
   },
   {
     id: 'task-control-ticket',
     name: 'Control Ticket',
     allowedRoleCodes: ['AL', 'JT'],
     isActive: true,
-    priority: 'HIGH',
   },
   {
     id: 'task-control-pallet',
     name: 'Control Pallet',
     allowedRoleCodes: ['AL', 'JT'],
     isActive: true,
-    priority: 'MEDIUM',
   },
   {
     id: 'task-descarga',
     name: 'Descarga',
     allowedRoleCodes: ['OG', 'AL'],
     isActive: true,
-    priority: 'HIGH',
   },
   {
     id: 'task-carga',
     name: 'Carga',
     allowedRoleCodes: ['OG', 'AL'],
     isActive: true,
-    priority: 'HIGH',
   },
   {
     id: 'task-alto-valor',
     name: 'Alto Valor',
     allowedRoleCodes: ['AL', 'JT'],
     isActive: true,
-    priority: 'HIGH',
   },
   {
     id: 'task-transferencia-alto-valor',
     name: 'Transferencia Alto Valor',
     allowedRoleCodes: ['AL', 'JT'],
     isActive: true,
-    priority: 'HIGH',
   },
   {
     id: 'task-remonte-reposicion',
     name: 'Remonte y Reposición',
     allowedRoleCodes: ['AL'],
     isActive: true,
-    priority: 'MEDIUM',
   },
   {
     id: 'task-retorno-envases',
     name: 'Retorno Envases',
     allowedRoleCodes: ['AL'],
     isActive: true,
-    priority: 'LOW',
   },
   {
     id: 'task-retorno-producto',
     name: 'Retorno Producto',
     allowedRoleCodes: ['AL'],
     isActive: true,
-    priority: 'LOW',
   },
   {
     id: 'task-tygard',
     name: 'Tygard',
     allowedRoleCodes: ['OG', 'AL'],
     isActive: true,
-    priority: 'MEDIUM',
   },
   {
     id: 'task-apoyo-tygard',
     name: 'Apoyo Tygard',
     allowedRoleCodes: ['OG', 'AL'],
     isActive: true,
-    priority: 'MEDIUM',
   },
   {
     id: 'task-apoyo-picking',
     name: 'Apoyo Picking',
     allowedRoleCodes: ['AL'],
     isActive: true,
-    priority: 'MEDIUM',
   },
   {
     id: 'task-reempaque-alto-valor',
     name: 'Reempaque Alto Valor',
     allowedRoleCodes: ['AL'],
     isActive: true,
-    priority: 'HIGH',
   },
   {
     id: 'task-picking-alto-valor',
     name: 'Picking Alto Valor',
     allowedRoleCodes: ['AL'],
     isActive: true,
-    priority: 'HIGH',
   },
 ]
 

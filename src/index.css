@@ -191,6 +191,19 @@ th {
   text-align: center;
 }
 
+.compact-table .prio-col {
+  width: 110px;
+  text-align: center;
+}
+
+.priority-select {
+  width: 100%;
+}
+
+.shift-card {
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.2);
+}
+
 .placeholder {
   margin-top: 16px;
   padding: 20px;
