@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
-import { SHIFT_LABEL, SHIFTS, TASKS_BY_GROUP, prevWeekShifts, workers } from '../data/mock'
+import { SHIFT_LABEL, SHIFTS, prevWeekShifts } from '../data/mock'
 import { generateAssignments } from '../lib/planning'
-import { clearPlanning, loadPlanning, savePlanning } from '../lib/storage'
-import type { Assignment, PlanningRecord, Shift } from '../lib/types'
+import {
+  clearPlanning,
+  getPlanning,
+  getRestrictions,
+  getRoles,
+  getTasks,
+  getWorkers,
+  setPlanning,
+} from '../lib/storage'
+import type { Assignment, PlanningRecord, Role, Shift, Task, Worker } from '../types'
 
 const fallbackWeekStart = '2025-12-29'
-
-const GROUPS = Object.keys(TASKS_BY_GROUP) as Array<keyof typeof TASKS_BY_GROUP>
 
 function toDateInputValue(date: Date) {
   const year = date.getFullYear()
@@ -40,16 +46,62 @@ function makeRecord(weekStart: string, assignments: Assignment[]): PlanningRecor
   return { weekStart, assignments }
 }
 
+function normalizeAssignments(assignments: Assignment[], workers: Worker[], tasks: Task[]) {
+  const workerById = new Map(workers.map((worker) => [worker.id, worker]))
+  const taskById = new Map(tasks.map((task) => [task.id, task]))
+  let invalidCount = 0
+
+  const normalized = assignments.map((assignment) => {
+    if (!assignment.taskId) return assignment
+    const worker = workerById.get(assignment.workerId)
+    const task = taskById.get(assignment.taskId)
+    if (!worker || !task || !task.allowedRoleCodes.includes(worker.roleCode)) {
+      invalidCount += 1
+      return { ...assignment, taskId: undefined }
+    }
+    return assignment
+  })
+
+  return {
+    assignments: normalized,
+    warnings: invalidCount > 0 ? [`Cleared ${invalidCount} invalid task assignments.`] : [],
+  }
+}
+
 export function PlanningPage() {
   const [weekStart, setWeekStart] = useState(getDefaultWeekStart)
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [savedLabel, setSavedLabel] = useState<string | null>(null)
+  const [roles, setRoles] = useState<Role[]>([])
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [workers, setWorkers] = useState<Worker[]>([])
+  const [warnings, setWarnings] = useState<string[]>([])
 
   useEffect(() => {
-    const saved = loadPlanning(weekStart)
-    setAssignments(saved?.assignments ?? [])
-    setSavedLabel(saved ? 'Saved' : null)
-  }, [weekStart])
+    setRoles(getRoles())
+    setTasks(getTasks())
+    setWorkers(getWorkers())
+  }, [])
+
+  useEffect(() => {
+    const saved = getPlanning(weekStart)
+    if (!saved) {
+      setAssignments([])
+      setSavedLabel(null)
+      setWarnings([])
+      return
+    }
+    if (workers.length === 0 || tasks.length === 0) {
+      setAssignments(saved.assignments)
+      setWarnings([])
+      setSavedLabel('Saved')
+      return
+    }
+    const normalized = normalizeAssignments(saved.assignments, workers, tasks)
+    setAssignments(normalized.assignments)
+    setWarnings(normalized.warnings)
+    setSavedLabel('Saved')
+  }, [weekStart, workers, tasks])
 
   const assignmentsByWorker = useMemo(() => {
     return new Map(assignments.map((assignment) => [assignment.workerId, assignment]))
@@ -57,25 +109,46 @@ export function PlanningPage() {
 
   const counts = useMemo(() => countAssignments(assignments), [assignments])
 
+  const roleNameByCode = useMemo(() => new Map(roles.map((role) => [role.code, role.name])), [roles])
+
+  const activeTasks = useMemo(() => tasks.filter((task) => task.isActive), [tasks])
+
+  const tasksByRole = useMemo(() => {
+    const map = new Map<string, Task[]>()
+    activeTasks.forEach((task) => {
+      task.allowedRoleCodes.forEach((roleCode) => {
+        const existing = map.get(roleCode) ?? []
+        existing.push(task)
+        map.set(roleCode, existing)
+      })
+    })
+    return map
+  }, [activeTasks])
+
   function persist(nextAssignments: Assignment[]) {
     setAssignments(nextAssignments)
-    savePlanning(weekStart, makeRecord(weekStart, nextAssignments))
+    setPlanning(weekStart, makeRecord(weekStart, nextAssignments))
     setSavedLabel(`Saved ${new Date().toLocaleTimeString()}`)
   }
 
   function handleGenerate() {
+    const restrictions = getRestrictions(weekStart)
     const nextAssignments = generateAssignments({
       weekStart,
       workers,
       prevWeekShifts,
+      roles,
+      restrictions,
     })
     persist(nextAssignments)
+    setWarnings([])
   }
 
   function handleClear() {
     clearPlanning(weekStart)
     setAssignments([])
     setSavedLabel(null)
+    setWarnings([])
   }
 
   function handleShiftChange(workerId: number, shift: string) {
@@ -99,13 +172,13 @@ export function PlanningPage() {
     persist(nextAssignments)
   }
 
-  function handleTaskChange(workerId: number, task: string) {
+  function handleTaskChange(workerId: number, taskId: string) {
     const nextAssignments = assignments.map((assignment) => ({ ...assignment }))
     const index = nextAssignments.findIndex((assignment) => assignment.workerId === workerId)
     if (index === -1) return
     nextAssignments[index] = {
       ...nextAssignments[index],
-      task: task || undefined,
+      taskId: taskId || undefined,
       source: 'manual',
     }
     persist(nextAssignments)
@@ -116,18 +189,28 @@ export function PlanningPage() {
     const assignmentsMap = new Map(nextAssignments.map((assignment) => [assignment.workerId, assignment]))
 
     SHIFTS.forEach((shift) => {
-      GROUPS.forEach((group) => {
-        const tasks = TASKS_BY_GROUP[group]
+      const workersOnShift = workers.filter((worker) => {
+        const assignment = assignmentsMap.get(worker.id)
+        return assignment?.shift === shift
+      })
+
+      const workersByRole = new Map<string, Worker[]>()
+      workersOnShift.forEach((worker) => {
+        const list = workersByRole.get(worker.roleCode) ?? []
+        list.push(worker)
+        workersByRole.set(worker.roleCode, list)
+      })
+
+      workersByRole.forEach((roleWorkers, roleCode) => {
+        const eligibleTasks = tasksByRole.get(roleCode) ?? []
+        if (eligibleTasks.length === 0) return
         let taskIndex = 0
-        workers
-          .filter((worker) => worker.group === group)
-          .forEach((worker) => {
-            const assignment = assignmentsMap.get(worker.id)
-            if (!assignment || assignment.shift !== shift) return
-            if (assignment.task) return
-            assignment.task = tasks[taskIndex % tasks.length]
-            taskIndex += 1
-          })
+        roleWorkers.forEach((worker) => {
+          const assignment = assignmentsMap.get(worker.id)
+          if (!assignment || assignment.taskId) return
+          assignment.taskId = eligibleTasks[taskIndex % eligibleTasks.length].id
+          taskIndex += 1
+        })
       })
     })
 
@@ -162,12 +245,22 @@ export function PlanningPage() {
         Summary: {SHIFTS.map((shift) => `${shift}: ${counts[shift]}`).join(', ')}
       </p>
       {savedLabel ? <p className="summary">{savedLabel}</p> : null}
+      {warnings.length > 0 ? (
+        <div className="summary">
+          <strong>Warnings</strong>
+          <ul>
+            {warnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
               <th>Name</th>
-              <th>Group</th>
+              <th>Role</th>
               <th>Contract</th>
               <th>Shift Mode</th>
               <th>Assigned Shift</th>
@@ -181,15 +274,17 @@ export function PlanningPage() {
               const isFixed = worker.shiftMode === 'Fijo'
               const fixedShift = worker.fixedShift
               const currentShift = isFixed ? fixedShift : assignment?.shift
-              const shiftOptions = isFixed
-                ? fixedShift
-                  ? [fixedShift]
-                  : []
-                : allowedShifts
+              const shiftOptions = isFixed ? (fixedShift ? [fixedShift] : []) : allowedShifts
+              const availableTasks = tasksByRole.get(worker.roleCode) ?? []
               return (
                 <tr key={worker.id}>
                   <td>{worker.name}</td>
-                  <td>{worker.group}</td>
+                  <td>
+                    {worker.roleCode}
+                    {roleNameByCode.get(worker.roleCode)
+                      ? ` (${roleNameByCode.get(worker.roleCode)})`
+                      : ''}
+                  </td>
                   <td>{worker.contract}</td>
                   <td>{worker.shiftMode}</td>
                   <td>
@@ -212,19 +307,23 @@ export function PlanningPage() {
                   <td>
                     <div className="field">
                       <select
-                        value={assignment?.task ?? ''}
+                        value={assignment?.taskId ?? ''}
                         disabled={!assignment}
                         onChange={(event) => handleTaskChange(worker.id, event.target.value)}
                       >
                         <option value="">-</option>
-                        {TASKS_BY_GROUP[worker.group].map((task) => (
-                          <option key={task} value={task}>
-                            {task}
+                        {availableTasks.map((task) => (
+                          <option key={task.id} value={task.id}>
+                            {task.name}
                           </option>
                         ))}
                       </select>
                     </div>
-                    <div>{assignment?.task ?? '-'}</div>
+                    <div>
+                      {assignment?.taskId
+                        ? tasks.find((task) => task.id === assignment.taskId)?.name ?? 'Unknown'
+                        : '-'}
+                    </div>
                   </td>
                 </tr>
               )

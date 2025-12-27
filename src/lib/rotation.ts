@@ -1,4 +1,4 @@
-import type { Shift } from '../data/mock'
+import type { Shift } from '../types'
 
 export function rotateStable(prev: Shift): Shift {
   if (prev === 'N') return 'T'
