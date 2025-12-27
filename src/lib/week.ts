@@ -53,5 +53,5 @@ export function getWeekEndDate(weekStart: Date) {
 export function getWeekRangeLabel(weekNumber: number, year: number) {
   const start = getWeekStartDate(weekNumber, year)
   const end = getWeekEndDate(start)
-  return `a ${formatDateShort(start)} hasta ${formatDateShort(end)}`
+  return `${formatDateShort(start)} a ${formatDateShort(end)}`
 }

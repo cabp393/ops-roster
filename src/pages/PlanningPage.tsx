@@ -341,7 +341,7 @@ export function PlanningPage() {
               }}
             />
           </label>
-          <div className="week-range">Semana {weekNumber}: {weekLabel}</div>
+          <div className="week-range">{weekLabel}</div>
         </div>
         <div className="button-row">
           <button type="button" onClick={handleSeed}>

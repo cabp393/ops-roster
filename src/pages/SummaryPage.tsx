@@ -137,7 +137,7 @@ export function SummaryPage() {
               }}
             />
           </label>
-          <div className="week-range">Semana {weekNumber}: {getWeekRangeLabel(weekNumber, weekYear)}</div>
+          <div className="week-range">{getWeekRangeLabel(weekNumber, weekYear)}</div>
         </div>
       </div>
       {!summary ? (
