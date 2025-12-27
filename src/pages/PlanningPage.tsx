@@ -1,17 +1,24 @@
-import { useEffect, useMemo, useState } from 'react'
-import { SHIFT_LABEL, SHIFTS, prevWeekShifts } from '../data/mock'
-import { generateAssignments } from '../lib/planning'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
-  clearPlanning,
-  getPlanning,
-  getRestrictionPreset,
-  getRestrictionPresetNames,
-  getRoles,
-  getTasks,
-  getWorkers,
-  setPlanning,
-} from '../lib/storage'
-import type { Assignment, PlanningRecord, Role, Shift, Task, Worker } from '../types'
+  closestCenter,
+  DndContext,
+  PointerSensor,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { SHIFT_LABEL, SHIFTS, prevWeekShifts } from '../data/mock'
+import { clearWeekPlan, loadWeekPlan, saveWeekPlan, seedWeekPlan } from '../lib/planningBoard'
+import { getTasks, getWorkers } from '../lib/storage'
+import type { Shift, Task, WeekPlan, Worker } from '../types'
 
 const fallbackWeekStart = '2025-12-29'
 
@@ -35,78 +42,150 @@ function getDefaultWeekStart() {
   }
 }
 
-function makeRecord(weekStart: string, assignments: Assignment[]): PlanningRecord {
-  return { weekStart, assignments }
+const emptyPlan: WeekPlan = {
+  weekStart: fallbackWeekStart,
+  columns: { M: [], T: [], N: [] },
+  tasksByWorkerId: {},
 }
 
-function normalizeAssignments(assignments: Assignment[], workers: Worker[], tasks: Task[]) {
-  const workerById = new Map(workers.map((worker) => [worker.id, worker]))
-  const taskById = new Map(tasks.map((task) => [task.id, task]))
-  let invalidCount = 0
+function allowedShiftsForWorker(worker: Worker): Shift[] {
+  if (worker.shiftMode === 'Fijo' && worker.fixedShift) return [worker.fixedShift]
+  return worker.constraints?.allowedShifts ?? SHIFTS
+}
 
-  const normalized = assignments.map((assignment) => {
-    if (!assignment.taskId) return assignment
-    const worker = workerById.get(assignment.workerId)
-    const task = taskById.get(assignment.taskId)
-    if (!worker || !task || !task.allowedRoleCodes.includes(worker.roleCode)) {
-      invalidCount += 1
-      return { ...assignment, taskId: undefined }
-    }
-    return assignment
+function sanitizePlan(plan: WeekPlan, activeIds: Set<number>): WeekPlan {
+  const tasksByWorkerId: Record<number, string | null> = {}
+  Object.entries(plan.tasksByWorkerId).forEach(([key, value]) => {
+    const id = Number(key)
+    if (Number.isNaN(id) || !activeIds.has(id)) return
+    tasksByWorkerId[id] = value
   })
 
-  return {
-    assignments: normalized,
-    warnings: invalidCount > 0 ? [`Cleared ${invalidCount} invalid task assignments.`] : [],
+  const columns = SHIFTS.reduce<Record<Shift, number[]>>(
+    (acc, shift) => {
+      acc[shift] = (plan.columns[shift] ?? []).filter((id) => activeIds.has(id))
+      return acc
+    },
+    { M: [], T: [], N: [] },
+  )
+
+  return { ...plan, columns, tasksByWorkerId }
+}
+
+function findWorkerShift(columns: WeekPlan['columns'], workerId: number): Shift | null {
+  for (const shift of SHIFTS) {
+    if (columns[shift].includes(workerId)) return shift
   }
+  return null
+}
+
+type WorkerCardProps = {
+  worker: Worker
+  taskOptions: Task[]
+  taskValue: string | null
+  onTaskChange: (workerId: number, taskId: string) => void
+}
+
+function WorkerCard({ worker, taskOptions, taskValue, onTaskChange }: WorkerCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: worker.id,
+  })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`worker-card${isDragging ? ' dragging' : ''}`}
+      {...attributes}
+      {...listeners}
+    >
+      <div className="worker-card-header">
+        <div>
+          <div className="worker-name">{worker.name}</div>
+          <div className="worker-badges">
+            <span className="badge">{worker.roleCode}</span>
+            {worker.contract ? <span className="badge subtle">{worker.contract}</span> : null}
+          </div>
+        </div>
+      </div>
+      <label className="field worker-task">
+        Task
+        <select
+          value={taskValue ?? ''}
+          onChange={(event) => onTaskChange(worker.id, event.target.value)}
+        >
+          <option value="">Unassigned</option>
+          {taskOptions.map((task) => (
+            <option key={task.id} value={task.id}>
+              {task.name}
+            </option>
+          ))}
+        </select>
+      </label>
+    </div>
+  )
+}
+
+type ShiftColumnProps = {
+  shift: Shift
+  workerIds: number[]
+  children: ReactNode
+}
+
+function ShiftColumn({ shift, workerIds, children }: ShiftColumnProps) {
+  const { setNodeRef, isOver } = useDroppable({ id: `column-${shift}` })
+
+  return (
+    <div ref={setNodeRef} className={`shift-column${isOver ? ' over' : ''}`}>
+      <div className="shift-column-header">
+        <div>
+          <strong>{SHIFT_LABEL[shift]}</strong>
+        </div>
+        <span className="shift-count">{workerIds.length}</span>
+      </div>
+      {children}
+    </div>
+  )
 }
 
 export function PlanningPage() {
   const [weekStart, setWeekStart] = useState(getDefaultWeekStart)
-  const [assignments, setAssignments] = useState<Assignment[]>([])
-  const [savedLabel, setSavedLabel] = useState<string | null>(null)
-  const [presetName, setPresetName] = useState('')
-  const [presetOptions, setPresetOptions] = useState<string[]>([])
-  const [roles, setRoles] = useState<Role[]>([])
+  const [plan, setPlan] = useState<WeekPlan>(emptyPlan)
   const [tasks, setTasks] = useState<Task[]>([])
   const [workers, setWorkers] = useState<Worker[]>([])
 
   useEffect(() => {
-    setRoles(getRoles())
     setTasks(getTasks())
     setWorkers(getWorkers())
   }, [])
 
-  useEffect(() => {
-    const presets = getRestrictionPresetNames()
-    setPresetOptions(presets)
-    if (!presetName && presets.length > 0) {
-      setPresetName(presets[0])
-    }
-  }, [presetName])
+  const activeWorkers = useMemo(
+    () => workers.filter((worker) => worker.isActive !== false),
+    [workers],
+  )
+
+  const activeWorkerIds = useMemo(() => new Set(activeWorkers.map((worker) => worker.id)), [
+    activeWorkers,
+  ])
 
   useEffect(() => {
-    const saved = getPlanning(weekStart)
+    const saved = loadWeekPlan(weekStart)
     if (!saved) {
-      setAssignments([])
-      setSavedLabel(null)
+      setPlan({ ...emptyPlan, weekStart })
       return
     }
-    if (workers.length === 0 || tasks.length === 0) {
-      setAssignments(saved.assignments)
-      setSavedLabel('Saved')
-      return
-    }
-    const normalized = normalizeAssignments(saved.assignments, workers, tasks)
-    setAssignments(normalized.assignments)
-    setSavedLabel('Saved')
-  }, [weekStart, workers, tasks])
+    setPlan(sanitizePlan({ ...saved, weekStart }, activeWorkerIds))
+  }, [weekStart, activeWorkerIds])
 
-  const assignmentsByWorker = useMemo(() => {
-    return new Map(assignments.map((assignment) => [assignment.workerId, assignment]))
-  }, [assignments])
-
-  const roleNameByCode = useMemo(() => new Map(roles.map((role) => [role.code, role.name])), [roles])
+  const workerById = useMemo(
+    () => new Map(activeWorkers.map((worker) => [worker.id, worker])),
+    [activeWorkers],
+  )
 
   const activeTasks = useMemo(() => tasks.filter((task) => task.isActive), [tasks])
 
@@ -122,94 +201,96 @@ export function PlanningPage() {
     return map
   }, [activeTasks])
 
-  function persist(nextAssignments: Assignment[]) {
-    setAssignments(nextAssignments)
-    setPlanning(weekStart, makeRecord(weekStart, nextAssignments))
-    setSavedLabel(`Saved ${new Date().toLocaleTimeString()}`)
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
+
+  function persist(nextPlan: WeekPlan) {
+    setPlan(nextPlan)
+    saveWeekPlan(weekStart, nextPlan)
   }
 
-  function handleGenerate() {
-    const restrictions = presetName ? getRestrictionPreset(presetName) : null
-    const nextAssignments = generateAssignments({
-      weekStart,
-      workers,
-      prevWeekShifts,
-      roles,
-      restrictions,
-    })
-    persist(nextAssignments)
+  function handleSeed() {
+    const seeded = seedWeekPlan(weekStart, activeWorkers, prevWeekShifts)
+    persist(seeded)
   }
 
   function handleClear() {
-    clearPlanning(weekStart)
-    setAssignments([])
-    setSavedLabel(null)
-  }
-
-  function handleShiftChange(workerId: number, shift: string) {
-    if (!shift) return
-    const nextAssignments = assignments.map((assignment) => ({ ...assignment }))
-    const index = nextAssignments.findIndex((assignment) => assignment.workerId === workerId)
-    if (index >= 0) {
-      nextAssignments[index] = {
-        ...nextAssignments[index],
-        shift: shift as Shift,
-        source: 'manual',
-      }
-    } else {
-      nextAssignments.push({
-        workerId,
-        weekStart,
-        shift: shift as Shift,
-        source: 'manual',
-      })
-    }
-    persist(nextAssignments)
+    clearWeekPlan(weekStart)
+    setPlan({ ...emptyPlan, weekStart })
   }
 
   function handleTaskChange(workerId: number, taskId: string) {
-    const nextAssignments = assignments.map((assignment) => ({ ...assignment }))
-    const index = nextAssignments.findIndex((assignment) => assignment.workerId === workerId)
-    if (index === -1) return
-    nextAssignments[index] = {
-      ...nextAssignments[index],
-      taskId: taskId || undefined,
-      source: 'manual',
+    const nextPlan: WeekPlan = {
+      ...plan,
+      tasksByWorkerId: {
+        ...plan.tasksByWorkerId,
+        [workerId]: taskId || null,
+      },
     }
-    persist(nextAssignments)
+    persist(nextPlan)
   }
 
-  function handleAutoTasks() {
-    const nextAssignments = assignments.map((assignment) => ({ ...assignment }))
-    const assignmentsMap = new Map(nextAssignments.map((assignment) => [assignment.workerId, assignment]))
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over) return
 
-    SHIFTS.forEach((shift) => {
-      const workersOnShift = workers.filter((worker) => {
-        const assignment = assignmentsMap.get(worker.id)
-        return assignment?.shift === shift
-      })
+    const activeId = active.id as number
+    const overId = over.id
+    const sourceShift = findWorkerShift(plan.columns, activeId)
+    if (!sourceShift) return
 
-      const workersByRole = new Map<string, Worker[]>()
-      workersOnShift.forEach((worker) => {
-        const list = workersByRole.get(worker.roleCode) ?? []
-        list.push(worker)
-        workersByRole.set(worker.roleCode, list)
-      })
+    let targetShift: Shift | null = null
+    let targetIndex = -1
 
-      workersByRole.forEach((roleWorkers, roleCode) => {
-        const eligibleTasks = tasksByRole.get(roleCode) ?? []
-        if (eligibleTasks.length === 0) return
-        let taskIndex = 0
-        roleWorkers.forEach((worker) => {
-          const assignment = assignmentsMap.get(worker.id)
-          if (!assignment || assignment.taskId) return
-          assignment.taskId = eligibleTasks[taskIndex % eligibleTasks.length].id
-          taskIndex += 1
-        })
+    if (typeof overId === 'string' && overId.startsWith('column-')) {
+      targetShift = overId.replace('column-', '') as Shift
+      targetIndex = plan.columns[targetShift]?.length ?? 0
+    } else {
+      const overWorkerId = overId as number
+      targetShift = findWorkerShift(plan.columns, overWorkerId)
+      if (!targetShift) return
+      targetIndex = plan.columns[targetShift].indexOf(overWorkerId)
+    }
+
+    if (!targetShift) return
+
+    const worker = workerById.get(activeId)
+    if (!worker) return
+    const allowedShifts = allowedShiftsForWorker(worker)
+    if (!allowedShifts.includes(targetShift)) return
+
+    if (sourceShift === targetShift) {
+      const sourceIndex = plan.columns[sourceShift].indexOf(activeId)
+      if (sourceIndex === -1) return
+      const maxIndex = plan.columns[sourceShift].length - 1
+      const boundedIndex = Math.max(0, Math.min(targetIndex, maxIndex))
+      if (sourceIndex === boundedIndex) return
+      const reordered = arrayMove(plan.columns[sourceShift], sourceIndex, boundedIndex)
+      persist({
+        ...plan,
+        columns: {
+          ...plan.columns,
+          [sourceShift]: reordered,
+        },
       })
+      return
+    }
+
+    const sourceItems = [...plan.columns[sourceShift]]
+    const targetItems = [...plan.columns[targetShift]]
+    const sourceIndex = sourceItems.indexOf(activeId)
+    if (sourceIndex === -1) return
+    sourceItems.splice(sourceIndex, 1)
+    const insertIndex = targetIndex < 0 ? targetItems.length : targetIndex
+    targetItems.splice(insertIndex, 0, activeId)
+
+    persist({
+      ...plan,
+      columns: {
+        ...plan.columns,
+        [sourceShift]: sourceItems,
+        [targetShift]: targetItems,
+      },
     })
-
-    persist(nextAssignments)
   }
 
   return (
@@ -223,96 +304,45 @@ export function PlanningPage() {
             onChange={(event) => setWeekStart(event.target.value)}
           />
         </label>
-        <label className="field">
-          Preset
-          <select value={presetName} onChange={(event) => setPresetName(event.target.value)}>
-            <option value="">No preset</option>
-            {presetOptions.map((preset) => (
-              <option key={preset} value={preset}>
-                {preset}
-              </option>
-            ))}
-          </select>
-        </label>
         <div className="button-row">
-          <button type="button" onClick={handleGenerate}>
-            Generate shifts
-          </button>
-          <button type="button" onClick={handleAutoTasks}>
-            Auto tasks
+          <button type="button" onClick={handleSeed}>
+            Seed week
           </button>
           <button type="button" onClick={handleClear}>
             Clear week
           </button>
         </div>
       </div>
-      {savedLabel ? <p className="summary">{savedLabel}</p> : null}
-      <div className="table-wrap">
-        <table className="compact-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Role</th>
-              <th>Assigned Shift</th>
-              <th>Task</th>
-            </tr>
-          </thead>
-          <tbody>
-            {workers.map((worker) => {
-              const assignment = assignmentsByWorker.get(worker.id)
-              const allowedShifts = worker.constraints?.allowedShifts ?? SHIFTS
-              const isFixed = worker.shiftMode === 'Fijo'
-              const fixedShift = worker.fixedShift
-              const currentShift = isFixed ? fixedShift : assignment?.shift
-              const shiftOptions = isFixed ? (fixedShift ? [fixedShift] : []) : allowedShifts
-              const availableTasks = tasksByRole.get(worker.roleCode) ?? []
-              return (
-                <tr key={worker.id}>
-                  <td>{worker.name}</td>
-                  <td>
-                    {worker.roleCode}
-                    {roleNameByCode.get(worker.roleCode)
-                      ? ` (${roleNameByCode.get(worker.roleCode)})`
-                      : ''}
-                  </td>
-                  <td>
-                    <div className="field">
-                      <select
-                        value={currentShift ?? ''}
-                        disabled={isFixed}
-                        onChange={(event) => handleShiftChange(worker.id, event.target.value)}
-                      >
-                        <option value="">-</option>
-                        {shiftOptions.map((shift) => (
-                          <option key={shift} value={shift}>
-                            {SHIFT_LABEL[shift]}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="field">
-                      <select
-                        value={assignment?.taskId ?? ''}
-                        disabled={!assignment}
-                        onChange={(event) => handleTaskChange(worker.id, event.target.value)}
-                      >
-                        <option value="">-</option>
-                        {availableTasks.map((task) => (
-                          <option key={task.id} value={task.id}>
-                            {task.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <div className="planning-board">
+          {SHIFTS.map((shift) => {
+            const workerIds = plan.columns[shift] ?? []
+            return (
+              <ShiftColumn key={shift} shift={shift} workerIds={workerIds}>
+                <SortableContext items={workerIds} strategy={verticalListSortingStrategy}>
+                  <div className="shift-column-body" data-column={shift}>
+                    {workerIds.map((workerId) => {
+                      const worker = workerById.get(workerId)
+                      if (!worker) return null
+                      const taskOptions = tasksByRole.get(worker.roleCode) ?? []
+                      const taskValue = plan.tasksByWorkerId[workerId] ?? null
+                      return (
+                        <WorkerCard
+                          key={workerId}
+                          worker={worker}
+                          taskOptions={taskOptions}
+                          taskValue={taskValue}
+                          onTaskChange={handleTaskChange}
+                        />
+                      )
+                    })}
+                  </div>
+                </SortableContext>
+              </ShiftColumn>
+            )
+          })}
+        </div>
+      </DndContext>
     </section>
   )
 }

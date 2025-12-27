@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { SHIFTS, SHIFT_LABEL } from '../data/mock'
-import { getPlanning, getRoles, getTasks, getWorkers } from '../lib/storage'
+import { loadWeekPlan } from '../lib/planningBoard'
+import { getRoles, getTasks, getWorkers } from '../lib/storage'
 import { summarizeWeek } from '../lib/summary'
 import type { Assignment, Role, Task, Worker } from '../types'
 
@@ -40,8 +41,25 @@ export function SummaryPage() {
   }, [])
 
   useEffect(() => {
-    const saved = getPlanning(weekStart)
-    setAssignments(saved?.assignments ?? null)
+    const saved = loadWeekPlan(weekStart)
+    if (!saved) {
+      setAssignments(null)
+      return
+    }
+    const nextAssignments: Assignment[] = []
+    SHIFTS.forEach((shift) => {
+      const workerIds = saved.columns[shift] ?? []
+      workerIds.forEach((workerId) => {
+        nextAssignments.push({
+          workerId,
+          weekStart,
+          shift,
+          taskId: saved.tasksByWorkerId[workerId] ?? undefined,
+          source: 'manual',
+        })
+      })
+    })
+    setAssignments(nextAssignments)
   }, [weekStart])
 
   const summary = useMemo(() => {

@@ -9,7 +9,7 @@ import { SetupPage } from './pages/SetupPage'
 export function App() {
   const [activeTab, setActiveTab] = useState<
     'planning' | 'summary' | 'restrictions' | 'workers' | 'setup'
-  >('summary')
+  >('planning')
 
   return (
     <div className="app">

@@ -45,6 +45,12 @@ export type PlanningRecord = {
   assignments: Assignment[]
 }
 
+export type WeekPlan = {
+  weekStart: string
+  columns: Record<Shift, number[]>
+  tasksByWorkerId: Record<number, string | null>
+}
+
 export type PlanningInput = {
   weekStart: string
   workers: Worker[]
