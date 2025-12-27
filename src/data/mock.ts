@@ -8,7 +8,7 @@ export const SHIFT_LABEL: Record<Shift, string> = {
   N: 'Noche',
 }
 
-export const DEFAULT_TASK_PRIORITY: TaskPriority = 'MEDIUM'
+export const DEFAULT_TASK_PRIORITY: TaskPriority = 'LOW'
 
 export const defaultRoles: Role[] = [
   { id: 'role-og', code: 'OG', name: 'Operador Grúa', isActive: true, countsForBalance: true },

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { DEFAULT_TASK_PRIORITY, SHIFTS } from '../data/mock'
+import { DEFAULT_TASK_PRIORITY, SHIFT_LABEL, SHIFTS } from '../data/mock'
 import {
   getRestrictionPreset,
   getRestrictionPresetNames,
@@ -11,6 +11,7 @@ import type { Restrictions, Role, Shift, Task, TaskPriority } from '../types'
 
 const fallbackWeekStart = '2025-12-29'
 const PRIORITIES: TaskPriority[] = ['HIGH', 'MEDIUM', 'LOW']
+const SHIFT_ORDER: Shift[] = ['N', 'M', 'T']
 
 function toDateInputValue(date: Date) {
   const year = date.getFullYear()
@@ -81,6 +82,14 @@ function ensureTaskTargets(restrictions: Restrictions, tasks: Task[]) {
 
 const compactInputStyle = {
   width: '56px',
+}
+
+const shiftCardStyle = {
+  marginTop: '1rem',
+  padding: '1rem',
+  border: '1px solid #e2e8f0',
+  borderRadius: '12px',
+  background: '#f8fafc',
 }
 
 export function RestrictionsPage() {
@@ -246,9 +255,9 @@ export function RestrictionsPage() {
         </div>
       </div>
       {savedLabel ? <p className="summary">{savedLabel}</p> : null}
-      {SHIFTS.map((shift) => (
-        <div key={shift} className="summary" style={{ marginTop: '1rem' }}>
-          <strong>{shift} shift task targets</strong>
+      {SHIFT_ORDER.map((shift) => (
+        <div key={shift} className="summary shift-card" style={shiftCardStyle}>
+          <strong>{SHIFT_LABEL[shift]} · objetivos de tareas</strong>
           {tasksByRole.map(({ role, tasks: roleTasks }) => (
             <div key={`${shift}-${role.code}`} style={{ marginTop: '0.75rem' }}>
               <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{role.name}</div>
@@ -257,13 +266,20 @@ export function RestrictionsPage() {
               ) : (
                 <div className="table-wrap">
                   <table className="compact-table">
+                    <colgroup>
+                      <col />
+                      <col style={{ width: '72px' }} />
+                      <col style={{ width: '72px' }} />
+                      <col style={{ width: '72px' }} />
+                      <col style={{ width: '110px' }} />
+                    </colgroup>
                     <thead>
                       <tr>
                         <th className="task-col">Task</th>
                         <th className="num-col">Min</th>
                         <th className="num-col">Target</th>
                         <th className="num-col">Max</th>
-                        <th className="num-col">Pri</th>
+                        <th className="prio-col">Pri</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -316,8 +332,9 @@ export function RestrictionsPage() {
                                 }
                               />
                             </td>
-                            <td>
+                            <td className="prio-col">
                               <select
+                                className="priority-select"
                                 value={target.priority}
                                 onChange={(event) =>
                                   updateTaskPriority(shift, task.id, event.target.value as TaskPriority)
