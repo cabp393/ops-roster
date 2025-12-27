@@ -47,13 +47,10 @@ function normalizeRestrictionTaskPriority(
   const next: Restrictions['demand']['tasks'] = { M: {}, T: {}, N: {} }
   SHIFTS.forEach((shift) => {
     const shiftTargets = tasksByShift[shift] ?? {}
-    const nextTargets: Record<
-      string,
-      { min: number; target: number; max: number; priority: TaskPriority }
-    > = {}
+    const nextTargets: Record<string, { max: number; priority: TaskPriority }> = {}
     Object.entries(shiftTargets).forEach(([taskId, target]) => {
       nextTargets[taskId] = {
-        ...target,
+        max: target.max ?? 0,
         priority: target.priority ?? DEFAULT_TASK_PRIORITY,
       }
     })
