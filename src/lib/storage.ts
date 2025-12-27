@@ -1,20 +1,15 @@
-import type { Assignment, PlanningRecord, Restrictions, Role, Task, TaskPriority, Worker } from '../types'
-import { DEFAULT_TASK_PRIORITY, SHIFTS, defaultRoles, defaultTasks, defaultWorkers } from '../data/mock'
+import type { Assignment, PlanningRecord, Role, Task, Worker } from '../types'
+import { defaultRoles, defaultTasks, defaultWorkers } from '../data/mock'
 
 const PLANNING_PREFIX = 'opsRoster:planning'
 const ROLES_KEY = 'opsRoster:roles'
 const TASKS_KEY = 'opsRoster:tasks'
 const WORKERS_KEY = 'opsRoster:workers'
-const RESTRICTIONS_PREFIX = 'opsRoster:restrictionPresets'
-const RESTRICTIONS_PRESETS_KEY = 'opsRoster:restrictionPresets:list'
 
 function planningKey(weekStart: string) {
   return `${PLANNING_PREFIX}:${weekStart}`
 }
 
-function restrictionsKey(profileName: string) {
-  return `${RESTRICTIONS_PREFIX}:${profileName}`
-}
 
 function normalizeRoles(raw: unknown): Role[] | null {
   if (!Array.isArray(raw)) return null
@@ -29,44 +24,15 @@ function normalizeRoles(raw: unknown): Role[] | null {
 
 function normalizeTasks(raw: unknown): Task[] | null {
   if (!Array.isArray(raw)) return null
-  const tasks = raw.filter((task) => task && typeof task === 'object') as Array<Task & { priority?: TaskPriority }>
+  const tasks = raw.filter((task) => task && typeof task === 'object') as Task[]
   if (tasks.length === 0) return null
   return tasks.map((task) => {
-    const { priority: _priority, ...rest } = task
     return {
-      ...rest,
+      ...task,
       allowedRoleCodes: Array.isArray(task.allowedRoleCodes) ? task.allowedRoleCodes : [],
       isActive: task.isActive ?? true,
     }
   })
-}
-
-function normalizeRestrictionTaskPriority(
-  tasksByShift: Restrictions['demand']['tasks'],
-): Restrictions['demand']['tasks'] {
-  const next: Restrictions['demand']['tasks'] = { M: {}, T: {}, N: {} }
-  SHIFTS.forEach((shift) => {
-    const shiftTargets = tasksByShift[shift] ?? {}
-    const nextTargets: Record<string, { max: number; priority: TaskPriority }> = {}
-    Object.entries(shiftTargets).forEach(([taskId, target]) => {
-      nextTargets[taskId] = {
-        max: target.max ?? 0,
-        priority: target.priority ?? DEFAULT_TASK_PRIORITY,
-      }
-    })
-    next[shift] = nextTargets
-  })
-  return next
-}
-
-function normalizeRestrictions(restrictions: Restrictions): Restrictions {
-  return {
-    ...restrictions,
-    demand: {
-      ...restrictions.demand,
-      tasks: normalizeRestrictionTaskPriority(restrictions.demand.tasks),
-    },
-  }
 }
 
 function normalizeWorkers(raw: unknown): Worker[] | null {
@@ -147,70 +113,6 @@ export function setWorkers(workers: Worker[]) {
   localStorage.setItem(WORKERS_KEY, JSON.stringify(workers))
 }
 
-function normalizePresetNames(raw: unknown): string[] | null {
-  if (!Array.isArray(raw)) return null
-  const names = raw.filter((name) => typeof name === 'string' && name.trim().length > 0)
-  return names.length > 0 ? names : null
-}
-
-function listPresetNamesFromStorage() {
-  const names: string[] = []
-  for (let i = 0; i < localStorage.length; i += 1) {
-    const key = localStorage.key(i)
-    if (!key || !key.startsWith(`${RESTRICTIONS_PREFIX}:`)) continue
-    const name = key.replace(`${RESTRICTIONS_PREFIX}:`, '')
-    if (name) names.push(name)
-  }
-  return Array.from(new Set(names))
-}
-
-export function getRestrictionPresetNames(): string[] {
-  const raw = localStorage.getItem(RESTRICTIONS_PRESETS_KEY)
-  if (!raw) {
-    const derived = listPresetNamesFromStorage()
-    if (derived.length > 0) {
-      localStorage.setItem(RESTRICTIONS_PRESETS_KEY, JSON.stringify(derived))
-    }
-    return derived
-  }
-  try {
-    const parsed = normalizePresetNames(JSON.parse(raw))
-    if (parsed) return parsed
-  } catch {
-    // fall through
-  }
-  const derived = listPresetNamesFromStorage()
-  if (derived.length > 0) {
-    localStorage.setItem(RESTRICTIONS_PRESETS_KEY, JSON.stringify(derived))
-  }
-  return derived
-}
-
-function setRestrictionPresetNames(names: string[]) {
-  const unique = Array.from(new Set(names))
-  localStorage.setItem(RESTRICTIONS_PRESETS_KEY, JSON.stringify(unique))
-}
-
-export function getRestrictionPreset(profileName: string): Restrictions | null {
-  if (!profileName) return null
-  const raw = localStorage.getItem(restrictionsKey(profileName))
-  if (!raw) return null
-  try {
-    const parsed = JSON.parse(raw) as Restrictions
-    if (!parsed) return null
-    return normalizeRestrictions({ ...parsed, profileName })
-  } catch {
-    return null
-  }
-}
-
-export function setRestrictionPreset(profileName: string, restrictions: Restrictions) {
-  localStorage.setItem(restrictionsKey(profileName), JSON.stringify(restrictions))
-  const existing = getRestrictionPresetNames()
-  if (!existing.includes(profileName)) {
-    setRestrictionPresetNames([...existing, profileName])
-  }
-}
 
 function mapLegacyTaskName(tasks: Task[], name: string | undefined): string | undefined {
   if (!name) return undefined

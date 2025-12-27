@@ -2,13 +2,12 @@ import { useState } from 'react'
 import { Tabs } from './components/Tabs'
 import { PlanningPage } from './pages/PlanningPage'
 import { SummaryPage } from './pages/SummaryPage'
-import { RestrictionsPage } from './pages/RestrictionsPage'
 import { WorkersPage } from './pages/WorkersPage'
 import { SetupPage } from './pages/SetupPage'
 
 export function App() {
   const [activeTab, setActiveTab] = useState<
-    'planning' | 'summary' | 'restrictions' | 'workers' | 'setup'
+    'planning' | 'summary' | 'workers' | 'setup'
   >('planning')
 
   return (
@@ -22,8 +21,6 @@ export function App() {
           <PlanningPage />
         ) : activeTab === 'summary' ? (
           <SummaryPage />
-        ) : activeTab === 'restrictions' ? (
-          <RestrictionsPage />
         ) : activeTab === 'workers' ? (
           <WorkersPage />
         ) : (

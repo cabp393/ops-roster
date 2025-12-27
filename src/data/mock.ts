@@ -1,4 +1,4 @@
-import type { Role, Shift, Task, TaskPriority, Worker } from '../types'
+import type { Role, Shift, Task, Worker } from '../types'
 
 export const SHIFTS: Shift[] = ['M', 'T', 'N']
 
@@ -7,8 +7,6 @@ export const SHIFT_LABEL: Record<Shift, string> = {
   T: 'Tarde',
   N: 'Noche',
 }
-
-export const DEFAULT_TASK_PRIORITY: TaskPriority = ''
 
 export const defaultRoles: Role[] = [
   { id: 'role-og', code: 'OG', name: 'Operador Grúa', isActive: true, countsForBalance: true },
