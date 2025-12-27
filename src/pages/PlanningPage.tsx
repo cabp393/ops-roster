@@ -17,7 +17,13 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { SHIFT_LABEL, SHIFTS, prevWeekShifts } from '../data/mock'
 import { clearWeekPlan, loadWeekPlan, saveWeekPlan, seedWeekPlan } from '../lib/planningBoard'
-import { formatDate, getIsoWeekNumber, getIsoWeekYear, getWeekLabel, getWeekStartDate } from '../lib/week'
+import {
+  formatDate,
+  getIsoWeekNumber,
+  getIsoWeekYear,
+  getWeekRangeLabel,
+  getWeekStartDate,
+} from '../lib/week'
 import { getTasks, getWorkers } from '../lib/storage'
 import type { Shift, Task, WeekPlan, Worker } from '../types'
 
@@ -63,14 +69,16 @@ function findWorkerShift(columns: WeekPlan['columns'], workerId: number): Shift 
 
 type WorkerCardProps = {
   worker: Worker
+  shift: Shift
   taskOptions: Task[]
   taskValue: string | null
   onTaskChange: (workerId: number, taskId: string) => void
 }
 
-function WorkerCard({ worker, taskOptions, taskValue, onTaskChange }: WorkerCardProps) {
+function WorkerCard({ worker, shift, taskOptions, taskValue, onTaskChange }: WorkerCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: worker.id,
+    data: { shift },
   })
 
   const style = {
@@ -90,13 +98,19 @@ function WorkerCard({ worker, taskOptions, taskValue, onTaskChange }: WorkerCard
         <div>
           <div className="worker-name">{worker.name}</div>
           <div className="worker-badges">
-            <span className="badge">{worker.roleCode}</span>
-            {worker.contract ? <span className="badge subtle">{worker.contract}</span> : null}
+            <span className={`badge role-${worker.roleCode.toLowerCase()}`}>{worker.roleCode}</span>
+            {worker.contract ? (
+              <span
+                className={`badge contract-${worker.contract === 'Indefinido' ? 'indefinido' : 'plazo'}`}
+              >
+                {worker.contract}
+              </span>
+            ) : null}
           </div>
         </div>
       </div>
       <label className="field worker-task">
-        Task
+        Tarea
         <select
           value={taskValue ?? ''}
           onChange={(event) => onTaskChange(worker.id, event.target.value)}
@@ -120,7 +134,7 @@ type ShiftColumnProps = {
 }
 
 function ShiftColumn({ shift, workerIds, children }: ShiftColumnProps) {
-  const { setNodeRef, isOver } = useDroppable({ id: `column-${shift}` })
+  const { setNodeRef, isOver } = useDroppable({ id: `column-${shift}`, data: { shift } })
 
   return (
     <div ref={setNodeRef} className={`shift-column${isOver ? ' over' : ''}`}>
@@ -174,7 +188,7 @@ export function PlanningPage() {
     return formatDate(startDate)
   }, [weekNumber, weekYear])
 
-  const weekLabel = useMemo(() => getWeekLabel(weekNumber, weekYear), [weekNumber, weekYear])
+  const weekLabel = useMemo(() => getWeekRangeLabel(weekNumber, weekYear), [weekNumber, weekYear])
 
   useEffect(() => {
     const saved = loadWeekPlan(weekStart)
@@ -238,7 +252,7 @@ export function PlanningPage() {
 
     const activeId = active.id as number
     const overId = over.id
-    const sourceShift = findWorkerShift(plan.columns, activeId)
+    const sourceShift = (active.data.current?.shift as Shift | undefined) ?? findWorkerShift(plan.columns, activeId)
     if (!sourceShift) return
 
     let targetShift: Shift | null = null
@@ -249,7 +263,8 @@ export function PlanningPage() {
       targetIndex = plan.columns[targetShift]?.length ?? 0
     } else {
       const overWorkerId = overId as number
-      targetShift = findWorkerShift(plan.columns, overWorkerId)
+      targetShift =
+        (over.data.current?.shift as Shift | undefined) ?? findWorkerShift(plan.columns, overWorkerId)
       if (!targetShift) return
       targetIndex = plan.columns[targetShift].indexOf(overWorkerId)
     }
@@ -265,7 +280,7 @@ export function PlanningPage() {
       const sourceIndex = plan.columns[sourceShift].indexOf(activeId)
       if (sourceIndex === -1) return
       const maxIndex = plan.columns[sourceShift].length - 1
-      const boundedIndex = Math.max(0, Math.min(targetIndex, maxIndex))
+      const boundedIndex = targetIndex < 0 ? maxIndex : Math.max(0, Math.min(targetIndex, maxIndex))
       if (sourceIndex === boundedIndex) return
       const reordered = arrayMove(plan.columns[sourceShift], sourceIndex, boundedIndex)
       persist({
@@ -354,6 +369,7 @@ export function PlanningPage() {
                         <WorkerCard
                           key={workerId}
                           worker={worker}
+                          shift={shift}
                           taskOptions={taskOptions}
                           taskValue={taskValue}
                           onTaskChange={handleTaskChange}

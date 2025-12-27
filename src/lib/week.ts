@@ -11,6 +11,14 @@ export function formatDate(date: Date) {
   return `${year}-${month}-${day}`
 }
 
+const MONTHS_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+
+export function formatDateShort(date: Date) {
+  const day = String(date.getUTCDate()).padStart(2, '0')
+  const month = MONTHS_SHORT[date.getUTCMonth()] ?? ''
+  return `${day}-${month}`
+}
+
 export function getIsoWeekNumber(date: Date) {
   const temp = toDateOnly(date)
   const day = temp.getUTCDay() || 7
@@ -42,8 +50,8 @@ export function getWeekEndDate(weekStart: Date) {
   return end
 }
 
-export function getWeekLabel(weekNumber: number, year: number) {
+export function getWeekRangeLabel(weekNumber: number, year: number) {
   const start = getWeekStartDate(weekNumber, year)
   const end = getWeekEndDate(start)
-  return `${formatDate(start)} - ${formatDate(end)}`
+  return `a ${formatDateShort(start)} hasta ${formatDateShort(end)}`
 }

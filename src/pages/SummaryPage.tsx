@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { SHIFTS, SHIFT_LABEL } from '../data/mock'
 import { loadWeekPlan } from '../lib/planningBoard'
-import { formatDate, getIsoWeekNumber, getIsoWeekYear, getWeekLabel, getWeekStartDate } from '../lib/week'
+import {
+  formatDate,
+  getIsoWeekNumber,
+  getIsoWeekYear,
+  getWeekRangeLabel,
+  getWeekStartDate,
+} from '../lib/week'
 import { getRoles, getTasks, getWorkers } from '../lib/storage'
 import { summarizeWeek } from '../lib/summary'
 import type { Assignment, Role, Task, Worker } from '../types'
@@ -131,7 +137,7 @@ export function SummaryPage() {
               }}
             />
           </label>
-          <div className="week-range">Semana {weekNumber}: {getWeekLabel(weekNumber, weekYear)}</div>
+          <div className="week-range">Semana {weekNumber}: {getWeekRangeLabel(weekNumber, weekYear)}</div>
         </div>
       </div>
       {!summary ? (
