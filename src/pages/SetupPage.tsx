@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getRoles, getTasks, setRoles, setTasks } from '../lib/storage'
-import type { Role, Task, TaskPriority } from '../types'
-
-const PRIORITIES: TaskPriority[] = ['HIGH', 'MEDIUM', 'LOW']
+import type { Role, Task } from '../types'
 
 function parseRoleCodes(input: string) {
   return input
@@ -15,7 +13,7 @@ export function SetupPage() {
   const [roles, setRolesState] = useState<Role[]>([])
   const [tasks, setTasksState] = useState<Task[]>([])
   const [newRole, setNewRole] = useState({ code: '', name: '' })
-  const [newTask, setNewTask] = useState({ name: '', allowedRoleCodes: '', priority: 'MEDIUM' as TaskPriority })
+  const [newTask, setNewTask] = useState({ name: '', allowedRoleCodes: '' })
 
   useEffect(() => {
     setRolesState(getRoles())
@@ -60,10 +58,9 @@ export function SetupPage() {
       name: newTask.name.trim(),
       allowedRoleCodes: parseRoleCodes(newTask.allowedRoleCodes),
       isActive: true,
-      priority: newTask.priority,
     }
     setTasksState((prev) => [...prev, nextTask])
-    setNewTask({ name: '', allowedRoleCodes: '', priority: 'MEDIUM' })
+    setNewTask({ name: '', allowedRoleCodes: '' })
   }
 
   return (
@@ -147,7 +144,6 @@ export function SetupPage() {
             <tr>
               <th>Name</th>
               <th>Allowed roles (comma)</th>
-              <th>Priority</th>
               <th>Active</th>
             </tr>
           </thead>
@@ -167,18 +163,6 @@ export function SetupPage() {
                       updateTask(task.id, { allowedRoleCodes: parseRoleCodes(event.target.value) })
                     }
                   />
-                </td>
-                <td>
-                  <select
-                    value={task.priority}
-                    onChange={(event) => updateTask(task.id, { priority: event.target.value as TaskPriority })}
-                  >
-                    {PRIORITIES.map((priority) => (
-                      <option key={priority} value={priority}>
-                        {priority}
-                      </option>
-                    ))}
-                  </select>
                 </td>
                 <td>
                   <input
@@ -205,20 +189,6 @@ export function SetupPage() {
                     setNewTask((prev) => ({ ...prev, allowedRoleCodes: event.target.value }))
                   }
                 />
-              </td>
-              <td>
-                <select
-                  value={newTask.priority}
-                  onChange={(event) =>
-                    setNewTask((prev) => ({ ...prev, priority: event.target.value as TaskPriority }))
-                  }
-                >
-                  {PRIORITIES.map((priority) => (
-                    <option key={priority} value={priority}>
-                      {priority}
-                    </option>
-                  ))}
-                </select>
               </td>
               <td>
                 <button type="button" onClick={handleAddTask}>

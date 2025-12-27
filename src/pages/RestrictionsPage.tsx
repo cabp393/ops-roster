@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { SHIFTS } from '../data/mock'
+import { DEFAULT_TASK_PRIORITY, SHIFTS } from '../data/mock'
 import {
   getRestrictionPreset,
   getRestrictionPresetNames,
@@ -7,9 +7,10 @@ import {
   getTasks,
   setRestrictionPreset,
 } from '../lib/storage'
-import type { Restrictions, Role, Shift, Task } from '../types'
+import type { Restrictions, Role, Shift, Task, TaskPriority } from '../types'
 
 const fallbackWeekStart = '2025-12-29'
+const PRIORITIES: TaskPriority[] = ['HIGH', 'MEDIUM', 'LOW']
 
 function toDateInputValue(date: Date) {
   const year = date.getFullYear()
@@ -62,9 +63,14 @@ function ensureTaskTargets(restrictions: Restrictions, tasks: Task[]) {
 
   SHIFTS.forEach((shift) => {
     const shiftTargets = { ...next.demand.tasks[shift] }
+    Object.entries(shiftTargets).forEach(([taskId, target]) => {
+      if (!target.priority) {
+        shiftTargets[taskId] = { ...target, priority: DEFAULT_TASK_PRIORITY }
+      }
+    })
     activeTasks.forEach((task) => {
       if (!shiftTargets[task.id]) {
-        shiftTargets[task.id] = { min: 0, target: 0, max: 0, priority: task.priority }
+        shiftTargets[task.id] = { min: 0, target: 0, max: 0, priority: DEFAULT_TASK_PRIORITY }
       }
     })
     next.demand.tasks[shift] = shiftTargets
@@ -145,6 +151,26 @@ export function RestrictionsPage() {
             [taskId]: {
               ...restrictions.demand.tasks[shift][taskId],
               [field]: clampedValue,
+            },
+          },
+        },
+      },
+    })
+  }
+
+  function updateTaskPriority(shift: Shift, taskId: string, priority: TaskPriority) {
+    if (!restrictions) return
+    setRestrictionsState({
+      ...restrictions,
+      demand: {
+        ...restrictions.demand,
+        tasks: {
+          ...restrictions.demand.tasks,
+          [shift]: {
+            ...restrictions.demand.tasks[shift],
+            [taskId]: {
+              ...restrictions.demand.tasks[shift][taskId],
+              priority,
             },
           },
         },
@@ -246,7 +272,7 @@ export function RestrictionsPage() {
                           min: 0,
                           target: 0,
                           max: 0,
-                          priority: task.priority,
+                          priority: DEFAULT_TASK_PRIORITY,
                         }
                         return (
                           <tr key={`${shift}-${role.code}-${task.id}`}>
@@ -290,7 +316,20 @@ export function RestrictionsPage() {
                                 }
                               />
                             </td>
-                            <td className="num-col">{target.priority[0]}</td>
+                            <td>
+                              <select
+                                value={target.priority}
+                                onChange={(event) =>
+                                  updateTaskPriority(shift, task.id, event.target.value as TaskPriority)
+                                }
+                              >
+                                {PRIORITIES.map((priority) => (
+                                  <option key={priority} value={priority}>
+                                    {priority}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
                           </tr>
                         )}
                       )}

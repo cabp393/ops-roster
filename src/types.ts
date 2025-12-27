@@ -10,12 +10,12 @@ export type Role = {
 
 export type TaskPriority = 'HIGH' | 'MEDIUM' | 'LOW'
 
+// Task priority is defined per shift in Restrictions; defaults are applied when building targets.
 export type Task = {
   id: string
   name: string
   allowedRoleCodes: string[]
   isActive: boolean
-  priority: TaskPriority
 }
 
 export type Worker = {
