@@ -168,14 +168,14 @@ export function RestrictionsPage() {
                 <p className="summary">No tasks for this role.</p>
               ) : (
                 <div className="table-wrap">
-                  <table>
+                  <table className="compact-table">
                     <thead>
                       <tr>
-                        <th>Task</th>
-                        <th>Min</th>
-                        <th>Target</th>
-                        <th>Max</th>
-                        <th>Priority</th>
+                        <th className="task-col">Task</th>
+                        <th className="num-col">Min</th>
+                        <th className="num-col">Target</th>
+                        <th className="num-col">Max</th>
+                        <th className="num-col">Pri</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -188,7 +188,7 @@ export function RestrictionsPage() {
                         }
                         return (
                           <tr key={`${shift}-${role.code}-${task.id}`}>
-                            <td>{task.name}</td>
+                            <td className="task-col">{task.name}</td>
                             <td>
                               <input
                                 type="number"
@@ -228,7 +228,7 @@ export function RestrictionsPage() {
                                 }
                               />
                             </td>
-                            <td>{target.priority}</td>
+                            <td className="num-col">{target.priority[0]}</td>
                           </tr>
                         )}
                       )}
