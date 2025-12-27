@@ -57,7 +57,8 @@ function normalizeAssignments(assignments: Assignment[], workers: Worker[], task
 
   return {
     assignments: normalized,
-    warnings: invalidCount > 0 ? [`Cleared ${invalidCount} invalid task assignments.`] : [],
+    warnings:
+      invalidCount > 0 ? [`Se limpiaron ${invalidCount} tareas inválidas para los roles.`] : [],
   }
 }
 
@@ -94,12 +95,12 @@ export function PlanningPage() {
     }
     if (workers.length === 0 || tasks.length === 0) {
       setAssignments(saved.assignments)
-      setSavedLabel('Saved')
+      setSavedLabel('Plan cargado')
       return
     }
     const normalized = normalizeAssignments(saved.assignments, workers, tasks)
     setAssignments(normalized.assignments)
-    setSavedLabel('Saved')
+    setSavedLabel('Plan cargado')
   }, [weekStart, workers, tasks])
 
   const assignmentsByWorker = useMemo(() => {
@@ -125,7 +126,7 @@ export function PlanningPage() {
   function persist(nextAssignments: Assignment[]) {
     setAssignments(nextAssignments)
     setPlanning(weekStart, makeRecord(weekStart, nextAssignments))
-    setSavedLabel(`Saved ${new Date().toLocaleTimeString()}`)
+    setSavedLabel(`Guardado ${new Date().toLocaleTimeString()}`)
   }
 
   function handleGenerate() {
@@ -216,7 +217,7 @@ export function PlanningPage() {
     <section>
       <div className="planning-controls">
         <label className="field">
-          Week start
+          Semana inicio
           <input
             type="date"
             value={weekStart}
@@ -226,7 +227,7 @@ export function PlanningPage() {
         <label className="field">
           Preset
           <select value={presetName} onChange={(event) => setPresetName(event.target.value)}>
-            <option value="">No preset</option>
+            <option value="">Sin preset</option>
             {presetOptions.map((preset) => (
               <option key={preset} value={preset}>
                 {preset}
@@ -235,14 +236,14 @@ export function PlanningPage() {
           </select>
         </label>
         <div className="button-row">
-          <button type="button" onClick={handleGenerate}>
-            Generate shifts
+          <button type="button" className="primary" onClick={handleGenerate}>
+            Generar turnos
           </button>
           <button type="button" onClick={handleAutoTasks}>
-            Auto tasks
+            Asignar tareas
           </button>
-          <button type="button" onClick={handleClear}>
-            Clear week
+          <button type="button" className="ghost" onClick={handleClear}>
+            Limpiar semana
           </button>
         </div>
       </div>
@@ -251,10 +252,10 @@ export function PlanningPage() {
         <table className="compact-table">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Role</th>
-              <th>Assigned Shift</th>
-              <th>Task</th>
+              <th>Nombre</th>
+              <th>Rol</th>
+              <th>Turno</th>
+              <th>Tarea</th>
             </tr>
           </thead>
           <tbody>
@@ -282,7 +283,7 @@ export function PlanningPage() {
                         disabled={isFixed}
                         onChange={(event) => handleShiftChange(worker.id, event.target.value)}
                       >
-                        <option value="">-</option>
+                        <option value="">Sin turno</option>
                         {shiftOptions.map((shift) => (
                           <option key={shift} value={shift}>
                             {SHIFT_LABEL[shift]}
@@ -298,7 +299,7 @@ export function PlanningPage() {
                         disabled={!assignment}
                         onChange={(event) => handleTaskChange(worker.id, event.target.value)}
                       >
-                        <option value="">-</option>
+                        <option value="">Sin tarea</option>
                         {availableTasks.map((task) => (
                           <option key={task.id} value={task.id}>
                             {task.name}

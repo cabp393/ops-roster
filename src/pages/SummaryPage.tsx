@@ -58,7 +58,7 @@ export function SummaryPage() {
             key: `${shift.shift}-empty`,
             shiftLabel: SHIFT_LABEL[shift.shift],
             roleLabel: '-',
-            taskLabel: 'No assignments',
+            taskLabel: 'Sin asignaciones',
             total: 0,
           },
         ]
@@ -86,7 +86,7 @@ export function SummaryPage() {
     <section>
       <div className="planning-controls">
         <label className="field">
-          Week start
+          Semana inicio
           <input
             type="date"
             value={weekStart}
@@ -95,15 +95,15 @@ export function SummaryPage() {
         </label>
       </div>
       {!summary ? (
-        <p className="summary">No plan found for this week. Generate it in Planning.</p>
+        <p className="summary">No hay plan para esta semana. Généralo en Planificación.</p>
       ) : (
         <>
           <p className="summary">
-            Totals: {SHIFTS.map((shift) => `${shift}: ${summary.totalsByShift[shift]}`).join(', ')}
+            Totales: {SHIFTS.map((shift) => `${shift}: ${summary.totalsByShift[shift]}`).join(', ')}
           </p>
           {summary.warnings.length > 0 ? (
             <div className="summary">
-              <strong>Warnings</strong>
+              <strong>Alertas</strong>
               <ul>
                 {summary.warnings.map((warning) => (
                   <li key={warning}>{warning}</li>
@@ -115,10 +115,10 @@ export function SummaryPage() {
             <table>
               <thead>
                 <tr>
-                  <th>Shift</th>
-                  <th>Role</th>
-                  <th>Task</th>
-                  <th>Count</th>
+                  <th>Turno</th>
+                  <th>Rol</th>
+                  <th>Tarea</th>
+                  <th>Total</th>
                 </tr>
               </thead>
               <tbody>

@@ -73,10 +73,6 @@ function ensureTaskTargets(restrictions: Restrictions, tasks: Task[]) {
   return next
 }
 
-const compactInputStyle = {
-  width: '56px',
-}
-
 export function RestrictionsPage() {
   const [presetName, setPresetName] = useState('')
   const [presetOptions, setPresetOptions] = useState<string[]>([])
@@ -113,7 +109,7 @@ export function RestrictionsPage() {
     const base = existing ?? createEmptyRestrictions(getDefaultWeekStart(), presetName)
     const hydrated = ensureTaskTargets(base, tasks)
     setRestrictionsState(hydrated)
-    setSavedLabel(existing ? 'Loaded' : null)
+    setSavedLabel(existing ? 'Preset cargado' : null)
   }, [presetName, tasks])
 
   const activeRoles = useMemo(() => roles.filter((role) => role.isActive), [roles])
@@ -155,18 +151,18 @@ export function RestrictionsPage() {
   function handleSave() {
     if (!restrictions) return
     setRestrictionPreset(presetName, { ...restrictions, profileName: presetName })
-    setSavedLabel(`Saved ${new Date().toLocaleTimeString()}`)
+    setSavedLabel(`Guardado ${new Date().toLocaleTimeString()}`)
   }
 
   function handleDuplicate() {
     if (!restrictions) return
     const trimmed = duplicateName.trim()
     if (!trimmed) {
-      setSavedLabel('Enter a preset name to duplicate.')
+      setSavedLabel('Ingresa un nombre para duplicar.')
       return
     }
     if (presetOptions.includes(trimmed)) {
-      setSavedLabel('Preset already exists.')
+      setSavedLabel('El preset ya existe.')
       return
     }
     const next = {
@@ -177,13 +173,13 @@ export function RestrictionsPage() {
     setPresetOptions((current) => [...current, trimmed])
     setPresetName(trimmed)
     setDuplicateName('')
-    setSavedLabel(`Duplicated as ${trimmed}.`)
+    setSavedLabel(`Duplicado como ${trimmed}.`)
   }
 
   if (!restrictions) {
     return (
       <section>
-        <p className="summary">Loading restrictions...</p>
+        <p className="summary">Cargando restricciones...</p>
       </section>
     )
   }
@@ -202,41 +198,41 @@ export function RestrictionsPage() {
           </select>
         </label>
         <label className="field">
-          Duplicate as
+          Duplicar como
           <input
             type="text"
             value={duplicateName}
-            placeholder="New preset"
+            placeholder="Nuevo preset"
             onChange={(event) => setDuplicateName(event.target.value)}
           />
         </label>
         <div className="button-row">
           <button type="button" onClick={handleDuplicate}>
-            Duplicate preset
+            Duplicar preset
           </button>
-          <button type="button" onClick={handleSave}>
-            Save
+          <button type="button" className="primary" onClick={handleSave}>
+            Guardar
           </button>
         </div>
       </div>
       {savedLabel ? <p className="summary">{savedLabel}</p> : null}
       {SHIFTS.map((shift) => (
         <div key={shift} className="summary" style={{ marginTop: '1rem' }}>
-          <strong>{shift} shift task targets</strong>
+          <strong>Demanda de tareas · Turno {shift}</strong>
           {tasksByRole.map(({ role, tasks: roleTasks }) => (
             <div key={`${shift}-${role.code}`} style={{ marginTop: '0.75rem' }}>
               <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{role.name}</div>
               {roleTasks.length === 0 ? (
-                <p className="summary">No tasks for this role.</p>
+                <p className="summary">Sin tareas para este rol.</p>
               ) : (
                 <div className="table-wrap">
                   <table className="compact-table">
                     <thead>
                       <tr>
-                        <th className="task-col">Task</th>
-                        <th className="num-col">Min</th>
-                        <th className="num-col">Target</th>
-                        <th className="num-col">Max</th>
+                        <th className="task-col">Tarea</th>
+                        <th className="num-col">Mín</th>
+                        <th className="num-col">Objetivo</th>
+                        <th className="num-col">Máx</th>
                         <th className="num-col">Pri</th>
                       </tr>
                     </thead>
@@ -258,7 +254,7 @@ export function RestrictionsPage() {
                                 max={99}
                                 inputMode="numeric"
                                 value={target.min}
-                                style={compactInputStyle}
+                                className="compact-input"
                                 onChange={(event) =>
                                   updateTaskTarget(shift, task.id, 'min', Number(event.target.value))
                                 }
@@ -271,7 +267,7 @@ export function RestrictionsPage() {
                                 max={99}
                                 inputMode="numeric"
                                 value={target.target}
-                                style={compactInputStyle}
+                                className="compact-input"
                                 onChange={(event) =>
                                   updateTaskTarget(shift, task.id, 'target', Number(event.target.value))
                                 }
@@ -284,7 +280,7 @@ export function RestrictionsPage() {
                                 max={99}
                                 inputMode="numeric"
                                 value={target.max}
-                                style={compactInputStyle}
+                                className="compact-input"
                                 onChange={(event) =>
                                   updateTaskTarget(shift, task.id, 'max', Number(event.target.value))
                                 }

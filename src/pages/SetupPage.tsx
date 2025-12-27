@@ -69,16 +69,16 @@ export function SetupPage() {
   return (
     <section>
       <div className="summary">
-        <strong>Roles manager</strong>
+        <strong>Catálogo de roles</strong>
       </div>
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>Code</th>
-              <th>Name</th>
+              <th>Código</th>
+              <th>Nombre</th>
               <th>Balance</th>
-              <th>Active</th>
+              <th>Activo</th>
             </tr>
           </thead>
           <tbody>
@@ -115,21 +115,21 @@ export function SetupPage() {
             <tr>
               <td>
                 <input
-                  placeholder="Code"
+                  placeholder="Código"
                   value={newRole.code}
                   onChange={(event) => setNewRole((prev) => ({ ...prev, code: event.target.value }))}
                 />
               </td>
               <td>
                 <input
-                  placeholder="Name"
+                  placeholder="Nombre"
                   value={newRole.name}
                   onChange={(event) => setNewRole((prev) => ({ ...prev, name: event.target.value }))}
                 />
               </td>
               <td colSpan={2}>
-                <button type="button" onClick={handleAddRole}>
-                  Add role
+                <button type="button" className="primary" onClick={handleAddRole}>
+                  Agregar rol
                 </button>
               </td>
             </tr>
@@ -138,17 +138,17 @@ export function SetupPage() {
       </div>
 
       <div className="summary" style={{ marginTop: '1.5rem' }}>
-        <strong>Tasks manager</strong>
+        <strong>Catálogo de tareas</strong>
       </div>
-      <p className="summary">Active role codes: {activeRoleCodes || 'None'}</p>
+      <p className="summary">Roles activos: {activeRoleCodes || 'Sin roles'}</p>
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Allowed roles (comma)</th>
-              <th>Priority</th>
-              <th>Active</th>
+              <th>Nombre</th>
+              <th>Roles permitidos (coma)</th>
+              <th>Prioridad</th>
+              <th>Activo</th>
             </tr>
           </thead>
           <tbody>
@@ -192,7 +192,7 @@ export function SetupPage() {
             <tr>
               <td>
                 <input
-                  placeholder="Task name"
+                  placeholder="Nombre de tarea"
                   value={newTask.name}
                   onChange={(event) => setNewTask((prev) => ({ ...prev, name: event.target.value }))}
                 />
@@ -221,8 +221,8 @@ export function SetupPage() {
                 </select>
               </td>
               <td>
-                <button type="button" onClick={handleAddTask}>
-                  Add task
+                <button type="button" className="primary" onClick={handleAddTask}>
+                  Agregar tarea
                 </button>
               </td>
             </tr>

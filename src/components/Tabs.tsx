@@ -6,20 +6,22 @@ type TabsProps = {
 }
 
 const tabs: { key: TabKey; label: string }[] = [
-  { key: 'planning', label: 'Planning' },
-  { key: 'summary', label: 'Summary' },
-  { key: 'restrictions', label: 'Restrictions' },
-  { key: 'workers', label: 'Workers' },
-  { key: 'setup', label: 'Setup' },
+  { key: 'planning', label: 'Planificación' },
+  { key: 'summary', label: 'Resumen' },
+  { key: 'restrictions', label: 'Restricciones' },
+  { key: 'workers', label: 'Dotación' },
+  { key: 'setup', label: 'Catálogos' },
 ]
 
 export function Tabs({ activeTab, onChange }: TabsProps) {
   return (
-    <nav className="tabs">
+    <nav className="tabs" role="tablist">
       {tabs.map((tab) => (
         <button
           key={tab.key}
           type="button"
+          role="tab"
+          aria-selected={activeTab === tab.key}
           className={activeTab === tab.key ? 'tab active' : 'tab'}
           onClick={() => onChange(tab.key)}
         >

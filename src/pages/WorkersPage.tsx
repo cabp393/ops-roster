@@ -143,12 +143,14 @@ export function WorkersPage() {
         <div className="form-header">
           <div>
             <h2>{editingId ? 'Editar trabajador' : 'Nuevo trabajador'}</h2>
-            <p className="subtitle">Administra los datos base de cada trabajador.</p>
+            <p className="subtitle">Administra contratos, roles y turnos permitidos.</p>
           </div>
           <div className="button-row">
-            <button type="submit">{editingId ? 'Guardar cambios' : 'Agregar'}</button>
+            <button type="submit" className="primary">
+              {editingId ? 'Guardar cambios' : 'Agregar'}
+            </button>
             {editingId ? (
-              <button type="button" onClick={resetForm}>
+              <button type="button" className="ghost" onClick={resetForm}>
                 Cancelar
               </button>
             ) : null}
@@ -173,7 +175,7 @@ export function WorkersPage() {
             >
               {roles.map((role) => (
                 <option key={role.id} value={role.code}>
-                  {role.code}
+                  {role.code} · {role.name}
                 </option>
               ))}
             </select>
@@ -252,14 +254,14 @@ export function WorkersPage() {
           <thead>
             <tr>
               <th>ID</th>
-              <th>Name</th>
-              <th>Role</th>
-              <th>Contract</th>
-              <th>Shift Mode</th>
-              <th>Fixed Shift</th>
-              <th>Allowed Shifts</th>
-              <th>Status</th>
-              <th>Actions</th>
+              <th>Nombre</th>
+              <th>Rol</th>
+              <th>Contrato</th>
+              <th>Modalidad</th>
+              <th>Turno fijo</th>
+              <th>Turnos permitidos</th>
+              <th>Estado</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
