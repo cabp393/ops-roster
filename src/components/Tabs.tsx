@@ -1,4 +1,4 @@
-type TabKey = 'planning' | 'summary' | 'restrictions' | 'workers' | 'setup'
+type TabKey = 'planning' | 'summary' | 'workers' | 'setup'
 
 type TabsProps = {
   activeTab: TabKey
@@ -8,7 +8,6 @@ type TabsProps = {
 const tabs: { key: TabKey; label: string }[] = [
   { key: 'planning', label: 'Planning' },
   { key: 'summary', label: 'Summary' },
-  { key: 'restrictions', label: 'Restrictions' },
   { key: 'workers', label: 'Workers' },
   { key: 'setup', label: 'Setup' },
 ]

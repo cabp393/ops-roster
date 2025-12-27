@@ -8,9 +8,6 @@ export type Role = {
   countsForBalance: boolean
 }
 
-export type TaskPriority = '' | 'HIGH' | 'MEDIUM' | 'LOW'
-
-// Task priority is defined per shift in Restrictions; defaults are applied when building targets.
 export type Task = {
   id: string
   name: string
@@ -45,46 +42,8 @@ export type PlanningRecord = {
   assignments: Assignment[]
 }
 
-export type PlanningInput = {
+export type WeekPlan = {
   weekStart: string
-  workers: Worker[]
-  prevWeekShifts: Record<number, Shift>
-  roles: Role[]
-  restrictions?: Restrictions | null
-}
-
-export type Restrictions = {
-  weekStart: string
-  demand: {
-    shifts: Record<
-      Shift,
-      {
-        roleTargets: Record<
-          string,
-          {
-            min: number
-            target: number
-            max: number
-          }
-        >
-      }
-    >
-    tasks: Record<
-      Shift,
-      Record<
-        string,
-        {
-          max: number
-          priority: TaskPriority
-        }
-      >
-    >
-  }
-  policies: {
-    balanceTotals: boolean
-    balanceByRole: boolean
-    respectFixed: boolean
-    respectAllowedShifts: boolean
-  }
-  profileName?: string
+  columns: Record<Shift, number[]>
+  tasksByWorkerId: Record<number, string | null>
 }
