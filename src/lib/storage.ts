@@ -5,14 +5,15 @@ const PLANNING_PREFIX = 'opsRoster:planning'
 const ROLES_KEY = 'opsRoster:roles'
 const TASKS_KEY = 'opsRoster:tasks'
 const WORKERS_KEY = 'opsRoster:workers'
-const RESTRICTIONS_PREFIX = 'opsRoster:restrictions'
+const RESTRICTIONS_PREFIX = 'opsRoster:restrictionPresets'
+const RESTRICTIONS_PRESETS_KEY = 'opsRoster:restrictionPresets:list'
 
 function planningKey(weekStart: string) {
   return `${PLANNING_PREFIX}:${weekStart}`
 }
 
-function restrictionsKey(weekStart: string) {
-  return `${RESTRICTIONS_PREFIX}:${weekStart}`
+function restrictionsKey(profileName: string) {
+  return `${RESTRICTIONS_PREFIX}:${profileName}`
 }
 
 function normalizeRoles(raw: unknown): Role[] | null {
@@ -116,20 +117,69 @@ export function setWorkers(workers: Worker[]) {
   localStorage.setItem(WORKERS_KEY, JSON.stringify(workers))
 }
 
-export function getRestrictions(weekStart: string): Restrictions | null {
-  const raw = localStorage.getItem(restrictionsKey(weekStart))
+function normalizePresetNames(raw: unknown): string[] | null {
+  if (!Array.isArray(raw)) return null
+  const names = raw.filter((name) => typeof name === 'string' && name.trim().length > 0)
+  return names.length > 0 ? names : null
+}
+
+function listPresetNamesFromStorage() {
+  const names: string[] = []
+  for (let i = 0; i < localStorage.length; i += 1) {
+    const key = localStorage.key(i)
+    if (!key || !key.startsWith(`${RESTRICTIONS_PREFIX}:`)) continue
+    const name = key.replace(`${RESTRICTIONS_PREFIX}:`, '')
+    if (name) names.push(name)
+  }
+  return Array.from(new Set(names))
+}
+
+export function getRestrictionPresetNames(): string[] {
+  const raw = localStorage.getItem(RESTRICTIONS_PRESETS_KEY)
+  if (!raw) {
+    const derived = listPresetNamesFromStorage()
+    if (derived.length > 0) {
+      localStorage.setItem(RESTRICTIONS_PRESETS_KEY, JSON.stringify(derived))
+    }
+    return derived
+  }
+  try {
+    const parsed = normalizePresetNames(JSON.parse(raw))
+    if (parsed) return parsed
+  } catch {
+    // fall through
+  }
+  const derived = listPresetNamesFromStorage()
+  if (derived.length > 0) {
+    localStorage.setItem(RESTRICTIONS_PRESETS_KEY, JSON.stringify(derived))
+  }
+  return derived
+}
+
+function setRestrictionPresetNames(names: string[]) {
+  const unique = Array.from(new Set(names))
+  localStorage.setItem(RESTRICTIONS_PRESETS_KEY, JSON.stringify(unique))
+}
+
+export function getRestrictionPreset(profileName: string): Restrictions | null {
+  if (!profileName) return null
+  const raw = localStorage.getItem(restrictionsKey(profileName))
   if (!raw) return null
   try {
     const parsed = JSON.parse(raw) as Restrictions
-    if (!parsed || parsed.weekStart !== weekStart) return null
-    return parsed
+    if (!parsed) return null
+    return { ...parsed, profileName }
   } catch {
     return null
   }
 }
 
-export function setRestrictions(weekStart: string, restrictions: Restrictions) {
-  localStorage.setItem(restrictionsKey(weekStart), JSON.stringify(restrictions))
+export function setRestrictionPreset(profileName: string, restrictions: Restrictions) {
+  localStorage.setItem(restrictionsKey(profileName), JSON.stringify(restrictions))
+  const existing = getRestrictionPresetNames()
+  if (!existing.includes(profileName)) {
+    setRestrictionPresetNames([...existing, profileName])
+  }
 }
 
 function mapLegacyTaskName(tasks: Task[], name: string | undefined): string | undefined {

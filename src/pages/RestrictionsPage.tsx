@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { SHIFTS } from '../data/mock'
-import { getRestrictions, getRoles, getTasks, setRestrictions } from '../lib/storage'
+import {
+  getRestrictionPreset,
+  getRestrictionPresetNames,
+  getRoles,
+  getTasks,
+  setRestrictionPreset,
+} from '../lib/storage'
 import type { Restrictions, Role, Shift, Task } from '../types'
 
 const fallbackWeekStart = '2025-12-29'
@@ -25,9 +31,10 @@ function getDefaultWeekStart() {
   }
 }
 
-function createEmptyRestrictions(weekStart: string): Restrictions {
+function createEmptyRestrictions(weekStart: string, profileName: string): Restrictions {
   return {
     weekStart,
+    profileName,
     demand: {
       shifts: {
         M: { roleTargets: {} },
@@ -71,7 +78,9 @@ const compactInputStyle = {
 }
 
 export function RestrictionsPage() {
-  const [weekStart, setWeekStart] = useState(getDefaultWeekStart)
+  const [presetName, setPresetName] = useState('')
+  const [presetOptions, setPresetOptions] = useState<string[]>([])
+  const [duplicateName, setDuplicateName] = useState('')
   const [roles, setRoles] = useState<Role[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
   const [restrictions, setRestrictionsState] = useState<Restrictions | null>(null)
@@ -83,12 +92,29 @@ export function RestrictionsPage() {
   }, [])
 
   useEffect(() => {
-    const existing = getRestrictions(weekStart)
-    const base = existing ?? createEmptyRestrictions(weekStart)
+    if (tasks.length === 0) return
+    const existingPresets = getRestrictionPresetNames()
+    let nextPresets = existingPresets
+    if (nextPresets.length === 0) {
+      const fallbackName = 'Base'
+      const fallback = ensureTaskTargets(createEmptyRestrictions(getDefaultWeekStart(), fallbackName), tasks)
+      setRestrictionPreset(fallbackName, fallback)
+      nextPresets = [fallbackName]
+    }
+    setPresetOptions(nextPresets)
+    if (!presetName || !nextPresets.includes(presetName)) {
+      setPresetName(nextPresets[0])
+    }
+  }, [tasks, presetName])
+
+  useEffect(() => {
+    if (!presetName) return
+    const existing = getRestrictionPreset(presetName)
+    const base = existing ?? createEmptyRestrictions(getDefaultWeekStart(), presetName)
     const hydrated = ensureTaskTargets(base, tasks)
     setRestrictionsState(hydrated)
     setSavedLabel(existing ? 'Loaded' : null)
-  }, [weekStart, tasks])
+  }, [presetName, tasks])
 
   const activeRoles = useMemo(() => roles.filter((role) => role.isActive), [roles])
   const activeTasks = useMemo(() => tasks.filter((task) => task.isActive), [tasks])
@@ -128,8 +154,30 @@ export function RestrictionsPage() {
 
   function handleSave() {
     if (!restrictions) return
-    setRestrictions(weekStart, restrictions)
+    setRestrictionPreset(presetName, { ...restrictions, profileName: presetName })
     setSavedLabel(`Saved ${new Date().toLocaleTimeString()}`)
+  }
+
+  function handleDuplicate() {
+    if (!restrictions) return
+    const trimmed = duplicateName.trim()
+    if (!trimmed) {
+      setSavedLabel('Enter a preset name to duplicate.')
+      return
+    }
+    if (presetOptions.includes(trimmed)) {
+      setSavedLabel('Preset already exists.')
+      return
+    }
+    const next = {
+      ...restrictions,
+      profileName: trimmed,
+    }
+    setRestrictionPreset(trimmed, next)
+    setPresetOptions((current) => [...current, trimmed])
+    setPresetName(trimmed)
+    setDuplicateName('')
+    setSavedLabel(`Duplicated as ${trimmed}.`)
   }
 
   if (!restrictions) {
@@ -144,14 +192,28 @@ export function RestrictionsPage() {
     <section>
       <div className="planning-controls">
         <label className="field">
-          Week start
+          Preset
+          <select value={presetName} onChange={(event) => setPresetName(event.target.value)}>
+            {presetOptions.map((preset) => (
+              <option key={preset} value={preset}>
+                {preset}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          Duplicate as
           <input
-            type="date"
-            value={weekStart}
-            onChange={(event) => setWeekStart(event.target.value)}
+            type="text"
+            value={duplicateName}
+            placeholder="New preset"
+            onChange={(event) => setDuplicateName(event.target.value)}
           />
         </label>
         <div className="button-row">
+          <button type="button" onClick={handleDuplicate}>
+            Duplicate preset
+          </button>
           <button type="button" onClick={handleSave}>
             Save
           </button>

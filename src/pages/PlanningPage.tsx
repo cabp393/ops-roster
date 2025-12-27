@@ -4,7 +4,8 @@ import { generateAssignments } from '../lib/planning'
 import {
   clearPlanning,
   getPlanning,
-  getRestrictions,
+  getRestrictionPreset,
+  getRestrictionPresetNames,
   getRoles,
   getTasks,
   getWorkers,
@@ -32,14 +33,6 @@ function getDefaultWeekStart() {
   } catch {
     return fallbackWeekStart
   }
-}
-
-function countAssignments(assignments: Assignment[]) {
-  const counts: Record<Shift, number> = { M: 0, T: 0, N: 0 }
-  assignments.forEach((assignment) => {
-    counts[assignment.shift] += 1
-  })
-  return counts
 }
 
 function makeRecord(weekStart: string, assignments: Assignment[]): PlanningRecord {
@@ -72,10 +65,11 @@ export function PlanningPage() {
   const [weekStart, setWeekStart] = useState(getDefaultWeekStart)
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [savedLabel, setSavedLabel] = useState<string | null>(null)
+  const [presetName, setPresetName] = useState('')
+  const [presetOptions, setPresetOptions] = useState<string[]>([])
   const [roles, setRoles] = useState<Role[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
   const [workers, setWorkers] = useState<Worker[]>([])
-  const [warnings, setWarnings] = useState<string[]>([])
 
   useEffect(() => {
     setRoles(getRoles())
@@ -84,30 +78,33 @@ export function PlanningPage() {
   }, [])
 
   useEffect(() => {
+    const presets = getRestrictionPresetNames()
+    setPresetOptions(presets)
+    if (!presetName && presets.length > 0) {
+      setPresetName(presets[0])
+    }
+  }, [presetName])
+
+  useEffect(() => {
     const saved = getPlanning(weekStart)
     if (!saved) {
       setAssignments([])
       setSavedLabel(null)
-      setWarnings([])
       return
     }
     if (workers.length === 0 || tasks.length === 0) {
       setAssignments(saved.assignments)
-      setWarnings([])
       setSavedLabel('Saved')
       return
     }
     const normalized = normalizeAssignments(saved.assignments, workers, tasks)
     setAssignments(normalized.assignments)
-    setWarnings(normalized.warnings)
     setSavedLabel('Saved')
   }, [weekStart, workers, tasks])
 
   const assignmentsByWorker = useMemo(() => {
     return new Map(assignments.map((assignment) => [assignment.workerId, assignment]))
   }, [assignments])
-
-  const counts = useMemo(() => countAssignments(assignments), [assignments])
 
   const roleNameByCode = useMemo(() => new Map(roles.map((role) => [role.code, role.name])), [roles])
 
@@ -132,7 +129,7 @@ export function PlanningPage() {
   }
 
   function handleGenerate() {
-    const restrictions = getRestrictions(weekStart)
+    const restrictions = presetName ? getRestrictionPreset(presetName) : null
     const nextAssignments = generateAssignments({
       weekStart,
       workers,
@@ -141,14 +138,12 @@ export function PlanningPage() {
       restrictions,
     })
     persist(nextAssignments)
-    setWarnings([])
   }
 
   function handleClear() {
     clearPlanning(weekStart)
     setAssignments([])
     setSavedLabel(null)
-    setWarnings([])
   }
 
   function handleShiftChange(workerId: number, shift: string) {
@@ -228,6 +223,17 @@ export function PlanningPage() {
             onChange={(event) => setWeekStart(event.target.value)}
           />
         </label>
+        <label className="field">
+          Preset
+          <select value={presetName} onChange={(event) => setPresetName(event.target.value)}>
+            <option value="">No preset</option>
+            {presetOptions.map((preset) => (
+              <option key={preset} value={preset}>
+                {preset}
+              </option>
+            ))}
+          </select>
+        </label>
         <div className="button-row">
           <button type="button" onClick={handleGenerate}>
             Generate shifts
@@ -240,28 +246,13 @@ export function PlanningPage() {
           </button>
         </div>
       </div>
-      <p className="summary">
-        Summary: {SHIFTS.map((shift) => `${shift}: ${counts[shift]}`).join(', ')}
-      </p>
       {savedLabel ? <p className="summary">{savedLabel}</p> : null}
-      {warnings.length > 0 ? (
-        <div className="summary">
-          <strong>Warnings</strong>
-          <ul>
-            {warnings.map((warning) => (
-              <li key={warning}>{warning}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
       <div className="table-wrap">
-        <table>
+        <table className="compact-table">
           <thead>
             <tr>
               <th>Name</th>
               <th>Role</th>
-              <th>Contract</th>
-              <th>Shift Mode</th>
               <th>Assigned Shift</th>
               <th>Task</th>
             </tr>
@@ -284,8 +275,6 @@ export function PlanningPage() {
                       ? ` (${roleNameByCode.get(worker.roleCode)})`
                       : ''}
                   </td>
-                  <td>{worker.contract}</td>
-                  <td>{worker.shiftMode}</td>
                   <td>
                     <div className="field">
                       <select
@@ -301,7 +290,6 @@ export function PlanningPage() {
                         ))}
                       </select>
                     </div>
-                    <div>{currentShift ? SHIFT_LABEL[currentShift] : '-'}</div>
                   </td>
                   <td>
                     <div className="field">
@@ -317,11 +305,6 @@ export function PlanningPage() {
                           </option>
                         ))}
                       </select>
-                    </div>
-                    <div>
-                      {assignment?.taskId
-                        ? tasks.find((task) => task.id === assignment.taskId)?.name ?? 'Unknown'
-                        : '-'}
                     </div>
                   </td>
                 </tr>
