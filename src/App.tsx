@@ -4,11 +4,35 @@ import { PlanningPage } from './pages/PlanningPage'
 import { SummaryPage } from './pages/SummaryPage'
 import { WorkersPage } from './pages/WorkersPage'
 import { SetupPage } from './pages/SetupPage'
+import { getIsoWeekNumber, getIsoWeekYear } from './lib/week'
+
+const fallbackWeekNumber = 1
+const fallbackWeekYear = 2025
 
 export function App() {
   const [activeTab, setActiveTab] = useState<
     'planning' | 'summary' | 'workers' | 'setup'
   >('planning')
+  const today = new Date()
+  const [weekNumber, setWeekNumber] = useState(() => {
+    try {
+      return getIsoWeekNumber(today)
+    } catch {
+      return fallbackWeekNumber
+    }
+  })
+  const [weekYear, setWeekYear] = useState(() => {
+    try {
+      return getIsoWeekYear(today)
+    } catch {
+      return fallbackWeekYear
+    }
+  })
+
+  function handleWeekChange(nextWeekNumber: number, nextWeekYear: number) {
+    setWeekNumber(nextWeekNumber)
+    setWeekYear(nextWeekYear)
+  }
 
   return (
     <div className="app">
@@ -18,9 +42,18 @@ export function App() {
       <Tabs activeTab={activeTab} onChange={setActiveTab} />
       <main className="content">
         {activeTab === 'planning' ? (
-          <PlanningPage />
+          <PlanningPage
+            weekNumber={weekNumber}
+            weekYear={weekYear}
+            onWeekChange={handleWeekChange}
+          />
         ) : activeTab === 'summary' ? (
-          <SummaryPage />
+          <SummaryPage
+            weekNumber={weekNumber}
+            weekYear={weekYear}
+            onWeekChange={handleWeekChange}
+            onGoToPlanning={() => setActiveTab('planning')}
+          />
         ) : activeTab === 'workers' ? (
           <WorkersPage />
         ) : (

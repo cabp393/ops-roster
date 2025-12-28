@@ -29,9 +29,6 @@ import { getTasks, getWorkers } from '../lib/storage'
 import { getWorkerDisplayName } from '../lib/workerName'
 import type { Shift, Task, WeekPlan, Worker } from '../types'
 
-const fallbackWeekNumber = 1
-const fallbackWeekYear = 2025
-
 const emptyPlan: WeekPlan = {
   weekStart: '2025-12-29',
   columns: { M: [], T: [], N: [] },
@@ -163,22 +160,13 @@ function ShiftColumn({ shift, workerIds, children }: ShiftColumnProps) {
   )
 }
 
-export function PlanningPage() {
-  const today = new Date()
-  const [weekNumber, setWeekNumber] = useState(() => {
-    try {
-      return getIsoWeekNumber(today)
-    } catch {
-      return fallbackWeekNumber
-    }
-  })
-  const [weekYear, setWeekYear] = useState(() => {
-    try {
-      return getIsoWeekYear(today)
-    } catch {
-      return fallbackWeekYear
-    }
-  })
+type PlanningPageProps = {
+  weekNumber: number
+  weekYear: number
+  onWeekChange: (weekNumber: number, weekYear: number) => void
+}
+
+export function PlanningPage({ weekNumber, weekYear, onWeekChange }: PlanningPageProps) {
   const [plan, setPlan] = useState<WeekPlan>(emptyPlan)
   const [tasks, setTasks] = useState<Task[]>([])
   const [workers, setWorkers] = useState<Worker[]>([])
@@ -364,8 +352,7 @@ export function PlanningPage() {
     const delta = direction === 'prev' ? -7 : 7
     const nextDate = new Date(currentStart)
     nextDate.setUTCDate(currentStart.getUTCDate() + delta)
-    setWeekNumber(getIsoWeekNumber(nextDate))
-    setWeekYear(getIsoWeekYear(nextDate))
+    onWeekChange(getIsoWeekNumber(nextDate), getIsoWeekYear(nextDate))
   }
 
   return (
@@ -381,7 +368,7 @@ export function PlanningPage() {
               value={weekNumber}
               onChange={(event) => {
                 const value = Number(event.target.value)
-                if (!Number.isNaN(value)) setWeekNumber(value)
+                if (!Number.isNaN(value)) onWeekChange(value, weekYear)
               }}
             />
           </label>
@@ -394,7 +381,7 @@ export function PlanningPage() {
               value={weekYear}
               onChange={(event) => {
                 const value = Number(event.target.value)
-                if (!Number.isNaN(value)) setWeekYear(value)
+                if (!Number.isNaN(value)) onWeekChange(weekNumber, value)
               }}
             />
           </label>

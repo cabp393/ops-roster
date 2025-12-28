@@ -1,36 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
+import { ArrowLeft, ArrowRight, ArrowRightCircle } from 'lucide-react'
 import { SHIFTS, SHIFT_LABEL } from '../data/mock'
 import { loadWeekPlan } from '../lib/planningBoard'
-import {
-  formatDate,
-  getIsoWeekNumber,
-  getIsoWeekYear,
-  getWeekRangeLabel,
-  getWeekStartDate,
-} from '../lib/week'
+import { formatDate, getIsoWeekNumber, getIsoWeekYear, getWeekRangeLabel, getWeekStartDate } from '../lib/week'
 import { getRoles, getTasks, getWorkers } from '../lib/storage'
 import { summarizeWeek } from '../lib/summary'
 import type { Assignment, Role, Task, Worker } from '../types'
 
-const fallbackWeekNumber = 1
-const fallbackWeekYear = 2025
+type SummaryPageProps = {
+  weekNumber: number
+  weekYear: number
+  onWeekChange: (weekNumber: number, weekYear: number) => void
+  onGoToPlanning: () => void
+}
 
-export function SummaryPage() {
-  const today = new Date()
-  const [weekNumber, setWeekNumber] = useState(() => {
-    try {
-      return getIsoWeekNumber(today)
-    } catch {
-      return fallbackWeekNumber
-    }
-  })
-  const [weekYear, setWeekYear] = useState(() => {
-    try {
-      return getIsoWeekYear(today)
-    } catch {
-      return fallbackWeekYear
-    }
-  })
+export function SummaryPage({ weekNumber, weekYear, onWeekChange, onGoToPlanning }: SummaryPageProps) {
   const [assignments, setAssignments] = useState<Assignment[] | null>(null)
   const [workers, setWorkers] = useState<Worker[]>([])
   const [roles, setRoles] = useState<Role[]>([])
@@ -107,6 +91,14 @@ export function SummaryPage() {
     })
   }, [summary])
 
+  function handleWeekShift(direction: 'prev' | 'next') {
+    const currentStart = getWeekStartDate(weekNumber, weekYear)
+    const delta = direction === 'prev' ? -7 : 7
+    const nextDate = new Date(currentStart)
+    nextDate.setUTCDate(currentStart.getUTCDate() + delta)
+    onWeekChange(getIsoWeekNumber(nextDate), getIsoWeekYear(nextDate))
+  }
+
   return (
     <section>
       <div className="planning-controls">
@@ -120,7 +112,7 @@ export function SummaryPage() {
               value={weekNumber}
               onChange={(event) => {
                 const value = Number(event.target.value)
-                if (!Number.isNaN(value)) setWeekNumber(value)
+                if (!Number.isNaN(value)) onWeekChange(value, weekYear)
               }}
             />
           </label>
@@ -133,11 +125,41 @@ export function SummaryPage() {
               value={weekYear}
               onChange={(event) => {
                 const value = Number(event.target.value)
-                if (!Number.isNaN(value)) setWeekYear(value)
+                if (!Number.isNaN(value)) onWeekChange(weekNumber, value)
               }}
             />
           </label>
           <div className="week-range">{getWeekRangeLabel(weekNumber, weekYear)}</div>
+        </div>
+        <div className="planning-actions">
+          <div className="button-row">
+            <button
+              type="button"
+              className="icon-button"
+              onClick={() => handleWeekShift('prev')}
+              aria-label="Semana anterior"
+            >
+              <ArrowLeft size={14} />
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              onClick={() => handleWeekShift('next')}
+              aria-label="Semana siguiente"
+            >
+              <ArrowRight size={14} />
+            </button>
+          </div>
+          <div className="button-row">
+            <button
+              type="button"
+              className="icon-button"
+              onClick={onGoToPlanning}
+              aria-label="Ir a planificación"
+            >
+              <ArrowRightCircle size={14} />
+            </button>
+          </div>
         </div>
       </div>
       {!summary ? (
