@@ -25,6 +25,7 @@ import {
   getWeekStartDate,
 } from '../lib/week'
 import { getTasks, getWorkers } from '../lib/storage'
+import { getWorkerDisplayName } from '../lib/workerName'
 import type { Shift, Task, WeekPlan, Worker } from '../types'
 
 const fallbackWeekNumber = 1
@@ -96,7 +97,7 @@ function WorkerCard({ worker, shift, taskOptions, taskValue, onTaskChange }: Wor
     >
       <div className="worker-card-header">
         <div>
-          <div className="worker-name">{worker.name}</div>
+          <div className="worker-name">{getWorkerDisplayName(worker)}</div>
           <div className="worker-badges">
             <span className={`badge role-${worker.roleCode.toLowerCase()}`}>{worker.roleCode}</span>
             {worker.contract ? (

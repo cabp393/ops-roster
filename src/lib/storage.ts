@@ -1,5 +1,6 @@
 import type { Assignment, PlanningRecord, Role, Task, Worker } from '../types'
 import { defaultRoles, defaultTasks, defaultWorkers } from '../data/mock'
+import { parseLegacyName } from './workerName'
 
 const PLANNING_PREFIX = 'opsRoster:planning'
 const ROLES_KEY = 'opsRoster:roles'
@@ -42,9 +43,20 @@ function normalizeWorkers(raw: unknown): Worker[] | null {
   return workers.map((worker) => {
     const legacyGroup = (worker as { group?: string }).group
     const roleCode = worker.roleCode ?? (legacyGroup === 'Gruero' ? 'OG' : legacyGroup === 'Auxiliar' ? 'AL' : 'AL')
+    const hasStructuredName =
+      typeof worker.firstName === 'string' || typeof worker.lastName === 'string' || typeof worker.motherLastName === 'string'
+    const parsedName = !hasStructuredName && worker.name ? parseLegacyName(worker.name) : null
+    const firstName = (worker.firstName ?? parsedName?.firstName ?? '').trim()
+    const secondName = (worker.secondName ?? parsedName?.secondName ?? '').trim()
+    const lastName = (worker.lastName ?? parsedName?.lastName ?? '').trim()
+    const motherLastName = (worker.motherLastName ?? parsedName?.motherLastName ?? '').trim()
     return {
       ...worker,
       roleCode,
+      firstName,
+      secondName,
+      lastName,
+      motherLastName,
       isActive: worker.isActive ?? true,
     }
   })
@@ -99,8 +111,17 @@ export function getWorkers(): Worker[] {
   try {
     const parsed = normalizeWorkers(JSON.parse(raw))
     if (parsed) {
-      localStorage.setItem(WORKERS_KEY, JSON.stringify(parsed))
-      return parsed
+      const tasks = getTasks()
+      const withSpecialty = parsed.map((worker) => {
+        if (worker.specialtyTaskId) return worker
+        const defaultTask = tasks.find((task) => task.allowedRoleCodes.includes(worker.roleCode))
+        return {
+          ...worker,
+          specialtyTaskId: defaultTask?.id ?? null,
+        }
+      })
+      localStorage.setItem(WORKERS_KEY, JSON.stringify(withSpecialty))
+      return withSpecialty
     }
   } catch {
     // fall through
