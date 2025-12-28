@@ -203,28 +203,6 @@ export function PlanningPage() {
     setPlan(sanitizePlan({ ...saved, weekStart }, activeWorkerIds))
   }, [weekStart, activeWorkerIds])
 
-  useEffect(() => {
-    if (activeWorkers.length === 0 || defaultTaskByRole.size === 0) return
-    const updates: Record<number, string | null> = {}
-    let hasUpdates = false
-    activeWorkers.forEach((worker) => {
-      const currentTask = plan.tasksByWorkerId[worker.id]
-      if (currentTask) return
-      const defaultTaskId = defaultTaskByRole.get(worker.roleCode)
-      if (!defaultTaskId) return
-      updates[worker.id] = defaultTaskId
-      hasUpdates = true
-    })
-    if (!hasUpdates) return
-    persist({
-      ...plan,
-      tasksByWorkerId: {
-        ...plan.tasksByWorkerId,
-        ...updates,
-      },
-    })
-  }, [activeWorkers, defaultTaskByRole, plan])
-
   const workerById = useMemo(
     () => new Map(activeWorkers.map((worker) => [worker.id, worker])),
     [activeWorkers],
@@ -251,6 +229,28 @@ export function PlanningPage() {
     })
     return map
   }, [tasksByRole])
+
+  useEffect(() => {
+    if (activeWorkers.length === 0 || defaultTaskByRole.size === 0) return
+    const updates: Record<number, string | null> = {}
+    let hasUpdates = false
+    activeWorkers.forEach((worker) => {
+      const currentTask = plan.tasksByWorkerId[worker.id]
+      if (currentTask) return
+      const defaultTaskId = defaultTaskByRole.get(worker.roleCode)
+      if (!defaultTaskId) return
+      updates[worker.id] = defaultTaskId
+      hasUpdates = true
+    })
+    if (!hasUpdates) return
+    persist({
+      ...plan,
+      tasksByWorkerId: {
+        ...plan.tasksByWorkerId,
+        ...updates,
+      },
+    })
+  }, [activeWorkers, defaultTaskByRole, plan])
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
