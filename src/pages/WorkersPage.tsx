@@ -226,9 +226,32 @@ export function WorkersPage() {
 
   return (
     <section>
-      <div className="workers-toolbar button-row">
-        <button type="button" onClick={handleOpenNew}>
-          Añadir trabajador
+      <div className="workers-toolbar">
+        <div className="filters-card">
+          <div className="filters-row">
+            <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
+              <option value="">Cargo</option>
+              {roles.map((role) => (
+                <option key={role.id} value={role.code}>
+                  {role.name}
+                </option>
+              ))}
+            </select>
+            <select value={contractFilter} onChange={(event) => setContractFilter(event.target.value)}>
+              <option value="">Tipo de contrato</option>
+              <option value="Indefinido">Indefinido</option>
+              <option value="Plazo fijo">Plazo fijo</option>
+            </select>
+            <input
+              type="text"
+              value={nameFilter}
+              onChange={(event) => setNameFilter(event.target.value)}
+              placeholder="Nombre convencional"
+            />
+          </div>
+        </div>
+        <button type="button" className="add-worker-button" onClick={handleOpenNew} aria-label="Añadir trabajador">
+          +
         </button>
       </div>
       {isFormOpen ? (
@@ -378,29 +401,6 @@ export function WorkersPage() {
           </div>
         </form>
       ) : null}
-      <div className="filters-card">
-        <div className="filters-row">
-          <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
-            <option value="">Cargo</option>
-            {roles.map((role) => (
-              <option key={role.id} value={role.code}>
-                {role.name}
-              </option>
-            ))}
-          </select>
-          <select value={contractFilter} onChange={(event) => setContractFilter(event.target.value)}>
-            <option value="">Tipo de contrato</option>
-            <option value="Indefinido">Indefinido</option>
-            <option value="Plazo fijo">Plazo fijo</option>
-          </select>
-          <input
-            type="text"
-            value={nameFilter}
-            onChange={(event) => setNameFilter(event.target.value)}
-            placeholder="Nombre convencional"
-          />
-        </div>
-      </div>
       <div className="table-wrap">
         <table>
           <thead>
