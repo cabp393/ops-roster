@@ -20,19 +20,9 @@ type WorkerFormState = {
 }
 
 type FilterField =
-  | 'name'
   | 'role'
   | 'contract'
-  | 'shiftMode'
-  | 'fixedShift'
-  | 'specialty'
-  | 'status'
-
-type WorkerFilter = {
-  id: number
-  field: FilterField
-  value: string
-}
+  | 'name'
 
 function createDefaultAllowedShifts(): WorkerFormState['allowedShifts'] {
   return {
@@ -48,9 +38,9 @@ export function WorkersPage() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [editingId, setEditingId] = useState<number | null>(null)
   const [isFormOpen, setIsFormOpen] = useState(false)
-  const [filters, setFilters] = useState<WorkerFilter[]>([
-    { id: 1, field: 'name', value: '' },
-  ])
+  const [roleFilter, setRoleFilter] = useState('')
+  const [contractFilter, setContractFilter] = useState('')
+  const [nameFilter, setNameFilter] = useState('')
   const [formState, setFormState] = useState<WorkerFormState>(() => ({
     id: null,
     firstName: '',
@@ -100,60 +90,25 @@ export function WorkersPage() {
   const specialtyLabelById = useMemo(() => new Map(tasks.map((task) => [task.id, task.name])), [tasks])
 
   const filteredWorkers = useMemo(() => {
-    if (filters.length === 0) return workers
+    const nameValue = nameFilter.trim().toLowerCase()
     return workers.filter((worker) => {
-      return filters.every((filter) => {
-        const value = filter.value.trim().toLowerCase()
-        if (!value) return true
-        const fieldValue = getFilterValue(worker, filter.field).toLowerCase()
-        return fieldValue.includes(value)
-      })
+      if (roleFilter && worker.roleCode !== roleFilter) return false
+      if (contractFilter && worker.contract !== contractFilter) return false
+      if (nameValue) {
+        const fullName = getWorkerFullName(worker).toLowerCase()
+        if (!fullName.includes(nameValue)) return false
+      }
+      return true
     })
-  }, [filters, workers, specialtyLabelById])
+  }, [workers, roleFilter, contractFilter, nameFilter])
 
   function getDefaultSpecialty(roleCode: string, availableTasks: Task[]) {
     return availableTasks.find((task) => task.allowedRoleCodes.includes(roleCode))?.id ?? ''
   }
 
-  function getFilterValue(worker: Worker, field: FilterField): string {
-    switch (field) {
-      case 'name':
-        return getWorkerFullName(worker)
-      case 'role':
-        return worker.roleCode
-      case 'contract':
-        return worker.contract
-      case 'shiftMode':
-        return worker.shiftMode
-      case 'fixedShift':
-        return worker.fixedShift ?? ''
-      case 'specialty':
-        return worker.specialtyTaskId ? specialtyLabelById.get(worker.specialtyTaskId) ?? '' : ''
-      case 'status':
-        return worker.isActive === false ? 'Inactivo' : 'Activo'
-      default:
-        return ''
-    }
-  }
-
   function handleOpenNew() {
     resetForm()
     setIsFormOpen(true)
-  }
-
-  function addFilter() {
-    setFilters((current) => [
-      ...current,
-      { id: Date.now(), field: 'name', value: '' },
-    ])
-  }
-
-  function updateFilter(id: number, updates: Partial<WorkerFilter>) {
-    setFilters((current) => current.map((filter) => (filter.id === id ? { ...filter, ...updates } : filter)))
-  }
-
-  function removeFilter(id: number) {
-    setFilters((current) => current.filter((filter) => filter.id !== id))
   }
 
   function resetForm() {
@@ -424,48 +379,26 @@ export function WorkersPage() {
         </form>
       ) : null}
       <div className="filters-card">
-        <div className="filters-header">
-          <div>
-            <h3>Filtros</h3>
-            <p className="subtitle">Combina varios filtros de texto simultáneamente.</p>
-          </div>
-          <button type="button" onClick={addFilter}>
-            Agregar filtro
-          </button>
-        </div>
-        <div className="filters-list">
-          {filters.map((filter) => (
-            <div key={filter.id} className="filter-row">
-              <div className="filter-input">
-                <span className="filter-icon" aria-hidden="true">
-                  <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                    <path
-                      d="M3 4.5h14l-5.25 6.2v4.1l-3.5 1.7v-5.8L3 4.5z"
-                      fill="currentColor"
-                    />
-                  </svg>
-                </span>
-                <input
-                  type="text"
-                  value={filter.value}
-                  onChange={(event) => updateFilter(filter.id, { value: event.target.value })}
-                  placeholder="Buscar..."
-                />
-              </div>
-              <select value={filter.field} onChange={(event) => updateFilter(filter.id, { field: event.target.value as FilterField })}>
-                <option value="name">Nombre</option>
-                <option value="role">Rol</option>
-                <option value="contract">Contrato</option>
-                <option value="shiftMode">Modalidad</option>
-                <option value="fixedShift">Turno fijo</option>
-                <option value="specialty">Especialidad</option>
-                <option value="status">Estado</option>
-              </select>
-              <button type="button" className="icon-button" onClick={() => removeFilter(filter.id)} aria-label="Quitar filtro">
-                ✕
-              </button>
-            </div>
-          ))}
+        <div className="filters-row">
+          <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
+            <option value="">Cargo</option>
+            {roles.map((role) => (
+              <option key={role.id} value={role.code}>
+                {role.name}
+              </option>
+            ))}
+          </select>
+          <select value={contractFilter} onChange={(event) => setContractFilter(event.target.value)}>
+            <option value="">Tipo de contrato</option>
+            <option value="Indefinido">Indefinido</option>
+            <option value="Plazo fijo">Plazo fijo</option>
+          </select>
+          <input
+            type="text"
+            value={nameFilter}
+            onChange={(event) => setNameFilter(event.target.value)}
+            placeholder="Nombre convencional"
+          />
         </div>
       </div>
       <div className="table-wrap">

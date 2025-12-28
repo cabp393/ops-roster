@@ -295,58 +295,21 @@ th {
   background: #f9fafb;
 }
 
-.filters-header {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.filters-header h3 {
-  margin: 0;
-  font-size: 0.9rem;
-}
-
-.filters-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 8px;
-}
-
-.filter-row {
+.filters-row {
   display: grid;
-  gap: 6px;
-  grid-template-columns: minmax(160px, 1fr) 160px auto;
+  gap: 8px;
+  grid-template-columns: minmax(160px, 1fr) minmax(160px, 1fr) minmax(200px, 2fr);
   align-items: center;
 }
 
-.filter-input {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.filter-input input {
+.filters-row select,
+.filters-row input {
   width: 100%;
-  height: 30px;
-  padding-left: 30px;
-}
-
-.filter-icon {
-  position: absolute;
-  left: 8px;
-  display: inline-flex;
-  align-items: center;
-  color: #6b7280;
-  width: 16px;
-  height: 16px;
-}
-
-.filter-icon svg {
-  width: 16px;
-  height: 16px;
+  height: 32px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #fff;
 }
 
 .form-header {

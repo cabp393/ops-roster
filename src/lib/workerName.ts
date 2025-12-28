@@ -62,9 +62,8 @@ export function getWorkerDisplayName(worker: Worker): string {
     : ''
   const baseName = givenNames || worker.name?.trim() || ''
   const combined = [baseName, initials || fallbackInitials].filter(Boolean).join(' ').trim()
-  const lastNameLabel = lastNames.join(' ').trim()
   if (!combined) return ''
-  return lastNameLabel ? `${combined} (${lastNameLabel})` : combined
+  return combined
 }
 
 export function getWorkerLastNames(worker: Worker): string {
