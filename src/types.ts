@@ -17,7 +17,11 @@ export type Task = {
 
 export type Worker = {
   id: number
-  name: string
+  name?: string
+  firstName: string
+  secondName?: string
+  lastName: string
+  motherLastName?: string
   roleCode: string
   contract: 'Indefinido' | 'Plazo fijo'
   shiftMode: 'Rotativo' | 'Fijo'
@@ -25,6 +29,7 @@ export type Worker = {
   constraints?: {
     allowedShifts?: Shift[]
   }
+  specialtyTaskId?: string | null
   specialRole?: string
   isActive?: boolean
 }

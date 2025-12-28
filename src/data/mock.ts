@@ -126,16 +126,16 @@ export const defaultTasks: Task[] = [
 ]
 
 export const defaultWorkers: Worker[] = [
-  { id: 1, name: 'Cristian Soto', roleCode: 'OG', contract: 'Indefinido', shiftMode: 'Rotativo' },
-  { id: 2, name: 'Matías Rojas', roleCode: 'OG', contract: 'Indefinido', shiftMode: 'Rotativo', constraints: { allowedShifts: ['M', 'T'] } },
-  { id: 3, name: 'Felipe Muñoz', roleCode: 'OG', contract: 'Indefinido', shiftMode: 'Fijo', fixedShift: 'N' },
-  { id: 4, name: 'Diego Herrera', roleCode: 'OG', contract: 'Plazo fijo', shiftMode: 'Rotativo' },
-  { id: 5, name: 'Sebastián Vidal', roleCode: 'OG', contract: 'Plazo fijo', shiftMode: 'Rotativo', constraints: { allowedShifts: ['T', 'N'] } },
-  { id: 6, name: 'Camila Pérez', roleCode: 'AL', contract: 'Indefinido', shiftMode: 'Rotativo', constraints: { allowedShifts: ['M', 'N'] } },
-  { id: 7, name: 'Valentina Araya', roleCode: 'AL', contract: 'Indefinido', shiftMode: 'Fijo', fixedShift: 'M' },
-  { id: 8, name: 'Nicolás Díaz', roleCode: 'AL', contract: 'Plazo fijo', shiftMode: 'Rotativo' },
-  { id: 9, name: 'Javier Torres', roleCode: 'AL', contract: 'Plazo fijo', shiftMode: 'Rotativo', constraints: { allowedShifts: ['M', 'T'] } },
-  { id: 10, name: 'Sofía Lagos', roleCode: 'AL', contract: 'Indefinido', shiftMode: 'Rotativo' },
+  { id: 1, firstName: 'Cristian', secondName: '', lastName: 'Soto', motherLastName: '', roleCode: 'OG', contract: 'Indefinido', shiftMode: 'Rotativo' },
+  { id: 2, firstName: 'Matías', secondName: '', lastName: 'Rojas', motherLastName: '', roleCode: 'OG', contract: 'Indefinido', shiftMode: 'Rotativo', constraints: { allowedShifts: ['M', 'T'] } },
+  { id: 3, firstName: 'Felipe', secondName: '', lastName: 'Muñoz', motherLastName: '', roleCode: 'OG', contract: 'Indefinido', shiftMode: 'Fijo', fixedShift: 'N' },
+  { id: 4, firstName: 'Diego', secondName: '', lastName: 'Herrera', motherLastName: '', roleCode: 'OG', contract: 'Plazo fijo', shiftMode: 'Rotativo' },
+  { id: 5, firstName: 'Sebastián', secondName: '', lastName: 'Vidal', motherLastName: '', roleCode: 'OG', contract: 'Plazo fijo', shiftMode: 'Rotativo', constraints: { allowedShifts: ['T', 'N'] } },
+  { id: 6, firstName: 'Camila', secondName: '', lastName: 'Pérez', motherLastName: '', roleCode: 'AL', contract: 'Indefinido', shiftMode: 'Rotativo', constraints: { allowedShifts: ['M', 'N'] } },
+  { id: 7, firstName: 'Valentina', secondName: '', lastName: 'Araya', motherLastName: 'Rojas', roleCode: 'AL', contract: 'Indefinido', shiftMode: 'Fijo', fixedShift: 'M' },
+  { id: 8, firstName: 'Nicolás', secondName: '', lastName: 'Díaz', motherLastName: '', roleCode: 'AL', contract: 'Plazo fijo', shiftMode: 'Rotativo' },
+  { id: 9, firstName: 'Javier', secondName: '', lastName: 'Torres', motherLastName: '', roleCode: 'AL', contract: 'Plazo fijo', shiftMode: 'Rotativo', constraints: { allowedShifts: ['M', 'T'] } },
+  { id: 10, firstName: 'Sofía', secondName: '', lastName: 'Lagos', motherLastName: '', roleCode: 'AL', contract: 'Indefinido', shiftMode: 'Rotativo' },
 ]
 
 export const prevWeekShifts: Record<number, Shift> = {
