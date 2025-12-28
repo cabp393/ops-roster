@@ -37,6 +37,8 @@ const emptyPlan: WeekPlan = {
   tasksByWorkerId: {},
 }
 
+const planningShiftOrder: Shift[] = ['N', 'M', 'T']
+
 function allowedShiftsForWorker(worker: Worker): Shift[] {
   if (worker.shiftMode === 'Fijo' && worker.fixedShift) return [worker.fixedShift]
   return worker.constraints?.allowedShifts ?? SHIFTS
@@ -95,35 +97,36 @@ function WorkerCard({ worker, shift, taskOptions, taskValue, onTaskChange }: Wor
       {...attributes}
       {...listeners}
     >
-      <div className="worker-card-header">
-        <div>
-          <div className="worker-name">{getWorkerDisplayName(worker)}</div>
-          <div className="worker-badges">
-            <span className={`badge role-${worker.roleCode.toLowerCase()}`}>{worker.roleCode}</span>
-            {worker.contract ? (
-              <span
-                className={`badge contract-${worker.contract === 'Indefinido' ? 'indefinido' : 'plazo'}`}
-              >
-                {worker.contract}
-              </span>
-            ) : null}
-          </div>
+      <div className="worker-card-top">
+        <div className="worker-name">{getWorkerDisplayName(worker)}</div>
+        <div className="worker-badges">
+          <span className={`badge role-${worker.roleCode.toLowerCase()}`}>{worker.roleCode}</span>
+          {worker.contract ? (
+            <span
+              className={`badge contract-${worker.contract === 'Indefinido' ? 'indefinido' : 'plazo'}`}
+            >
+              {worker.contract}
+            </span>
+          ) : null}
+          {worker.shiftMode === 'Fijo' ? (
+            <span className="badge subtle" title="Turno fijo">
+              🔒
+            </span>
+          ) : null}
         </div>
       </div>
-      <label className="field worker-task">
-        Tarea
+      <div className="worker-task">
         <select
           value={taskValue ?? ''}
           onChange={(event) => onTaskChange(worker.id, event.target.value)}
         >
-          <option value="">Unassigned</option>
           {taskOptions.map((task) => (
             <option key={task.id} value={task.id}>
               {task.name}
             </option>
           ))}
         </select>
-      </label>
+      </div>
     </div>
   )
 }
@@ -218,6 +221,36 @@ export function PlanningPage() {
     })
     return map
   }, [activeTasks])
+
+  const defaultTaskByRole = useMemo(() => {
+    const map = new Map<string, string>()
+    tasksByRole.forEach((roleTasks, roleCode) => {
+      if (roleTasks.length > 0) map.set(roleCode, roleTasks[0].id)
+    })
+    return map
+  }, [tasksByRole])
+
+  useEffect(() => {
+    if (activeWorkers.length === 0 || defaultTaskByRole.size === 0) return
+    const updates: Record<number, string | null> = {}
+    let hasUpdates = false
+    activeWorkers.forEach((worker) => {
+      const currentTask = plan.tasksByWorkerId[worker.id]
+      if (currentTask) return
+      const defaultTaskId = defaultTaskByRole.get(worker.roleCode)
+      if (!defaultTaskId) return
+      updates[worker.id] = defaultTaskId
+      hasUpdates = true
+    })
+    if (!hasUpdates) return
+    persist({
+      ...plan,
+      tasksByWorkerId: {
+        ...plan.tasksByWorkerId,
+        ...updates,
+      },
+    })
+  }, [activeWorkers, defaultTaskByRole, plan])
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
@@ -355,7 +388,7 @@ export function PlanningPage() {
       </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <div className="planning-board">
-          {SHIFTS.map((shift) => {
+          {planningShiftOrder.map((shift) => {
             const workerIds = plan.columns[shift] ?? []
             return (
               <ShiftColumn key={shift} shift={shift} workerIds={workerIds}>
@@ -365,7 +398,10 @@ export function PlanningPage() {
                       const worker = workerById.get(workerId)
                       if (!worker) return null
                       const taskOptions = tasksByRole.get(worker.roleCode) ?? []
-                      const taskValue = plan.tasksByWorkerId[workerId] ?? null
+                      const taskValue =
+                        plan.tasksByWorkerId[workerId] ??
+                        defaultTaskByRole.get(worker.roleCode) ??
+                        null
                       return (
                         <WorkerCard
                           key={workerId}
