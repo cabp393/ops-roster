@@ -171,10 +171,12 @@ export function PlanningPage({ weekNumber, weekYear, onWeekChange }: PlanningPag
   const [tasks, setTasks] = useState<Task[]>([])
   const [workers, setWorkers] = useState<Worker[]>([])
   const [hasLoadedPlan, setHasLoadedPlan] = useState(false)
+  const [hasLoadedRoster, setHasLoadedRoster] = useState(false)
 
   useEffect(() => {
     setTasks(getTasks())
     setWorkers(getWorkers())
+    setHasLoadedRoster(true)
   }, [])
 
   const activeWorkers = useMemo(
@@ -194,6 +196,7 @@ export function PlanningPage({ weekNumber, weekYear, onWeekChange }: PlanningPag
   const weekLabel = useMemo(() => getWeekRangeLabel(weekNumber, weekYear), [weekNumber, weekYear])
 
   useEffect(() => {
+    if (!hasLoadedRoster) return
     setHasLoadedPlan(false)
     const saved = loadWeekPlan(weekStart)
     if (!saved) {
@@ -203,7 +206,7 @@ export function PlanningPage({ weekNumber, weekYear, onWeekChange }: PlanningPag
     }
     setPlan(sanitizePlan({ ...saved, weekStart }, activeWorkerIds))
     setHasLoadedPlan(true)
-  }, [weekStart, activeWorkerIds])
+  }, [weekStart, activeWorkerIds, hasLoadedRoster])
 
   const workerById = useMemo(
     () => new Map(activeWorkers.map((worker) => [worker.id, worker])),
