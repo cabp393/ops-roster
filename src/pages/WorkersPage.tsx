@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Pencil, Trash2 } from 'lucide-react'
 import { SHIFTS } from '../data/mock'
 import { getRoles, getTasks, getWorkers, setWorkers as setWorkersStorage } from '../lib/storage'
 import { getWorkerDisplayName, getWorkerFullName } from '../lib/workerName'
@@ -436,10 +437,10 @@ export function WorkersPage() {
                 <td>
                   <div className="button-row">
                     <button type="button" className="icon-button" onClick={() => loadForEdit(worker)} aria-label="Editar">
-                      ✏️
+                      <Pencil size={14} />
                     </button>
                     <button type="button" className="icon-button" onClick={() => handleDelete(worker.id)} aria-label="Borrar">
-                      🗑️
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 </td>

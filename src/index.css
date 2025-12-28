@@ -120,6 +120,13 @@ th {
   gap: 8px;
 }
 
+.planning-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+}
+
 .button-row button {
   padding: 6px 10px;
   border-radius: 8px;
@@ -130,9 +137,19 @@ th {
 }
 
 .icon-button {
-  padding: 4px 8px;
-  font-size: 1rem;
+  padding: 4px 6px;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  min-width: 30px;
+  min-height: 30px;
+}
+
+.icon-button svg {
+  width: 14px;
+  height: 14px;
 }
 
 .summary {

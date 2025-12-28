@@ -15,6 +15,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { ArrowLeft, ArrowRight, Lock, RotateCw, Save, Trash2 } from 'lucide-react'
 import { SHIFT_LABEL, SHIFTS, prevWeekShifts } from '../data/mock'
 import { clearWeekPlan, loadWeekPlan, saveWeekPlan, seedWeekPlan } from '../lib/planningBoard'
 import {
@@ -84,6 +85,12 @@ function WorkerCard({ worker, shift, taskOptions, taskValue, onTaskChange }: Wor
     data: { shift },
   })
 
+  const hasShiftRestriction =
+    worker.shiftMode === 'Fijo' ||
+    (worker.constraints?.allowedShifts &&
+      worker.constraints.allowedShifts.length > 0 &&
+      worker.constraints.allowedShifts.length < SHIFTS.length)
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -108,9 +115,12 @@ function WorkerCard({ worker, shift, taskOptions, taskValue, onTaskChange }: Wor
               {worker.contract}
             </span>
           ) : null}
-          {worker.shiftMode === 'Fijo' ? (
-            <span className="badge subtle" title="Turno fijo">
-              🔒
+          {hasShiftRestriction ? (
+            <span
+              className="badge subtle"
+              title={worker.shiftMode === 'Fijo' ? 'Turno fijo' : 'Turno restringido'}
+            >
+              <Lock size={12} />
             </span>
           ) : null}
         </div>
@@ -264,6 +274,10 @@ export function PlanningPage() {
     persist(seeded)
   }
 
+  function handleSave() {
+    saveWeekPlan(weekStart, plan)
+  }
+
   function handleClear() {
     clearWeekPlan(weekStart)
     setPlan({ ...emptyPlan, weekStart })
@@ -345,6 +359,15 @@ export function PlanningPage() {
     })
   }
 
+  function handleWeekShift(direction: 'prev' | 'next') {
+    const currentStart = getWeekStartDate(weekNumber, weekYear)
+    const delta = direction === 'prev' ? -7 : 7
+    const nextDate = new Date(currentStart)
+    nextDate.setUTCDate(currentStart.getUTCDate() + delta)
+    setWeekNumber(getIsoWeekNumber(nextDate))
+    setWeekYear(getIsoWeekYear(nextDate))
+  }
+
   return (
     <section>
       <div className="planning-controls">
@@ -377,13 +400,51 @@ export function PlanningPage() {
           </label>
           <div className="week-range">{weekLabel}</div>
         </div>
-        <div className="button-row">
-          <button type="button" onClick={handleSeed}>
-            Seed week
-          </button>
-          <button type="button" onClick={handleClear}>
-            Clear week
-          </button>
+        <div className="planning-actions">
+          <div className="button-row">
+            <button
+              type="button"
+              className="icon-button"
+              onClick={() => handleWeekShift('prev')}
+              aria-label="Semana anterior"
+            >
+              <ArrowLeft size={14} />
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              onClick={() => handleWeekShift('next')}
+              aria-label="Semana siguiente"
+            >
+              <ArrowRight size={14} />
+            </button>
+          </div>
+          <div className="button-row">
+            <button
+              type="button"
+              className="icon-button"
+              onClick={handleSeed}
+              aria-label="Generar turno"
+            >
+              <RotateCw size={14} />
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              onClick={handleSave}
+              aria-label="Guardar turno"
+            >
+              <Save size={14} />
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              onClick={handleClear}
+              aria-label="Borrar turno"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
         </div>
       </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
