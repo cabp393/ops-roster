@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, ArrowRight, ArrowRightCircle } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Eye } from 'lucide-react'
 import { SHIFTS, SHIFT_LABEL } from '../data/mock'
 import { loadWeekPlan } from '../lib/planningBoard'
 import { formatDate, getIsoWeekNumber, getIsoWeekYear, getWeekRangeLabel, getWeekStartDate } from '../lib/week'
@@ -157,7 +157,7 @@ export function SummaryPage({ weekNumber, weekYear, onWeekChange, onGoToPlanning
               onClick={onGoToPlanning}
               aria-label="Ir a planificación"
             >
-              <ArrowRightCircle size={14} />
+              <Eye size={14} />
             </button>
           </div>
         </div>

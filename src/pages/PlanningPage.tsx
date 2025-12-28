@@ -15,7 +15,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ArrowLeft, ArrowRight, Lock, RotateCw, Save, Trash2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Eye, Lock, RotateCw, Save, Trash2 } from 'lucide-react'
 import { SHIFT_LABEL, SHIFTS, prevWeekShifts } from '../data/mock'
 import { clearWeekPlan, loadWeekPlan, saveWeekPlan, seedWeekPlan } from '../lib/planningBoard'
 import {
@@ -164,16 +164,25 @@ type PlanningPageProps = {
   weekNumber: number
   weekYear: number
   onWeekChange: (weekNumber: number, weekYear: number) => void
+  onGoToSummary: () => void
 }
 
-export function PlanningPage({ weekNumber, weekYear, onWeekChange }: PlanningPageProps) {
+export function PlanningPage({
+  weekNumber,
+  weekYear,
+  onWeekChange,
+  onGoToSummary,
+}: PlanningPageProps) {
   const [plan, setPlan] = useState<WeekPlan>(emptyPlan)
   const [tasks, setTasks] = useState<Task[]>([])
   const [workers, setWorkers] = useState<Worker[]>([])
+  const [hasLoadedPlan, setHasLoadedPlan] = useState(false)
+  const [hasLoadedRoster, setHasLoadedRoster] = useState(false)
 
   useEffect(() => {
     setTasks(getTasks())
     setWorkers(getWorkers())
+    setHasLoadedRoster(true)
   }, [])
 
   const activeWorkers = useMemo(
@@ -193,13 +202,17 @@ export function PlanningPage({ weekNumber, weekYear, onWeekChange }: PlanningPag
   const weekLabel = useMemo(() => getWeekRangeLabel(weekNumber, weekYear), [weekNumber, weekYear])
 
   useEffect(() => {
+    if (!hasLoadedRoster) return
+    setHasLoadedPlan(false)
     const saved = loadWeekPlan(weekStart)
     if (!saved) {
       setPlan({ ...emptyPlan, weekStart })
+      setHasLoadedPlan(true)
       return
     }
     setPlan(sanitizePlan({ ...saved, weekStart }, activeWorkerIds))
-  }, [weekStart, activeWorkerIds])
+    setHasLoadedPlan(true)
+  }, [weekStart, activeWorkerIds, hasLoadedRoster])
 
   const workerById = useMemo(
     () => new Map(activeWorkers.map((worker) => [worker.id, worker])),
@@ -229,6 +242,7 @@ export function PlanningPage({ weekNumber, weekYear, onWeekChange }: PlanningPag
   }, [tasksByRole])
 
   useEffect(() => {
+    if (!hasLoadedPlan) return
     if (activeWorkers.length === 0 || defaultTaskByRole.size === 0) return
     const updates: Record<number, string | null> = {}
     let hasUpdates = false
@@ -248,7 +262,7 @@ export function PlanningPage({ weekNumber, weekYear, onWeekChange }: PlanningPag
         ...updates,
       },
     })
-  }, [activeWorkers, defaultTaskByRole, plan])
+  }, [activeWorkers, defaultTaskByRole, hasLoadedPlan, plan])
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
@@ -430,6 +444,14 @@ export function PlanningPage({ weekNumber, weekYear, onWeekChange }: PlanningPag
               aria-label="Borrar turno"
             >
               <Trash2 size={14} />
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              onClick={onGoToSummary}
+              aria-label="Ver resumen"
+            >
+              <Eye size={14} />
             </button>
           </div>
         </div>
