@@ -170,6 +170,7 @@ export function PlanningPage({ weekNumber, weekYear, onWeekChange }: PlanningPag
   const [plan, setPlan] = useState<WeekPlan>(emptyPlan)
   const [tasks, setTasks] = useState<Task[]>([])
   const [workers, setWorkers] = useState<Worker[]>([])
+  const [hasLoadedPlan, setHasLoadedPlan] = useState(false)
 
   useEffect(() => {
     setTasks(getTasks())
@@ -193,12 +194,15 @@ export function PlanningPage({ weekNumber, weekYear, onWeekChange }: PlanningPag
   const weekLabel = useMemo(() => getWeekRangeLabel(weekNumber, weekYear), [weekNumber, weekYear])
 
   useEffect(() => {
+    setHasLoadedPlan(false)
     const saved = loadWeekPlan(weekStart)
     if (!saved) {
       setPlan({ ...emptyPlan, weekStart })
+      setHasLoadedPlan(true)
       return
     }
     setPlan(sanitizePlan({ ...saved, weekStart }, activeWorkerIds))
+    setHasLoadedPlan(true)
   }, [weekStart, activeWorkerIds])
 
   const workerById = useMemo(
@@ -229,6 +233,7 @@ export function PlanningPage({ weekNumber, weekYear, onWeekChange }: PlanningPag
   }, [tasksByRole])
 
   useEffect(() => {
+    if (!hasLoadedPlan) return
     if (activeWorkers.length === 0 || defaultTaskByRole.size === 0) return
     const updates: Record<number, string | null> = {}
     let hasUpdates = false
@@ -248,7 +253,7 @@ export function PlanningPage({ weekNumber, weekYear, onWeekChange }: PlanningPag
         ...updates,
       },
     })
-  }, [activeWorkers, defaultTaskByRole, plan])
+  }, [activeWorkers, defaultTaskByRole, hasLoadedPlan, plan])
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
