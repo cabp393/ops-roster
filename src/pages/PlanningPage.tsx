@@ -15,7 +15,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ArrowLeft, ArrowRight, Lock, RotateCw, Save, Trash2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Eye, Lock, RotateCw, Save, Trash2 } from 'lucide-react'
 import { SHIFT_LABEL, SHIFTS, prevWeekShifts } from '../data/mock'
 import { clearWeekPlan, loadWeekPlan, saveWeekPlan, seedWeekPlan } from '../lib/planningBoard'
 import {
@@ -164,9 +164,15 @@ type PlanningPageProps = {
   weekNumber: number
   weekYear: number
   onWeekChange: (weekNumber: number, weekYear: number) => void
+  onGoToSummary: () => void
 }
 
-export function PlanningPage({ weekNumber, weekYear, onWeekChange }: PlanningPageProps) {
+export function PlanningPage({
+  weekNumber,
+  weekYear,
+  onWeekChange,
+  onGoToSummary,
+}: PlanningPageProps) {
   const [plan, setPlan] = useState<WeekPlan>(emptyPlan)
   const [tasks, setTasks] = useState<Task[]>([])
   const [workers, setWorkers] = useState<Worker[]>([])
@@ -438,6 +444,14 @@ export function PlanningPage({ weekNumber, weekYear, onWeekChange }: PlanningPag
               aria-label="Borrar turno"
             >
               <Trash2 size={14} />
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              onClick={onGoToSummary}
+              aria-label="Ver resumen"
+            >
+              <Eye size={14} />
             </button>
           </div>
         </div>

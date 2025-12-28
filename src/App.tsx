@@ -46,6 +46,7 @@ export function App() {
             weekNumber={weekNumber}
             weekYear={weekYear}
             onWeekChange={handleWeekChange}
+            onGoToSummary={() => setActiveTab('summary')}
           />
         ) : activeTab === 'summary' ? (
           <SummaryPage
