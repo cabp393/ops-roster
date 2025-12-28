@@ -70,10 +70,10 @@ function nextRotatedShift(shift: Shift): Shift {
 
 function pickAllowedShift(desired: Shift, allowed: Shift[]): Shift | null {
   if (allowed.includes(desired)) return desired
-  const startIndex = SHIFTS.indexOf(desired)
+  let current = desired
   for (let index = 0; index < SHIFTS.length; index += 1) {
-    const shift = SHIFTS[(startIndex + index) % SHIFTS.length]
-    if (allowed.includes(shift)) return shift
+    current = nextRotatedShift(current)
+    if (allowed.includes(current)) return current
   }
   return null
 }
@@ -85,7 +85,6 @@ export function seedWeekPlan(
 ): WeekPlan {
   const columns: Record<Shift, number[]> = { M: [], T: [], N: [] }
   const tasksByWorkerId: Record<number, string | null> = {}
-  const assigned = new Set<number>()
   const activeWorkers = workers.filter((worker) => worker.isActive !== false)
 
   activeWorkers
@@ -96,36 +95,19 @@ export function seedWeekPlan(
       if (!allowed.includes(worker.fixedShift)) return
       columns[worker.fixedShift].push(worker.id)
       tasksByWorkerId[worker.id] = null
-      assigned.add(worker.id)
     })
 
   activeWorkers
-    .filter((worker) => worker.contract === 'Indefinido' && worker.shiftMode === 'Rotativo')
+    .filter((worker) => worker.shiftMode !== 'Fijo')
     .forEach((worker) => {
-      if (assigned.has(worker.id)) return
       const previous = prevWeekShifts[worker.id]
-      if (!previous) return
-      const desired = nextRotatedShift(previous)
+      const desired = previous ? nextRotatedShift(previous) : 'M'
       const allowed = allowedShiftsForWorker(worker)
       const shift = pickAllowedShift(desired, allowed)
       if (!shift) return
       columns[shift].push(worker.id)
       tasksByWorkerId[worker.id] = null
-      assigned.add(worker.id)
     })
-
-  const remaining = activeWorkers.filter((worker) => !assigned.has(worker.id))
-  let roundRobinIndex = 0
-
-  remaining.forEach((worker) => {
-    const allowed = allowedShiftsForWorker(worker)
-    const desired = SHIFTS[roundRobinIndex % SHIFTS.length]
-    const shift = pickAllowedShift(desired, allowed)
-    roundRobinIndex += 1
-    if (!shift) return
-    columns[shift].push(worker.id)
-    tasksByWorkerId[worker.id] = null
-  })
 
   return { weekStart, columns, tasksByWorkerId }
 }

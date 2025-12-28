@@ -15,6 +15,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { ArrowLeft, ArrowRight, Lock, RotateCw, Save, Trash2 } from 'lucide-react'
 import { SHIFT_LABEL, SHIFTS, prevWeekShifts } from '../data/mock'
 import { clearWeekPlan, loadWeekPlan, saveWeekPlan, seedWeekPlan } from '../lib/planningBoard'
 import {
@@ -27,9 +28,6 @@ import {
 import { getTasks, getWorkers } from '../lib/storage'
 import { getWorkerDisplayName } from '../lib/workerName'
 import type { Shift, Task, WeekPlan, Worker } from '../types'
-
-const fallbackWeekNumber = 1
-const fallbackWeekYear = 2025
 
 const emptyPlan: WeekPlan = {
   weekStart: '2025-12-29',
@@ -84,6 +82,12 @@ function WorkerCard({ worker, shift, taskOptions, taskValue, onTaskChange }: Wor
     data: { shift },
   })
 
+  const hasShiftRestriction =
+    worker.shiftMode === 'Fijo' ||
+    (worker.constraints?.allowedShifts &&
+      worker.constraints.allowedShifts.length > 0 &&
+      worker.constraints.allowedShifts.length < SHIFTS.length)
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -108,9 +112,12 @@ function WorkerCard({ worker, shift, taskOptions, taskValue, onTaskChange }: Wor
               {worker.contract}
             </span>
           ) : null}
-          {worker.shiftMode === 'Fijo' ? (
-            <span className="badge subtle" title="Turno fijo">
-              🔒
+          {hasShiftRestriction ? (
+            <span
+              className="badge subtle"
+              title={worker.shiftMode === 'Fijo' ? 'Turno fijo' : 'Turno restringido'}
+            >
+              <Lock size={12} />
             </span>
           ) : null}
         </div>
@@ -153,22 +160,13 @@ function ShiftColumn({ shift, workerIds, children }: ShiftColumnProps) {
   )
 }
 
-export function PlanningPage() {
-  const today = new Date()
-  const [weekNumber, setWeekNumber] = useState(() => {
-    try {
-      return getIsoWeekNumber(today)
-    } catch {
-      return fallbackWeekNumber
-    }
-  })
-  const [weekYear, setWeekYear] = useState(() => {
-    try {
-      return getIsoWeekYear(today)
-    } catch {
-      return fallbackWeekYear
-    }
-  })
+type PlanningPageProps = {
+  weekNumber: number
+  weekYear: number
+  onWeekChange: (weekNumber: number, weekYear: number) => void
+}
+
+export function PlanningPage({ weekNumber, weekYear, onWeekChange }: PlanningPageProps) {
   const [plan, setPlan] = useState<WeekPlan>(emptyPlan)
   const [tasks, setTasks] = useState<Task[]>([])
   const [workers, setWorkers] = useState<Worker[]>([])
@@ -264,6 +262,10 @@ export function PlanningPage() {
     persist(seeded)
   }
 
+  function handleSave() {
+    saveWeekPlan(weekStart, plan)
+  }
+
   function handleClear() {
     clearWeekPlan(weekStart)
     setPlan({ ...emptyPlan, weekStart })
@@ -345,6 +347,14 @@ export function PlanningPage() {
     })
   }
 
+  function handleWeekShift(direction: 'prev' | 'next') {
+    const currentStart = getWeekStartDate(weekNumber, weekYear)
+    const delta = direction === 'prev' ? -7 : 7
+    const nextDate = new Date(currentStart)
+    nextDate.setUTCDate(currentStart.getUTCDate() + delta)
+    onWeekChange(getIsoWeekNumber(nextDate), getIsoWeekYear(nextDate))
+  }
+
   return (
     <section>
       <div className="planning-controls">
@@ -358,7 +368,7 @@ export function PlanningPage() {
               value={weekNumber}
               onChange={(event) => {
                 const value = Number(event.target.value)
-                if (!Number.isNaN(value)) setWeekNumber(value)
+                if (!Number.isNaN(value)) onWeekChange(value, weekYear)
               }}
             />
           </label>
@@ -371,19 +381,57 @@ export function PlanningPage() {
               value={weekYear}
               onChange={(event) => {
                 const value = Number(event.target.value)
-                if (!Number.isNaN(value)) setWeekYear(value)
+                if (!Number.isNaN(value)) onWeekChange(weekNumber, value)
               }}
             />
           </label>
           <div className="week-range">{weekLabel}</div>
         </div>
-        <div className="button-row">
-          <button type="button" onClick={handleSeed}>
-            Seed week
-          </button>
-          <button type="button" onClick={handleClear}>
-            Clear week
-          </button>
+        <div className="planning-actions">
+          <div className="button-row">
+            <button
+              type="button"
+              className="icon-button"
+              onClick={() => handleWeekShift('prev')}
+              aria-label="Semana anterior"
+            >
+              <ArrowLeft size={14} />
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              onClick={() => handleWeekShift('next')}
+              aria-label="Semana siguiente"
+            >
+              <ArrowRight size={14} />
+            </button>
+          </div>
+          <div className="button-row">
+            <button
+              type="button"
+              className="icon-button"
+              onClick={handleSeed}
+              aria-label="Generar turno"
+            >
+              <RotateCw size={14} />
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              onClick={handleSave}
+              aria-label="Guardar turno"
+            >
+              <Save size={14} />
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              onClick={handleClear}
+              aria-label="Borrar turno"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
         </div>
       </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
