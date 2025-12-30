@@ -200,9 +200,80 @@ th {
 .shift-column-body {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
   padding: 10px;
   flex: 1;
+}
+
+.role-group {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.role-group.over {
+  border-color: #94a3b8;
+  background: #f1f5f9;
+}
+
+.role-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.role-group-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.role-count {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #475569;
+}
+
+.role-toggle {
+  border: none;
+  background: transparent;
+  color: #475569;
+  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.role-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.role-dropzone {
+  border: 1px dashed #cbd5f5;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 0.75rem;
+  color: #64748b;
+  text-align: center;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.role-dropzone.over {
+  border-color: #94a3b8;
+  color: #334155;
+  background: #e2e8f0;
 }
 
 .worker-card {
@@ -216,7 +287,15 @@ th {
 }
 
 .worker-card.dragging {
-  opacity: 0.6;
+  opacity: 0.35;
+  box-shadow: none;
+}
+
+.worker-card.drag-overlay {
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.2);
+  cursor: grabbing;
+  pointer-events: none;
+  z-index: 999;
 }
 
 .worker-card-top {
