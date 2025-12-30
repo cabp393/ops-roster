@@ -1,21 +1,35 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
-  closestCenter,
+  DragOverlay,
   DndContext,
+  KeyboardSensor,
   PointerSensor,
+  rectIntersection,
   useDroppable,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core'
 import {
   arrayMove,
   SortableContext,
   useSortable,
+  sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ArrowLeft, ArrowRight, Eye, Lock, RotateCw, Save, Trash2 } from 'lucide-react'
+import {
+  ArrowLeft,
+  ArrowRight,
+  ChevronDown,
+  ChevronRight,
+  Eye,
+  Lock,
+  RotateCw,
+  Save,
+  Trash2,
+} from 'lucide-react'
 import { SHIFT_LABEL, SHIFTS, prevWeekShifts } from '../data/mock'
 import { clearWeekPlan, loadWeekPlan, saveWeekPlan, seedWeekPlan } from '../lib/planningBoard'
 import {
@@ -36,6 +50,9 @@ const emptyPlan: WeekPlan = {
 }
 
 const planningShiftOrder: Shift[] = ['N', 'M', 'T']
+const ROLE_ORDER = ['AL', 'OG', 'JT'] as const
+type RoleCode = (typeof ROLE_ORDER)[number]
+const COLLAPSE_STORAGE_KEY = 'opsRoster:planning:roleCollapse'
 
 function allowedShiftsForWorker(worker: Worker): Shift[] {
   if (worker.shiftMode === 'Fijo' && worker.fixedShift) return [worker.fixedShift]
@@ -68,39 +85,61 @@ function findWorkerShift(columns: WeekPlan['columns'], workerId: number): Shift 
   return null
 }
 
+function loadCollapsedGroups(): Record<string, boolean> {
+  const raw = localStorage.getItem(COLLAPSE_STORAGE_KEY)
+  if (!raw) return {}
+  try {
+    const parsed = JSON.parse(raw)
+    if (parsed && typeof parsed === 'object') return parsed as Record<string, boolean>
+  } catch {
+    // ignore
+  }
+  return {}
+}
+
+function getGroupKey(shift: Shift, role: RoleCode) {
+  return `${shift}-${role}`
+}
+
+function groupWorkerIdsByRole(
+  workerIds: number[],
+  workerById: Map<number, Worker>,
+): Record<RoleCode, number[]> {
+  const grouped: Record<RoleCode, number[]> = { AL: [], OG: [], JT: [] }
+  workerIds.forEach((workerId) => {
+    const role = workerById.get(workerId)?.roleCode as RoleCode | undefined
+    if (role && ROLE_ORDER.includes(role)) grouped[role].push(workerId)
+  })
+  return grouped
+}
+
+function buildColumnFromGroups(groups: Record<RoleCode, number[]>) {
+  return ROLE_ORDER.flatMap((role) => groups[role])
+}
+
 type WorkerCardProps = {
   worker: Worker
-  shift: Shift
   taskOptions: Task[]
   taskValue: string | null
   onTaskChange: (workerId: number, taskId: string) => void
+  isReadOnly?: boolean
 }
 
-function WorkerCard({ worker, shift, taskOptions, taskValue, onTaskChange }: WorkerCardProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: worker.id,
-    data: { shift },
-  })
-
+function WorkerCardContent({
+  worker,
+  taskOptions,
+  taskValue,
+  onTaskChange,
+  isReadOnly = false,
+}: WorkerCardProps) {
   const hasShiftRestriction =
     worker.shiftMode === 'Fijo' ||
     (worker.constraints?.allowedShifts &&
       worker.constraints.allowedShifts.length > 0 &&
       worker.constraints.allowedShifts.length < SHIFTS.length)
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  }
-
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`worker-card${isDragging ? ' dragging' : ''}`}
-      {...attributes}
-      {...listeners}
-    >
+    <>
       <div className="worker-card-top">
         <div className="worker-name">{getWorkerDisplayName(worker)}</div>
         <div className="worker-badges">
@@ -126,6 +165,7 @@ function WorkerCard({ worker, shift, taskOptions, taskValue, onTaskChange }: Wor
         <select
           value={taskValue ?? ''}
           onChange={(event) => onTaskChange(worker.id, event.target.value)}
+          disabled={isReadOnly}
         >
           {taskOptions.map((task) => (
             <option key={task.id} value={task.id}>
@@ -134,6 +174,51 @@ function WorkerCard({ worker, shift, taskOptions, taskValue, onTaskChange }: Wor
           ))}
         </select>
       </div>
+    </>
+  )
+}
+
+type SortableWorkerCardProps = {
+  worker: Worker
+  shift: Shift
+  role: RoleCode
+  taskOptions: Task[]
+  taskValue: string | null
+  onTaskChange: (workerId: number, taskId: string) => void
+}
+
+function SortableWorkerCard({
+  worker,
+  shift,
+  role,
+  taskOptions,
+  taskValue,
+  onTaskChange,
+}: SortableWorkerCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: worker.id,
+    data: { shift, role },
+  })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`worker-card${isDragging ? ' dragging' : ''}`}
+      {...attributes}
+      {...listeners}
+    >
+      <WorkerCardContent
+        worker={worker}
+        taskOptions={taskOptions}
+        taskValue={taskValue}
+        onTaskChange={onTaskChange}
+      />
     </div>
   )
 }
@@ -160,6 +245,46 @@ function ShiftColumn({ shift, workerIds, children }: ShiftColumnProps) {
   )
 }
 
+type RoleGroupProps = {
+  shift: Shift
+  role: RoleCode
+  workerIds: number[]
+  isCollapsed: boolean
+  onToggle: () => void
+  children: ReactNode
+}
+
+function RoleGroup({ shift, role, workerIds, isCollapsed, onToggle, children }: RoleGroupProps) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `group-${shift}-${role}`,
+    data: { shift, role },
+  })
+
+  return (
+    <div className={`role-group${isOver ? ' over' : ''}`}>
+      <div className="role-group-header">
+        <div className="role-group-title">
+          <span className={`badge role-${role.toLowerCase()}`}>{role}</span>
+          <span className="role-count">{workerIds.length}</span>
+        </div>
+        <button type="button" className="role-toggle" onClick={onToggle}>
+          {isCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+          {isCollapsed ? 'Expandir' : 'Colapsar'}
+        </button>
+      </div>
+      {isCollapsed ? (
+        <div ref={setNodeRef} className={`role-dropzone${isOver ? ' over' : ''}`}>
+          Arrastra aquí para asignar en {role}
+        </div>
+      ) : (
+        <div ref={setNodeRef} className="role-group-body">
+          {children}
+        </div>
+      )}
+    </div>
+  )
+}
+
 type PlanningPageProps = {
   weekNumber: number
   weekYear: number
@@ -178,6 +303,10 @@ export function PlanningPage({
   const [workers, setWorkers] = useState<Worker[]>([])
   const [hasLoadedPlan, setHasLoadedPlan] = useState(false)
   const [hasLoadedRoster, setHasLoadedRoster] = useState(false)
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(() =>
+    loadCollapsedGroups(),
+  )
+  const [activeId, setActiveId] = useState<number | null>(null)
 
   useEffect(() => {
     setTasks(getTasks())
@@ -264,7 +393,14 @@ export function PlanningPage({
     })
   }, [activeWorkers, defaultTaskByRole, hasLoadedPlan, plan])
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  useEffect(() => {
+    localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify(collapsedGroups))
+  }, [collapsedGroups])
 
   function persist(nextPlan: WeekPlan) {
     setPlan(nextPlan)
@@ -296,69 +432,100 @@ export function PlanningPage({
     persist(nextPlan)
   }
 
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(event.active.id as number)
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
+    setActiveId(null)
     if (!over) return
 
     const activeId = active.id as number
     const overId = over.id
-    const sourceShift = (active.data.current?.shift as Shift | undefined) ?? findWorkerShift(plan.columns, activeId)
+    const sourceShift =
+      (active.data.current?.shift as Shift | undefined) ?? findWorkerShift(plan.columns, activeId)
     if (!sourceShift) return
 
+    const worker = workerById.get(activeId)
+    if (!worker) return
+    const activeRole = worker.roleCode as RoleCode
+    if (!ROLE_ORDER.includes(activeRole)) return
+    const allowedShifts = allowedShiftsForWorker(worker)
     let targetShift: Shift | null = null
     let targetIndex = -1
 
-    if (typeof overId === 'string' && overId.startsWith('column-')) {
-      targetShift = overId.replace('column-', '') as Shift
-      targetIndex = plan.columns[targetShift]?.length ?? 0
+    // Resolve drop target by group/column/worker for consistent cross-column moves.
+    if (typeof overId === 'string') {
+      if (overId.startsWith('group-')) {
+        targetShift = over.data.current?.shift as Shift
+        targetIndex = (plan.columns[targetShift] ?? []).length
+      } else if (overId.startsWith('column-')) {
+        targetShift = overId.replace('column-', '') as Shift
+        targetIndex = (plan.columns[targetShift] ?? []).length
+      }
     } else {
       const overWorkerId = overId as number
       targetShift =
         (over.data.current?.shift as Shift | undefined) ?? findWorkerShift(plan.columns, overWorkerId)
       if (!targetShift) return
-      targetIndex = plan.columns[targetShift].indexOf(overWorkerId)
+      const overWorker = workerById.get(overWorkerId)
+      if (overWorker?.roleCode === activeRole) {
+        const targetGroup = groupWorkerIdsByRole(plan.columns[targetShift], workerById)[activeRole]
+        targetIndex = targetGroup.indexOf(overWorkerId)
+      }
     }
 
     if (!targetShift) return
-
-    const worker = workerById.get(activeId)
-    if (!worker) return
-    const allowedShifts = allowedShiftsForWorker(worker)
     if (!allowedShifts.includes(targetShift)) return
 
+    // Build role groups to keep ordering within the role while moving between shifts.
+    const sourceGroups = groupWorkerIdsByRole(plan.columns[sourceShift], workerById)
+    const targetGroups = groupWorkerIdsByRole(plan.columns[targetShift], workerById)
+    const sourceGroup = sourceGroups[activeRole]
+    const targetGroup = targetGroups[activeRole]
+
+    const sourceIndex = sourceGroup.indexOf(activeId)
+    if (sourceIndex === -1) return
+
     if (sourceShift === targetShift) {
-      const sourceIndex = plan.columns[sourceShift].indexOf(activeId)
-      if (sourceIndex === -1) return
-      const maxIndex = plan.columns[sourceShift].length - 1
+      const maxIndex = targetGroup.length - 1
       const boundedIndex = targetIndex < 0 ? maxIndex : Math.max(0, Math.min(targetIndex, maxIndex))
       if (sourceIndex === boundedIndex) return
-      const reordered = arrayMove(plan.columns[sourceShift], sourceIndex, boundedIndex)
+      sourceGroups[activeRole] = arrayMove(sourceGroup, sourceIndex, boundedIndex)
       persist({
         ...plan,
         columns: {
           ...plan.columns,
-          [sourceShift]: reordered,
+          [sourceShift]: buildColumnFromGroups(sourceGroups),
         },
       })
       return
     }
 
-    const sourceItems = [...plan.columns[sourceShift]]
-    const targetItems = [...plan.columns[targetShift]]
-    const sourceIndex = sourceItems.indexOf(activeId)
-    if (sourceIndex === -1) return
-    sourceItems.splice(sourceIndex, 1)
-    const insertIndex = targetIndex < 0 ? targetItems.length : targetIndex
-    targetItems.splice(insertIndex, 0, activeId)
+    sourceGroups[activeRole] = sourceGroup.filter((id) => id !== activeId)
+    const insertIndex = targetIndex < 0 ? targetGroup.length : Math.min(targetIndex, targetGroup.length)
+    const nextTargetGroup = [...targetGroup]
+    nextTargetGroup.splice(insertIndex, 0, activeId)
+    targetGroups[activeRole] = nextTargetGroup
 
     persist({
       ...plan,
       columns: {
         ...plan.columns,
-        [sourceShift]: sourceItems,
-        [targetShift]: targetItems,
+        [sourceShift]: buildColumnFromGroups(sourceGroups),
+        [targetShift]: buildColumnFromGroups(targetGroups),
       },
     })
+  }
+
+  function handleDragCancel() {
+    setActiveId(null)
+  }
+
+  function toggleGroupCollapse(shift: Shift, role: RoleCode) {
+    const key = getGroupKey(shift, role)
+    setCollapsedGroups((current) => ({ ...current, [key]: !current[key] }))
   }
 
   function handleWeekShift(direction: 'prev' | 'next') {
@@ -456,39 +623,91 @@ export function PlanningPage({
           </div>
         </div>
       </div>
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        // rectIntersection keeps cross-column hit-testing stable for groups/columns.
+        collisionDetection={rectIntersection}
+        onDragStart={handleDragStart}
+        onDragCancel={handleDragCancel}
+        onDragEnd={handleDragEnd}
+      >
         <div className="planning-board">
           {planningShiftOrder.map((shift) => {
             const workerIds = plan.columns[shift] ?? []
+            const grouped = groupWorkerIdsByRole(workerIds, workerById)
             return (
               <ShiftColumn key={shift} shift={shift} workerIds={workerIds}>
-                <SortableContext items={workerIds} strategy={verticalListSortingStrategy}>
-                  <div className="shift-column-body" data-column={shift}>
-                    {workerIds.map((workerId) => {
-                      const worker = workerById.get(workerId)
-                      if (!worker) return null
-                      const taskOptions = tasksByRole.get(worker.roleCode) ?? []
-                      const taskValue =
-                        plan.tasksByWorkerId[workerId] ??
-                        defaultTaskByRole.get(worker.roleCode) ??
-                        null
-                      return (
-                        <WorkerCard
-                          key={workerId}
-                          worker={worker}
-                          shift={shift}
-                          taskOptions={taskOptions}
-                          taskValue={taskValue}
-                          onTaskChange={handleTaskChange}
-                        />
-                      )
-                    })}
-                  </div>
-                </SortableContext>
+                <div className="shift-column-body" data-column={shift}>
+                  {ROLE_ORDER.map((role) => {
+                    const groupWorkerIds = grouped[role]
+                    if (groupWorkerIds.length === 0) return null
+                    const groupKey = getGroupKey(shift, role)
+                    const isCollapsed = collapsedGroups[groupKey] ?? false
+                    return (
+                      <RoleGroup
+                        key={groupKey}
+                        shift={shift}
+                        role={role}
+                        workerIds={groupWorkerIds}
+                        isCollapsed={isCollapsed}
+                        onToggle={() => toggleGroupCollapse(shift, role)}
+                      >
+                        <SortableContext
+                          items={groupWorkerIds}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          {groupWorkerIds.map((workerId) => {
+                            const worker = workerById.get(workerId)
+                            if (!worker) return null
+                            const taskOptions = tasksByRole.get(worker.roleCode) ?? []
+                            const taskValue =
+                              plan.tasksByWorkerId[workerId] ??
+                              defaultTaskByRole.get(worker.roleCode) ??
+                              null
+                            return (
+                              <SortableWorkerCard
+                                key={workerId}
+                                worker={worker}
+                                shift={shift}
+                                role={role}
+                                taskOptions={taskOptions}
+                                taskValue={taskValue}
+                                onTaskChange={handleTaskChange}
+                              />
+                            )
+                          })}
+                        </SortableContext>
+                      </RoleGroup>
+                    )
+                  })}
+                </div>
               </ShiftColumn>
             )
           })}
         </div>
+        {/* DragOverlay renders outside layout to avoid clipping and follows the pointer offset. */}
+        <DragOverlay>
+          {activeId ? (
+            <div className="worker-card drag-overlay">
+              {(() => {
+                const worker = workerById.get(activeId)
+                if (!worker) return null
+                const taskOptions = tasksByRole.get(worker.roleCode) ?? []
+                const taskValue =
+                  plan.tasksByWorkerId[activeId] ?? defaultTaskByRole.get(worker.roleCode) ?? null
+                return (
+                  <WorkerCardContent
+                    worker={worker}
+                    taskOptions={taskOptions}
+                    taskValue={taskValue}
+                    onTaskChange={handleTaskChange}
+                    isReadOnly
+                  />
+                )
+              })()}
+            </div>
+          ) : null}
+        </DragOverlay>
       </DndContext>
     </section>
   )
