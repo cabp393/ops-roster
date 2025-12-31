@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Tabs } from './components/Tabs'
 import { PlanningPage } from './pages/PlanningPage'
-import { SummaryPage } from './pages/SummaryPage'
 import { WorkersPage } from './pages/WorkersPage'
 import { SetupPage } from './pages/SetupPage'
 import { getIsoWeekNumber, getIsoWeekYear } from './lib/week'
@@ -10,9 +9,7 @@ const fallbackWeekNumber = 1
 const fallbackWeekYear = 2025
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<
-    'planning' | 'summary' | 'workers' | 'setup'
-  >('planning')
+  const [activeTab, setActiveTab] = useState<'planning' | 'workers' | 'setup'>('planning')
   const today = new Date()
   const [weekNumber, setWeekNumber] = useState(() => {
     try {
@@ -46,14 +43,6 @@ export function App() {
             weekNumber={weekNumber}
             weekYear={weekYear}
             onWeekChange={handleWeekChange}
-            onGoToSummary={() => setActiveTab('summary')}
-          />
-        ) : activeTab === 'summary' ? (
-          <SummaryPage
-            weekNumber={weekNumber}
-            weekYear={weekYear}
-            onWeekChange={handleWeekChange}
-            onGoToPlanning={() => setActiveTab('planning')}
           />
         ) : activeTab === 'workers' ? (
           <WorkersPage />

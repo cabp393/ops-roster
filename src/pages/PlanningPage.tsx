@@ -25,6 +25,7 @@ import {
   ChevronDown,
   ChevronRight,
   Eye,
+  EyeOff,
   Lock,
   RotateCw,
   Save,
@@ -307,14 +308,12 @@ type PlanningPageProps = {
   weekNumber: number
   weekYear: number
   onWeekChange: (weekNumber: number, weekYear: number) => void
-  onGoToSummary: () => void
 }
 
 export function PlanningPage({
   weekNumber,
   weekYear,
   onWeekChange,
-  onGoToSummary,
 }: PlanningPageProps) {
   const [plan, setPlan] = useState<WeekPlan>(emptyPlan)
   const [tasks, setTasks] = useState<Task[]>([])
@@ -371,6 +370,17 @@ export function PlanningPage({
     () => new Map(activeTasks.map((task) => [task.id, task.name])),
     [activeTasks],
   )
+  const visibleGroupKeys = useMemo(() => {
+    const keys: string[] = []
+    planningShiftOrder.forEach((shift) => {
+      const grouped = groupWorkerIdsByRole(plan.columns[shift] ?? [], workerById)
+      ROLE_ORDER.forEach((role) => {
+        if (grouped[role].length > 0) keys.push(getGroupKey(shift, role))
+      })
+    })
+    return keys
+  }, [plan.columns, workerById])
+  const hasCollapsedGroups = visibleGroupKeys.some((key) => collapsedGroups[key])
 
   const tasksByRole = useMemo(() => {
     const map = new Map<string, Task[]>()
@@ -566,6 +576,17 @@ export function PlanningPage({
     onWeekChange(getIsoWeekNumber(nextDate), getIsoWeekYear(nextDate))
   }
 
+  function handleToggleAllGroups() {
+    const shouldCollapse = !hasCollapsedGroups
+    setCollapsedGroups((current) => {
+      const next = { ...current }
+      visibleGroupKeys.forEach((key) => {
+        next[key] = shouldCollapse
+      })
+      return next
+    })
+  }
+
   return (
     <section>
       <div className="planning-controls">
@@ -645,10 +666,11 @@ export function PlanningPage({
             <button
               type="button"
               className="icon-button"
-              onClick={onGoToSummary}
-              aria-label="Ver resumen"
+              onClick={handleToggleAllGroups}
+              aria-label={hasCollapsedGroups ? 'Expandir grupos' : 'Colapsar grupos'}
+              disabled={visibleGroupKeys.length === 0}
             >
-              <Eye size={14} />
+              {hasCollapsedGroups ? <Eye size={14} /> : <EyeOff size={14} />}
             </button>
           </div>
         </div>
