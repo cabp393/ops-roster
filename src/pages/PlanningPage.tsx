@@ -117,6 +117,12 @@ function buildColumnFromGroups(groups: Record<RoleCode, number[]>) {
   return ROLE_ORDER.flatMap((role) => groups[role])
 }
 
+function getContractToneClass(worker: Worker) {
+  if (worker.contract === 'Indefinido') return ' contract-indefinido'
+  if (worker.contract === 'Plazo fijo') return ' contract-plazo'
+  return ''
+}
+
 type WorkerCardProps = {
   worker: Worker
   taskOptions: Task[]
@@ -143,14 +149,6 @@ function WorkerCardContent({
       <div className="worker-card-top">
         <div className="worker-name">{getWorkerDisplayName(worker)}</div>
         <div className="worker-badges">
-          <span className={`badge role-${worker.roleCode.toLowerCase()}`}>{worker.roleCode}</span>
-          {worker.contract ? (
-            <span
-              className={`badge contract-${worker.contract === 'Indefinido' ? 'indefinido' : 'plazo'}`}
-            >
-              {worker.contract}
-            </span>
-          ) : null}
           {hasShiftRestriction ? (
             <span
               className="badge subtle"
@@ -204,12 +202,13 @@ function SortableWorkerCard({
     transform: CSS.Transform.toString(transform),
     transition,
   }
+  const contractClass = getContractToneClass(worker)
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`worker-card${isDragging ? ' dragging' : ''}`}
+      className={`worker-card${contractClass}${isDragging ? ' dragging' : ''}`}
       {...attributes}
       {...listeners}
     >
@@ -250,11 +249,20 @@ type RoleGroupProps = {
   role: RoleCode
   workerIds: number[]
   isCollapsed: boolean
+  summaryLines: string[]
   onToggle: () => void
   children: ReactNode
 }
 
-function RoleGroup({ shift, role, workerIds, isCollapsed, onToggle, children }: RoleGroupProps) {
+function RoleGroup({
+  shift,
+  role,
+  workerIds,
+  isCollapsed,
+  summaryLines,
+  onToggle,
+  children,
+}: RoleGroupProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: `group-${shift}-${role}`,
     data: { shift, role },
@@ -274,7 +282,17 @@ function RoleGroup({ shift, role, workerIds, isCollapsed, onToggle, children }: 
       </div>
       {isCollapsed ? (
         <div ref={setNodeRef} className={`role-dropzone${isOver ? ' over' : ''}`}>
-          Arrastra aquí para asignar en {role}
+          {summaryLines.length > 0 ? (
+            <div className="role-summary">
+              {summaryLines.map((line) => (
+                <div key={line} className="role-summary-line">
+                  {line}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <span className="role-summary-empty">Sin asignaciones</span>
+          )}
         </div>
       ) : (
         <div ref={setNodeRef} className="role-group-body">
@@ -349,6 +367,10 @@ export function PlanningPage({
   )
 
   const activeTasks = useMemo(() => tasks.filter((task) => task.isActive), [tasks])
+  const taskNameById = useMemo(
+    () => new Map(activeTasks.map((task) => [task.id, task.name])),
+    [activeTasks],
+  )
 
   const tasksByRole = useMemo(() => {
     const map = new Map<string, Task[]>()
@@ -369,6 +391,14 @@ export function PlanningPage({
     })
     return map
   }, [tasksByRole])
+
+  function getWorkerTaskName(workerId: number) {
+    const worker = workerById.get(workerId)
+    if (!worker) return null
+    const taskId = plan.tasksByWorkerId[workerId] ?? defaultTaskByRole.get(worker.roleCode) ?? null
+    if (!taskId) return null
+    return taskNameById.get(taskId) ?? 'Sin tarea'
+  }
 
   useEffect(() => {
     if (!hasLoadedPlan) return
@@ -643,6 +673,14 @@ export function PlanningPage({
                     if (groupWorkerIds.length === 0) return null
                     const groupKey = getGroupKey(shift, role)
                     const isCollapsed = collapsedGroups[groupKey] ?? false
+                    const taskCounts = new Map<string, number>()
+                    groupWorkerIds.forEach((workerId) => {
+                      const taskName = getWorkerTaskName(workerId) ?? 'Sin tarea'
+                      taskCounts.set(taskName, (taskCounts.get(taskName) ?? 0) + 1)
+                    })
+                    const summaryLines = Array.from(taskCounts.entries())
+                      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+                      .map(([taskName, count]) => `${taskName}: ${count}`)
                     return (
                       <RoleGroup
                         key={groupKey}
@@ -650,6 +688,7 @@ export function PlanningPage({
                         role={role}
                         workerIds={groupWorkerIds}
                         isCollapsed={isCollapsed}
+                        summaryLines={summaryLines}
                         onToggle={() => toggleGroupCollapse(shift, role)}
                       >
                         <SortableContext
@@ -688,7 +727,12 @@ export function PlanningPage({
         {/* DragOverlay renders outside layout to avoid clipping and follows the pointer offset. */}
         <DragOverlay>
           {activeId ? (
-            <div className="worker-card drag-overlay">
+            <div
+              className={`worker-card drag-overlay${(() => {
+                const worker = workerById.get(activeId)
+                return worker ? getContractToneClass(worker) : ''
+              })()}`}
+            >
               {(() => {
                 const worker = workerById.get(activeId)
                 if (!worker) return null

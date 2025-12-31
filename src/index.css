@@ -263,7 +263,7 @@ th {
   padding: 12px;
   font-size: 0.75rem;
   color: #64748b;
-  text-align: center;
+  text-align: left;
   min-height: 48px;
   display: flex;
   align-items: center;
@@ -276,6 +276,28 @@ th {
   background: #e2e8f0;
 }
 
+.role-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-self: stretch;
+  color: #475569;
+}
+
+.role-summary-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.role-summary-empty {
+  width: 100%;
+  text-align: center;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
 .worker-card {
   background: #fff;
   border: 1px solid #e5e7eb;
@@ -284,6 +306,16 @@ th {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.worker-card.contract-indefinido {
+  background: #fef6f2;
+  border-color: #f5d7c6;
+}
+
+.worker-card.contract-plazo {
+  background: #f3f6ff;
+  border-color: #d9e2ff;
 }
 
 .worker-card.dragging {
