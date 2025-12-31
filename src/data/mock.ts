@@ -137,16 +137,3 @@ export const defaultWorkers: Worker[] = [
   { id: 9, firstName: 'Javier', secondName: '', lastName: 'Torres', motherLastName: '', roleCode: 'AL', contract: 'Plazo fijo', shiftMode: 'Rotativo', constraints: { allowedShifts: ['M', 'T'] } },
   { id: 10, firstName: 'Sofía', secondName: '', lastName: 'Lagos', motherLastName: '', roleCode: 'AL', contract: 'Indefinido', shiftMode: 'Rotativo' },
 ]
-
-export const prevWeekShifts: Record<number, Shift> = {
-  1: 'N',
-  2: 'T',
-  3: 'N',
-  4: 'M',
-  5: 'T',
-  6: 'M',
-  7: 'M',
-  8: 'N',
-  9: 'T',
-  10: 'N',
-}

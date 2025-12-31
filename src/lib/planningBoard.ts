@@ -78,6 +78,28 @@ function pickAllowedShift(desired: Shift, allowed: Shift[]): Shift | null {
   return null
 }
 
+function getNextShift(previous: Shift | undefined, allowed: Shift[]): Shift | null {
+  if (allowed.length === 0) return null
+  if (allowed.length === 1) return allowed[0]
+  if (previous && allowed.length === 2 && allowed.includes(previous)) {
+    const alternate = allowed.find((shift) => shift !== previous)
+    return alternate ?? null
+  }
+  const desired = previous ? nextRotatedShift(previous) : 'M'
+  return pickAllowedShift(desired, allowed)
+}
+
+export function getShiftsByWorker(plan: WeekPlan | null): Record<number, Shift> {
+  const shifts: Record<number, Shift> = {}
+  if (!plan) return shifts
+  SHIFTS.forEach((shift) => {
+    plan.columns[shift]?.forEach((workerId) => {
+      shifts[workerId] = shift
+    })
+  })
+  return shifts
+}
+
 export function seedWeekPlan(
   weekStart: string,
   workers: Worker[],
@@ -101,9 +123,8 @@ export function seedWeekPlan(
     .filter((worker) => worker.shiftMode !== 'Fijo')
     .forEach((worker) => {
       const previous = prevWeekShifts[worker.id]
-      const desired = previous ? nextRotatedShift(previous) : 'M'
       const allowed = allowedShiftsForWorker(worker)
-      const shift = pickAllowedShift(desired, allowed)
+      const shift = getNextShift(previous, allowed)
       if (!shift) return
       columns[shift].push(worker.id)
       tasksByWorkerId[worker.id] = null
