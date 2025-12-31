@@ -27,12 +27,18 @@ import {
   Eye,
   EyeOff,
   Lock,
-  RotateCw,
+  Rocket,
   Save,
   Trash2,
 } from 'lucide-react'
-import { SHIFT_LABEL, SHIFTS, prevWeekShifts } from '../data/mock'
-import { clearWeekPlan, loadWeekPlan, saveWeekPlan, seedWeekPlan } from '../lib/planningBoard'
+import { SHIFT_LABEL, SHIFTS } from '../data/mock'
+import {
+  clearWeekPlan,
+  getShiftsByWorker,
+  loadWeekPlan,
+  saveWeekPlan,
+  seedWeekPlan,
+} from '../lib/planningBoard'
 import {
   formatDate,
   getIsoWeekNumber,
@@ -324,6 +330,7 @@ export function PlanningPage({
     loadCollapsedGroups(),
   )
   const [activeId, setActiveId] = useState<number | null>(null)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   useEffect(() => {
     setTasks(getTasks())
@@ -442,14 +449,26 @@ export function PlanningPage({
     localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify(collapsedGroups))
   }, [collapsedGroups])
 
+  useEffect(() => {
+    if (!toastMessage) return undefined
+    const timeout = window.setTimeout(() => setToastMessage(null), 2400)
+    return () => window.clearTimeout(timeout)
+  }, [toastMessage])
+
   function persist(nextPlan: WeekPlan) {
     setPlan(nextPlan)
     saveWeekPlan(weekStart, nextPlan)
   }
 
   function handleSeed() {
-    const seeded = seedWeekPlan(weekStart, activeWorkers, prevWeekShifts)
+    const currentStart = new Date(`${weekStart}T00:00:00Z`)
+    currentStart.setUTCDate(currentStart.getUTCDate() - 7)
+    const prevWeekStart = formatDate(currentStart)
+    const prevWeekPlan = loadWeekPlan(prevWeekStart)
+    const previousShifts = getShiftsByWorker(prevWeekPlan)
+    const seeded = seedWeekPlan(weekStart, activeWorkers, previousShifts)
     persist(seeded)
+    setToastMessage('Turno creado')
   }
 
   function handleSave() {
@@ -645,7 +664,7 @@ export function PlanningPage({
               onClick={handleSeed}
               aria-label="Generar turno"
             >
-              <RotateCw size={14} />
+              <Rocket size={14} />
             </button>
             <button
               type="button"
@@ -775,6 +794,7 @@ export function PlanningPage({
           ) : null}
         </DragOverlay>
       </DndContext>
+      {toastMessage ? <div className="toast">{toastMessage}</div> : null}
     </section>
   )
 }
