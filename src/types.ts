@@ -4,6 +4,7 @@ export type Role = {
   id: string
   code: string
   name: string
+  color: string
   isActive: boolean
   countsForBalance: boolean
 }
@@ -23,7 +24,7 @@ export type Worker = {
   lastName: string
   motherLastName?: string
   roleCode: string
-  contract: 'Indefinido' | 'Plazo fijo'
+  contract: string
   shiftMode: 'Rotativo' | 'Fijo'
   fixedShift?: Shift
   constraints?: {
@@ -32,6 +33,12 @@ export type Worker = {
   specialtyTaskId?: string | null
   specialRole?: string
   isActive?: boolean
+}
+
+export type ContractType = {
+  id: string
+  name: string
+  color: string
 }
 
 export type Assignment = {

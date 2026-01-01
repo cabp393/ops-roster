@@ -1,11 +1,12 @@
-import type { Assignment, PlanningRecord, Role, Task, Worker } from '../types'
-import { defaultRoles, defaultTasks, defaultWorkers } from '../data/mock'
+import type { Assignment, ContractType, PlanningRecord, Role, Task, Worker } from '../types'
+import { defaultContracts, defaultRoles, defaultTasks, defaultWorkers } from '../data/mock'
 import { parseLegacyName } from './workerName'
 
 const PLANNING_PREFIX = 'opsRoster:planning'
 const ROLES_KEY = 'opsRoster:roles'
 const TASKS_KEY = 'opsRoster:tasks'
 const WORKERS_KEY = 'opsRoster:workers'
+const CONTRACTS_KEY = 'opsRoster:contracts'
 
 function planningKey(weekStart: string) {
   return `${PLANNING_PREFIX}:${weekStart}`
@@ -16,8 +17,10 @@ function normalizeRoles(raw: unknown): Role[] | null {
   if (!Array.isArray(raw)) return null
   const roles = raw.filter((role) => role && typeof role === 'object') as Role[]
   if (roles.length === 0) return null
+  const defaultColors = new Map(defaultRoles.map((role) => [role.code, role.color]))
   return roles.map((role) => ({
     ...role,
+    color: role.color ?? defaultColors.get(role.code) ?? '#6d28d9',
     isActive: role.isActive ?? true,
     countsForBalance: role.countsForBalance ?? true,
   }))
@@ -57,9 +60,20 @@ function normalizeWorkers(raw: unknown): Worker[] | null {
       secondName,
       lastName,
       motherLastName,
+      contract: worker.contract ?? 'Indefinido',
       isActive: worker.isActive ?? true,
     }
   })
+}
+
+function normalizeContracts(raw: unknown): ContractType[] | null {
+  if (!Array.isArray(raw)) return null
+  const contracts = raw.filter((contract) => contract && typeof contract === 'object') as ContractType[]
+  if (contracts.length === 0) return null
+  return contracts.map((contract) => ({
+    ...contract,
+    color: contract.color ?? '#64748b',
+  }))
 }
 
 export function getRoles(): Role[] {
@@ -132,6 +146,26 @@ export function getWorkers(): Worker[] {
 
 export function setWorkers(workers: Worker[]) {
   localStorage.setItem(WORKERS_KEY, JSON.stringify(workers))
+}
+
+export function getContracts(): ContractType[] {
+  const raw = localStorage.getItem(CONTRACTS_KEY)
+  if (!raw) {
+    localStorage.setItem(CONTRACTS_KEY, JSON.stringify(defaultContracts))
+    return defaultContracts
+  }
+  try {
+    const parsed = normalizeContracts(JSON.parse(raw))
+    if (parsed) return parsed
+  } catch {
+    // fall through
+  }
+  localStorage.setItem(CONTRACTS_KEY, JSON.stringify(defaultContracts))
+  return defaultContracts
+}
+
+export function setContracts(contracts: ContractType[]) {
+  localStorage.setItem(CONTRACTS_KEY, JSON.stringify(contracts))
 }
 
 

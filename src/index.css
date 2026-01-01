@@ -321,14 +321,14 @@ th {
   gap: 6px;
 }
 
-.worker-card.contract-indefinido {
-  background: #fef6f2;
-  border-color: #f5d7c6;
+.worker-card.toned {
+  color: #ffffff;
 }
 
-.worker-card.contract-plazo {
-  background: #f3f6ff;
-  border-color: #d9e2ff;
+.worker-card.toned .worker-task select {
+  background: rgba(255, 255, 255, 0.9);
+  color: #111827;
+  border-color: rgba(255, 255, 255, 0.75);
 }
 
 .worker-card.dragging {
@@ -377,34 +377,23 @@ th {
   color: #6b7280;
 }
 
-.badge.role-og {
-  background: #6d28d9;
-  border-color: #5b21b6;
-  color: #ffffff;
+.color-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: none;
+  padding: 0;
+  background: none;
+  cursor: pointer;
 }
 
-.badge.role-al {
-  background: #0ea5e9;
-  border-color: #0284c7;
-  color: #ffffff;
+.color-swatch::-webkit-color-swatch-wrapper {
+  padding: 0;
 }
 
-.badge.role-jt {
-  background: #16a34a;
-  border-color: #15803d;
-  color: #ffffff;
-}
-
-.badge.contract-indefinido {
-  background: #f97316;
-  border-color: #ea580c;
-  color: #ffffff;
-}
-
-.badge.contract-plazo {
-  background: #64748b;
-  border-color: #475569;
-  color: #ffffff;
+.color-swatch::-webkit-color-swatch {
+  border: none;
+  border-radius: 999px;
 }
 
 .worker-task select {

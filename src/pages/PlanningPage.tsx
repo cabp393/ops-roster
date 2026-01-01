@@ -46,9 +46,9 @@ import {
   getWeekRangeLabel,
   getWeekStartDate,
 } from '../lib/week'
-import { getTasks, getWorkers } from '../lib/storage'
+import { getContracts, getRoles, getTasks, getWorkers } from '../lib/storage'
 import { getWorkerDisplayName } from '../lib/workerName'
-import type { Shift, Task, WeekPlan, Worker } from '../types'
+import type { ContractType, Role, Shift, Task, WeekPlan, Worker } from '../types'
 
 const emptyPlan: WeekPlan = {
   weekStart: '2025-12-29',
@@ -124,18 +124,13 @@ function buildColumnFromGroups(groups: Record<RoleCode, number[]>) {
   return ROLE_ORDER.flatMap((role) => groups[role])
 }
 
-function getContractToneClass(worker: Worker) {
-  if (worker.contract === 'Indefinido') return ' contract-indefinido'
-  if (worker.contract === 'Plazo fijo') return ' contract-plazo'
-  return ''
-}
-
 type WorkerCardProps = {
   worker: Worker
   taskOptions: Task[]
   taskValue: string | null
   onTaskChange: (workerId: number, taskId: string) => void
   isReadOnly?: boolean
+  contractTone?: ContractType
 }
 
 function WorkerCardContent({
@@ -144,6 +139,7 @@ function WorkerCardContent({
   taskValue,
   onTaskChange,
   isReadOnly = false,
+  contractTone,
 }: WorkerCardProps) {
   const hasShiftRestriction =
     worker.shiftMode === 'Fijo' ||
@@ -171,6 +167,7 @@ function WorkerCardContent({
           value={taskValue ?? ''}
           onChange={(event) => onTaskChange(worker.id, event.target.value)}
           disabled={isReadOnly}
+          style={contractTone ? { borderColor: contractTone.color } : undefined}
         >
           {taskOptions.map((task) => (
             <option key={task.id} value={task.id}>
@@ -190,6 +187,7 @@ type SortableWorkerCardProps = {
   taskOptions: Task[]
   taskValue: string | null
   onTaskChange: (workerId: number, taskId: string) => void
+  contractTone?: ContractType
 }
 
 function SortableWorkerCard({
@@ -199,6 +197,7 @@ function SortableWorkerCard({
   taskOptions,
   taskValue,
   onTaskChange,
+  contractTone,
 }: SortableWorkerCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: worker.id,
@@ -209,13 +208,15 @@ function SortableWorkerCard({
     transform: CSS.Transform.toString(transform),
     transition,
   }
-  const contractClass = getContractToneClass(worker)
+  const toneStyle = contractTone
+    ? { backgroundColor: contractTone.color, borderColor: contractTone.color }
+    : undefined
 
   return (
     <div
       ref={setNodeRef}
-      style={style}
-      className={`worker-card${contractClass}${isDragging ? ' dragging' : ''}`}
+      className={`worker-card${contractTone ? ' toned' : ''}${isDragging ? ' dragging' : ''}`}
+      style={toneStyle ? { ...style, ...toneStyle } : style}
       {...attributes}
       {...listeners}
     >
@@ -224,6 +225,7 @@ function SortableWorkerCard({
         taskOptions={taskOptions}
         taskValue={taskValue}
         onTaskChange={onTaskChange}
+        contractTone={contractTone}
       />
     </div>
   )
@@ -258,6 +260,7 @@ type RoleGroupProps = {
   isCollapsed: boolean
   summaryLines: string[]
   onToggle: () => void
+  roleTone?: string
   children: ReactNode
 }
 
@@ -268,6 +271,7 @@ function RoleGroup({
   isCollapsed,
   summaryLines,
   onToggle,
+  roleTone,
   children,
 }: RoleGroupProps) {
   const { setNodeRef, isOver } = useDroppable({
@@ -279,7 +283,12 @@ function RoleGroup({
     <div className={`role-group${isOver ? ' over' : ''}`}>
       <div className="role-group-header">
         <div className="role-group-title">
-          <span className={`badge role-${role.toLowerCase()}`}>{role}</span>
+          <span
+            className="badge"
+            style={roleTone ? { backgroundColor: roleTone, borderColor: roleTone, color: '#fff' } : undefined}
+          >
+            {role}
+          </span>
           <span className="role-count">{workerIds.length}</span>
         </div>
         <button type="button" className="role-toggle" onClick={onToggle}>
@@ -324,6 +333,8 @@ export function PlanningPage({
   const [plan, setPlan] = useState<WeekPlan>(emptyPlan)
   const [tasks, setTasks] = useState<Task[]>([])
   const [workers, setWorkers] = useState<Worker[]>([])
+  const [roles, setRoles] = useState<Role[]>([])
+  const [contracts, setContracts] = useState<ContractType[]>([])
   const [hasLoadedPlan, setHasLoadedPlan] = useState(false)
   const [hasLoadedRoster, setHasLoadedRoster] = useState(false)
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(() =>
@@ -335,6 +346,8 @@ export function PlanningPage({
   useEffect(() => {
     setTasks(getTasks())
     setWorkers(getWorkers())
+    setRoles(getRoles())
+    setContracts(getContracts())
     setHasLoadedRoster(true)
   }, [])
 
@@ -370,6 +383,14 @@ export function PlanningPage({
   const workerById = useMemo(
     () => new Map(activeWorkers.map((worker) => [worker.id, worker])),
     [activeWorkers],
+  )
+  const roleColorByCode = useMemo(
+    () => new Map(roles.map((role) => [role.code, role.color])),
+    [roles],
+  )
+  const contractToneByName = useMemo(
+    () => new Map(contracts.map((contract) => [contract.name, contract])),
+    [contracts],
   )
 
   const activeTasks = useMemo(() => tasks.filter((task) => task.isActive), [tasks])
@@ -731,6 +752,7 @@ export function PlanningPage({
                         isCollapsed={isCollapsed}
                         summaryLines={summaryLines}
                         onToggle={() => toggleGroupCollapse(shift, role)}
+                        roleTone={roleColorByCode.get(role)}
                       >
                         <SortableContext
                           items={groupWorkerIds}
@@ -753,6 +775,7 @@ export function PlanningPage({
                                 taskOptions={taskOptions}
                                 taskValue={taskValue}
                                 onTaskChange={handleTaskChange}
+                                contractTone={contractToneByName.get(worker.contract)}
                               />
                             )
                           })}
@@ -771,8 +794,13 @@ export function PlanningPage({
             <div
               className={`worker-card drag-overlay${(() => {
                 const worker = workerById.get(activeId)
-                return worker ? getContractToneClass(worker) : ''
+                return worker && contractToneByName.get(worker.contract) ? ' toned' : ''
               })()}`}
+              style={(() => {
+                const worker = workerById.get(activeId)
+                const tone = worker ? contractToneByName.get(worker.contract) : undefined
+                return tone ? { backgroundColor: tone.color, borderColor: tone.color } : undefined
+              })()}
             >
               {(() => {
                 const worker = workerById.get(activeId)
@@ -780,6 +808,7 @@ export function PlanningPage({
                 const taskOptions = tasksByRole.get(worker.roleCode) ?? []
                 const taskValue =
                   plan.tasksByWorkerId[activeId] ?? defaultTaskByRole.get(worker.roleCode) ?? null
+                const contractTone = contractToneByName.get(worker.contract)
                 return (
                   <WorkerCardContent
                     worker={worker}
@@ -787,6 +816,7 @@ export function PlanningPage({
                     taskValue={taskValue}
                     onTaskChange={handleTaskChange}
                     isReadOnly
+                    contractTone={contractTone}
                   />
                 )
               })()}

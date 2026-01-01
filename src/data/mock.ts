@@ -1,4 +1,4 @@
-import type { Role, Shift, Task, Worker } from '../types'
+import type { ContractType, Role, Shift, Task, Worker } from '../types'
 
 export const SHIFTS: Shift[] = ['M', 'T', 'N']
 
@@ -9,9 +9,35 @@ export const SHIFT_LABEL: Record<Shift, string> = {
 }
 
 export const defaultRoles: Role[] = [
-  { id: 'role-og', code: 'OG', name: 'Operador Grúa', isActive: true, countsForBalance: true },
-  { id: 'role-al', code: 'AL', name: 'Auxiliar Logística', isActive: true, countsForBalance: true },
-  { id: 'role-jt', code: 'JT', name: 'Jefe Turno', isActive: true, countsForBalance: true },
+  {
+    id: 'role-og',
+    code: 'OG',
+    name: 'Operador Grúa',
+    color: '#6d28d9',
+    isActive: true,
+    countsForBalance: true,
+  },
+  {
+    id: 'role-al',
+    code: 'AL',
+    name: 'Auxiliar Logística',
+    color: '#0ea5e9',
+    isActive: true,
+    countsForBalance: true,
+  },
+  {
+    id: 'role-jt',
+    code: 'JT',
+    name: 'Jefe Turno',
+    color: '#16a34a',
+    isActive: true,
+    countsForBalance: true,
+  },
+]
+
+export const defaultContracts: ContractType[] = [
+  { id: 'contract-indefinido', name: 'Indefinido', color: '#f97316' },
+  { id: 'contract-plazo', name: 'Plazo fijo', color: '#64748b' },
 ]
 
 export const defaultTasks: Task[] = [

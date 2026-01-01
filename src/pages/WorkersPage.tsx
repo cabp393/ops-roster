@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Pencil, Trash2 } from 'lucide-react'
 import { SHIFTS } from '../data/mock'
-import { getRoles, getTasks, getWorkers, setWorkers as setWorkersStorage } from '../lib/storage'
+import { getContracts, getRoles, getTasks, getWorkers, setWorkers as setWorkersStorage } from '../lib/storage'
 import { getWorkerDisplayName, getWorkerFullName } from '../lib/workerName'
-import type { Role, Shift, Task, Worker } from '../types'
+import type { ContractType, Role, Shift, Task, Worker } from '../types'
 
 type WorkerFormState = {
   id: number | null
@@ -37,6 +37,7 @@ export function WorkersPage() {
   const [workers, setWorkers] = useState<Worker[]>([])
   const [roles, setRoles] = useState<Role[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
+  const [contracts, setContracts] = useState<ContractType[]>([])
   const [editingId, setEditingId] = useState<number | null>(null)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [roleFilter, setRoleFilter] = useState('')
@@ -61,6 +62,7 @@ export function WorkersPage() {
     setWorkers(getWorkers())
     setRoles(getRoles())
     setTasks(getTasks())
+    setContracts(getContracts())
   }, [])
 
   useEffect(() => {
@@ -76,6 +78,18 @@ export function WorkersPage() {
       }
     })
   }, [roles, tasks])
+
+  useEffect(() => {
+    if (contracts.length === 0) return
+    setFormState((current) => {
+      const hasContract = contracts.some((contract) => contract.name === current.contract)
+      if (hasContract) return current
+      return {
+        ...current,
+        contract: contracts[0]?.name ?? current.contract,
+      }
+    })
+  }, [contracts])
 
   const taskOptionsByRole = useMemo(() => {
     const map = new Map<string, Task[]>()
@@ -121,7 +135,7 @@ export function WorkersPage() {
       lastName: '',
       motherLastName: '',
       roleCode: roles[0]?.code ?? '',
-      contract: 'Indefinido',
+      contract: contracts[0]?.name ?? 'Indefinido',
       shiftMode: 'Rotativo',
       fixedShift: 'M',
       allowedShifts: createDefaultAllowedShifts(),
@@ -240,8 +254,11 @@ export function WorkersPage() {
             </select>
             <select value={contractFilter} onChange={(event) => setContractFilter(event.target.value)}>
               <option value="">Tipo de contrato</option>
-              <option value="Indefinido">Indefinido</option>
-              <option value="Plazo fijo">Plazo fijo</option>
+              {contracts.map((contract) => (
+                <option key={contract.id} value={contract.name}>
+                  {contract.name}
+                </option>
+              ))}
             </select>
             <input
               type="text"
@@ -336,12 +353,13 @@ export function WorkersPage() {
               Contrato
               <select
                 value={formState.contract}
-                onChange={(event) =>
-                  setFormState((current) => ({ ...current, contract: event.target.value as Worker['contract'] }))
-                }
+                onChange={(event) => setFormState((current) => ({ ...current, contract: event.target.value }))}
               >
-                <option value="Indefinido">Indefinido</option>
-                <option value="Plazo fijo">Plazo fijo</option>
+                {contracts.map((contract) => (
+                  <option key={contract.id} value={contract.name}>
+                    {contract.name}
+                  </option>
+                ))}
               </select>
             </label>
             <label className="field">
