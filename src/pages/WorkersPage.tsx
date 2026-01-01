@@ -88,15 +88,17 @@ export function WorkersPage() {
 
   const filteredWorkers = useMemo(() => {
     const nameValue = nameFilter.trim().toLowerCase()
-    return workers.filter((worker) => {
-      if (roleFilter && worker.roleCode !== roleFilter) return false
-      if (contractFilter && worker.contract !== contractFilter) return false
-      if (nameValue) {
-        const fullName = getWorkerFullName(worker).toLowerCase()
-        if (!fullName.includes(nameValue)) return false
-      }
-      return true
-    })
+    return workers
+      .filter((worker) => {
+        if (roleFilter && worker.roleCode !== roleFilter) return false
+        if (contractFilter && worker.contract !== contractFilter) return false
+        if (nameValue) {
+          const fullName = getWorkerFullName(worker).toLowerCase()
+          if (!fullName.includes(nameValue)) return false
+        }
+        return true
+      })
+      .sort((a, b) => a.id - b.id)
   }, [workers, roleFilter, contractFilter, nameFilter])
 
   function getDefaultSpecialty(roleCode: string, availableTasks: Task[]) {
