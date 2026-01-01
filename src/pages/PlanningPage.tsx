@@ -24,6 +24,7 @@ import {
   ArrowRight,
   ChevronDown,
   ChevronRight,
+  Download,
   Eye,
   EyeOff,
   Lock,
@@ -31,6 +32,7 @@ import {
   Save,
   Trash2,
 } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { SHIFT_LABEL, SHIFTS } from '../data/mock'
 import {
   clearWeekPlan,
@@ -60,6 +62,22 @@ const planningShiftOrder: Shift[] = ['N', 'M', 'T']
 const ROLE_ORDER = ['AL', 'OG', 'JT'] as const
 type RoleCode = (typeof ROLE_ORDER)[number]
 const COLLAPSE_STORAGE_KEY = 'opsRoster:planning:roleCollapse'
+const ROLE_ORDER_INDEX = new Map(ROLE_ORDER.map((role, index) => [role, index]))
+const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+const MONTH_NAMES = [
+  'enero',
+  'febrero',
+  'marzo',
+  'abril',
+  'mayo',
+  'junio',
+  'julio',
+  'agosto',
+  'septiembre',
+  'octubre',
+  'noviembre',
+  'diciembre',
+]
 
 function allowedShiftsForWorker(worker: Worker): Shift[] {
   return worker.constraints?.allowedShifts ?? SHIFTS
@@ -127,6 +145,13 @@ function getContractToneClass(worker: Worker) {
   if (worker.contract === 'Indefinido') return ' contract-indefinido'
   if (worker.contract === 'Plazo fijo') return ' contract-plazo'
   return ''
+}
+
+function formatWeekStartLabel(date: Date) {
+  const dayName = DAY_NAMES[date.getUTCDay()] ?? ''
+  const dayNumber = date.getUTCDate()
+  const monthName = MONTH_NAMES[date.getUTCMonth()] ?? ''
+  return `${dayName} ${dayNumber} de ${monthName}`
 }
 
 type WorkerCardProps = {
@@ -345,10 +370,12 @@ export function PlanningPage({
     activeWorkers,
   ])
 
-  const weekStart = useMemo(() => {
-    const startDate = getWeekStartDate(weekNumber, weekYear)
-    return formatDate(startDate)
-  }, [weekNumber, weekYear])
+  const weekStartDate = useMemo(
+    () => getWeekStartDate(weekNumber, weekYear),
+    [weekNumber, weekYear],
+  )
+
+  const weekStart = useMemo(() => formatDate(weekStartDate), [weekStartDate])
 
   const weekLabel = useMemo(() => getWeekRangeLabel(weekNumber, weekYear), [weekNumber, weekYear])
 
@@ -415,6 +442,31 @@ export function PlanningPage({
     return taskNameById.get(taskId) ?? 'Sin tarea'
   }
 
+  function getShiftExportRows(shift: Shift) {
+    const workerIds = plan.columns[shift] ?? []
+    const rows = workerIds
+      .map((workerId) => {
+        const worker = workerById.get(workerId)
+        if (!worker) return null
+        return {
+          id: worker.id,
+          name: getWorkerDisplayName(worker),
+          role: worker.roleCode,
+          task: getWorkerTaskName(workerId) ?? 'Sin tarea',
+        }
+      })
+      .filter((row): row is { id: number; name: string; role: string; task: string } => row !== null)
+
+    rows.sort((a, b) => {
+      const roleA = ROLE_ORDER_INDEX.get(a.role as RoleCode) ?? Number.MAX_SAFE_INTEGER
+      const roleB = ROLE_ORDER_INDEX.get(b.role as RoleCode) ?? Number.MAX_SAFE_INTEGER
+      if (roleA !== roleB) return roleA - roleB
+      return a.name.localeCompare(b.name)
+    })
+
+    return rows
+  }
+
   useEffect(() => {
     if (!hasLoadedPlan) return
     if (activeWorkers.length === 0 || defaultTaskByRole.size === 0) return
@@ -476,6 +528,48 @@ export function PlanningPage({
   function handleClear() {
     clearWeekPlan(weekStart)
     setPlan({ ...emptyPlan, weekStart })
+  }
+
+  function handleDownload() {
+    const workbook = XLSX.utils.book_new()
+    const weekCode = `S${String(weekNumber).padStart(2, '0')}`
+    const subtitle = formatWeekStartLabel(weekStartDate)
+
+    planningShiftOrder.forEach((shift) => {
+      const shiftLabel = SHIFT_LABEL[shift]
+      const title = `${shiftLabel.toUpperCase()} ${weekCode}`
+      const rows = getShiftExportRows(shift)
+      const data = [
+        [title],
+        [subtitle],
+        [],
+        ['ID', 'Nombre', 'Rol', 'Función'],
+        ...rows.map((row) => [row.id, row.name, row.role, row.task]),
+      ]
+      const sheet = XLSX.utils.aoa_to_sheet(data)
+      sheet['!cols'] = [{ wch: 8 }, { wch: 26 }, { wch: 8 }, { wch: 26 }]
+      const titleCell = sheet.A1
+      if (titleCell) {
+        titleCell.s = { font: { bold: true, sz: 14 } }
+      }
+      const headerCell = sheet.A4
+      if (headerCell) {
+        headerCell.s = { font: { bold: true } }
+      }
+      XLSX.utils.book_append_sheet(workbook, sheet, shiftLabel.toUpperCase())
+    })
+
+    const fileName = `ops-roster_${weekCode}_${weekYear}.xlsx`
+    const content = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
+    const blob = new Blob([content], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    link.click()
+    window.URL.revokeObjectURL(url)
   }
 
   function handleTaskChange(workerId: number, taskId: string) {
@@ -663,6 +757,14 @@ export function PlanningPage({
               aria-label="Generar turno"
             >
               <Rocket size={14} />
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              onClick={handleDownload}
+              aria-label="Descargar Excel"
+            >
+              <Download size={14} />
             </button>
             <button
               type="button"
