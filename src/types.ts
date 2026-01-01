@@ -24,8 +24,6 @@ export type Worker = {
   motherLastName?: string
   roleCode: string
   contract: 'Indefinido' | 'Plazo fijo'
-  shiftMode: 'Rotativo' | 'Fijo'
-  fixedShift?: Shift
   constraints?: {
     allowedShifts?: Shift[]
   }

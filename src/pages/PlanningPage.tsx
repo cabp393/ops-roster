@@ -62,7 +62,6 @@ type RoleCode = (typeof ROLE_ORDER)[number]
 const COLLAPSE_STORAGE_KEY = 'opsRoster:planning:roleCollapse'
 
 function allowedShiftsForWorker(worker: Worker): Shift[] {
-  if (worker.shiftMode === 'Fijo' && worker.fixedShift) return [worker.fixedShift]
   return worker.constraints?.allowedShifts ?? SHIFTS
 }
 
@@ -145,11 +144,10 @@ function WorkerCardContent({
   onTaskChange,
   isReadOnly = false,
 }: WorkerCardProps) {
+  const allowedShifts = worker.constraints?.allowedShifts ?? []
   const hasShiftRestriction =
-    worker.shiftMode === 'Fijo' ||
-    (worker.constraints?.allowedShifts &&
-      worker.constraints.allowedShifts.length > 0 &&
-      worker.constraints.allowedShifts.length < SHIFTS.length)
+    allowedShifts.length > 0 && allowedShifts.length < SHIFTS.length
+  const isFixedShift = allowedShifts.length === 1
 
   return (
     <>
@@ -159,7 +157,7 @@ function WorkerCardContent({
           {hasShiftRestriction ? (
             <span
               className="badge subtle"
-              title={worker.shiftMode === 'Fijo' ? 'Turno fijo' : 'Turno restringido'}
+              title={isFixedShift ? 'Turno fijo' : 'Turno restringido'}
             >
               <Lock size={12} />
             </span>
