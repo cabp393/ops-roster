@@ -6,15 +6,13 @@ import { getWorkerDisplayName, getWorkerFullName } from '../lib/workerName'
 import type { Role, Shift, Task, Worker } from '../types'
 
 type WorkerFormState = {
-  id: number | null
+  id: string
   firstName: string
   secondName: string
   lastName: string
   motherLastName: string
   roleCode: string
   contract: Worker['contract']
-  shiftMode: Worker['shiftMode']
-  fixedShift: NonNullable<Worker['fixedShift']>
   allowedShifts: Record<Shift, boolean>
   specialtyTaskId: string
   isActive: boolean
@@ -43,15 +41,13 @@ export function WorkersPage() {
   const [contractFilter, setContractFilter] = useState('')
   const [nameFilter, setNameFilter] = useState('')
   const [formState, setFormState] = useState<WorkerFormState>(() => ({
-    id: null,
+    id: '',
     firstName: '',
     secondName: '',
     lastName: '',
     motherLastName: '',
     roleCode: '',
     contract: 'Indefinido',
-    shiftMode: 'Rotativo',
-    fixedShift: 'M',
     allowedShifts: createDefaultAllowedShifts(),
     specialtyTaskId: '',
     isActive: true,
@@ -92,15 +88,17 @@ export function WorkersPage() {
 
   const filteredWorkers = useMemo(() => {
     const nameValue = nameFilter.trim().toLowerCase()
-    return workers.filter((worker) => {
-      if (roleFilter && worker.roleCode !== roleFilter) return false
-      if (contractFilter && worker.contract !== contractFilter) return false
-      if (nameValue) {
-        const fullName = getWorkerFullName(worker).toLowerCase()
-        if (!fullName.includes(nameValue)) return false
-      }
-      return true
-    })
+    return workers
+      .filter((worker) => {
+        if (roleFilter && worker.roleCode !== roleFilter) return false
+        if (contractFilter && worker.contract !== contractFilter) return false
+        if (nameValue) {
+          const fullName = getWorkerFullName(worker).toLowerCase()
+          if (!fullName.includes(nameValue)) return false
+        }
+        return true
+      })
+      .sort((a, b) => a.id - b.id)
   }, [workers, roleFilter, contractFilter, nameFilter])
 
   function getDefaultSpecialty(roleCode: string, availableTasks: Task[]) {
@@ -115,15 +113,13 @@ export function WorkersPage() {
   function resetForm() {
     setEditingId(null)
     setFormState({
-      id: null,
+      id: '',
       firstName: '',
       secondName: '',
       lastName: '',
       motherLastName: '',
       roleCode: roles[0]?.code ?? '',
       contract: 'Indefinido',
-      shiftMode: 'Rotativo',
-      fixedShift: 'M',
       allowedShifts: createDefaultAllowedShifts(),
       specialtyTaskId: getDefaultSpecialty(roles[0]?.code ?? '', tasks),
       isActive: true,
@@ -143,15 +139,13 @@ export function WorkersPage() {
         : createDefaultAllowedShifts()
     setEditingId(worker.id)
     setFormState({
-      id: worker.id,
+      id: String(worker.id),
       firstName: worker.firstName,
       secondName: worker.secondName ?? '',
       lastName: worker.lastName,
       motherLastName: worker.motherLastName ?? '',
       roleCode: worker.roleCode,
       contract: worker.contract,
-      shiftMode: worker.shiftMode,
-      fixedShift: worker.fixedShift ?? 'M',
       allowedShifts: allowedShiftState,
       specialtyTaskId: worker.specialtyTaskId ?? getDefaultSpecialty(worker.roleCode, tasks),
       isActive: worker.isActive ?? true,
@@ -185,31 +179,32 @@ export function WorkersPage() {
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    const nextId = Number(formState.id)
+    if (!Number.isInteger(nextId) || nextId <= 0) return
     const trimmedFirstName = formState.firstName.trim()
     const trimmedLastName = formState.lastName.trim()
     if (!trimmedFirstName || !trimmedLastName) return
+    if (workers.some((worker) => worker.id === nextId && worker.id !== editingId)) return
     const selectedShifts = SHIFTS.filter((shift) => formState.allowedShifts[shift])
     const useConstraints =
       selectedShifts.length > 0 && selectedShifts.length < SHIFTS.length
         ? { allowedShifts: selectedShifts }
         : undefined
     const updatedWorker: Worker = {
-      id: formState.id ?? (workers.length ? Math.max(...workers.map((worker) => worker.id)) + 1 : 1),
+      id: nextId,
       firstName: trimmedFirstName,
       secondName: formState.secondName.trim(),
       lastName: trimmedLastName,
       motherLastName: formState.motherLastName.trim(),
       roleCode: formState.roleCode,
       contract: formState.contract,
-      shiftMode: formState.shiftMode,
-      fixedShift: formState.shiftMode === 'Fijo' ? formState.fixedShift : undefined,
       constraints: useConstraints,
       specialtyTaskId: formState.specialtyTaskId || null,
       isActive: formState.isActive,
     }
 
-    const nextWorkers = formState.id
-      ? workers.map((worker) => (worker.id === formState.id ? updatedWorker : worker))
+    const nextWorkers = editingId
+      ? workers.map((worker) => (worker.id === editingId ? updatedWorker : worker))
       : [...workers, updatedWorker]
     setWorkers(nextWorkers)
     setWorkersStorage(nextWorkers)
@@ -270,6 +265,17 @@ export function WorkersPage() {
             </div>
           </div>
           <div className="form-grid">
+            <label className="field">
+              ID
+              <input
+                type="number"
+                min={1}
+                value={formState.id}
+                onChange={(event) => setFormState((current) => ({ ...current, id: event.target.value }))}
+                placeholder="ID del trabajador"
+                required
+              />
+            </label>
             <label className="field">
               Primer nombre
               <input
@@ -345,34 +351,6 @@ export function WorkersPage() {
               </select>
             </label>
             <label className="field">
-              Modalidad
-              <select
-                value={formState.shiftMode}
-                onChange={(event) =>
-                  setFormState((current) => ({ ...current, shiftMode: event.target.value as Worker['shiftMode'] }))
-                }
-              >
-                <option value="Rotativo">Rotativo</option>
-                <option value="Fijo">Fijo</option>
-              </select>
-            </label>
-            <label className="field">
-              Turno fijo
-              <select
-                value={formState.fixedShift}
-                disabled={formState.shiftMode !== 'Fijo'}
-                onChange={(event) =>
-                  setFormState((current) => ({ ...current, fixedShift: event.target.value as Worker['fixedShift'] }))
-                }
-              >
-                {SHIFTS.map((shift) => (
-                  <option key={shift} value={shift}>
-                    {shift}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
               Activo
               <select
                 value={formState.isActive ? 'active' : 'inactive'}
@@ -411,8 +389,6 @@ export function WorkersPage() {
               <th>Rol</th>
               <th>Especialidad</th>
               <th>Contrato</th>
-              <th>Modalidad</th>
-              <th>Turno fijo</th>
               <th>Turnos permitidos</th>
               <th>Estado</th>
               <th>Acciones</th>
@@ -426,8 +402,6 @@ export function WorkersPage() {
                 <td>{worker.roleCode}</td>
                 <td>{worker.specialtyTaskId ? specialtyLabelById.get(worker.specialtyTaskId) ?? '-' : '-'}</td>
                 <td>{worker.contract}</td>
-                <td>{worker.shiftMode}</td>
-                <td>{worker.fixedShift ?? '-'}</td>
                 <td>
                   {worker.constraints?.allowedShifts && worker.constraints.allowedShifts.length > 0
                     ? worker.constraints.allowedShifts.join(', ')

@@ -126,14 +126,14 @@ export const defaultTasks: Task[] = [
 ]
 
 export const defaultWorkers: Worker[] = [
-  { id: 1, firstName: 'Cristian', secondName: '', lastName: 'Soto', motherLastName: '', roleCode: 'OG', contract: 'Indefinido', shiftMode: 'Rotativo' },
-  { id: 2, firstName: 'Matías', secondName: '', lastName: 'Rojas', motherLastName: '', roleCode: 'OG', contract: 'Indefinido', shiftMode: 'Rotativo', constraints: { allowedShifts: ['M', 'T'] } },
-  { id: 3, firstName: 'Felipe', secondName: '', lastName: 'Muñoz', motherLastName: '', roleCode: 'OG', contract: 'Indefinido', shiftMode: 'Fijo', fixedShift: 'N' },
-  { id: 4, firstName: 'Diego', secondName: '', lastName: 'Herrera', motherLastName: '', roleCode: 'OG', contract: 'Plazo fijo', shiftMode: 'Rotativo' },
-  { id: 5, firstName: 'Sebastián', secondName: '', lastName: 'Vidal', motherLastName: '', roleCode: 'OG', contract: 'Plazo fijo', shiftMode: 'Rotativo', constraints: { allowedShifts: ['T', 'N'] } },
-  { id: 6, firstName: 'Camila', secondName: '', lastName: 'Pérez', motherLastName: '', roleCode: 'AL', contract: 'Indefinido', shiftMode: 'Rotativo', constraints: { allowedShifts: ['M', 'N'] } },
-  { id: 7, firstName: 'Valentina', secondName: '', lastName: 'Araya', motherLastName: 'Rojas', roleCode: 'AL', contract: 'Indefinido', shiftMode: 'Fijo', fixedShift: 'M' },
-  { id: 8, firstName: 'Nicolás', secondName: '', lastName: 'Díaz', motherLastName: '', roleCode: 'AL', contract: 'Plazo fijo', shiftMode: 'Rotativo' },
-  { id: 9, firstName: 'Javier', secondName: '', lastName: 'Torres', motherLastName: '', roleCode: 'AL', contract: 'Plazo fijo', shiftMode: 'Rotativo', constraints: { allowedShifts: ['M', 'T'] } },
-  { id: 10, firstName: 'Sofía', secondName: '', lastName: 'Lagos', motherLastName: '', roleCode: 'AL', contract: 'Indefinido', shiftMode: 'Rotativo' },
+  { id: 1, firstName: 'Cristian', secondName: '', lastName: 'Soto', motherLastName: '', roleCode: 'OG', contract: 'Indefinido' },
+  { id: 2, firstName: 'Matías', secondName: '', lastName: 'Rojas', motherLastName: '', roleCode: 'OG', contract: 'Indefinido', constraints: { allowedShifts: ['M', 'T'] } },
+  { id: 3, firstName: 'Felipe', secondName: '', lastName: 'Muñoz', motherLastName: '', roleCode: 'OG', contract: 'Indefinido', constraints: { allowedShifts: ['N'] } },
+  { id: 4, firstName: 'Diego', secondName: '', lastName: 'Herrera', motherLastName: '', roleCode: 'OG', contract: 'Plazo fijo' },
+  { id: 5, firstName: 'Sebastián', secondName: '', lastName: 'Vidal', motherLastName: '', roleCode: 'OG', contract: 'Plazo fijo', constraints: { allowedShifts: ['T', 'N'] } },
+  { id: 6, firstName: 'Camila', secondName: '', lastName: 'Pérez', motherLastName: '', roleCode: 'AL', contract: 'Indefinido', constraints: { allowedShifts: ['M', 'N'] } },
+  { id: 7, firstName: 'Valentina', secondName: '', lastName: 'Araya', motherLastName: 'Rojas', roleCode: 'AL', contract: 'Indefinido', constraints: { allowedShifts: ['M'] } },
+  { id: 8, firstName: 'Nicolás', secondName: '', lastName: 'Díaz', motherLastName: '', roleCode: 'AL', contract: 'Plazo fijo' },
+  { id: 9, firstName: 'Javier', secondName: '', lastName: 'Torres', motherLastName: '', roleCode: 'AL', contract: 'Plazo fijo', constraints: { allowedShifts: ['M', 'T'] } },
+  { id: 10, firstName: 'Sofía', secondName: '', lastName: 'Lagos', motherLastName: '', roleCode: 'AL', contract: 'Indefinido' },
 ]

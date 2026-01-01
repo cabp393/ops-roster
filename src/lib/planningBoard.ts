@@ -58,7 +58,6 @@ export function clearWeekPlan(weekStart: string) {
 }
 
 function allowedShiftsForWorker(worker: Worker): Shift[] {
-  if (worker.shiftMode === 'Fijo' && worker.fixedShift) return [worker.fixedShift]
   return worker.constraints?.allowedShifts ?? SHIFTS
 }
 
@@ -109,26 +108,14 @@ export function seedWeekPlan(
   const tasksByWorkerId: Record<number, string | null> = {}
   const activeWorkers = workers.filter((worker) => worker.isActive !== false)
 
-  activeWorkers
-    .filter((worker) => worker.shiftMode === 'Fijo')
-    .forEach((worker) => {
-      if (!worker.fixedShift) return
-      const allowed = allowedShiftsForWorker(worker)
-      if (!allowed.includes(worker.fixedShift)) return
-      columns[worker.fixedShift].push(worker.id)
-      tasksByWorkerId[worker.id] = null
-    })
-
-  activeWorkers
-    .filter((worker) => worker.shiftMode !== 'Fijo')
-    .forEach((worker) => {
-      const previous = prevWeekShifts[worker.id]
-      const allowed = allowedShiftsForWorker(worker)
-      const shift = getNextShift(previous, allowed)
-      if (!shift) return
-      columns[shift].push(worker.id)
-      tasksByWorkerId[worker.id] = null
-    })
+  activeWorkers.forEach((worker) => {
+    const previous = prevWeekShifts[worker.id]
+    const allowed = allowedShiftsForWorker(worker)
+    const shift = getNextShift(previous, allowed)
+    if (!shift) return
+    columns[shift].push(worker.id)
+    tasksByWorkerId[worker.id] = null
+  })
 
   return { weekStart, columns, tasksByWorkerId }
 }
