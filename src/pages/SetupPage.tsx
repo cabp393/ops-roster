@@ -17,7 +17,7 @@ export function SetupPage() {
   const [newRole, setNewRole] = useState({ code: '', name: '' })
   const [newTask, setNewTask] = useState({ name: '', allowedRoleCodes: '' })
   const [newContract, setNewContract] = useState({ name: '' })
-  const [isEditMode, setIsEditMode] = useState(true)
+  const [isEditMode, setIsEditMode] = useState(false)
 
   useEffect(() => {
     setRolesState(getRoles())
