@@ -103,6 +103,7 @@ export function seedWeekPlan(
   weekStart: string,
   workers: Worker[],
   prevWeekShifts: Record<number, Shift>,
+  activeTaskIds: Set<string>,
 ): WeekPlan {
   const columns: Record<Shift, number[]> = { M: [], T: [], N: [] }
   const tasksByWorkerId: Record<number, string | null> = {}
@@ -114,7 +115,11 @@ export function seedWeekPlan(
     const shift = getNextShift(previous, allowed)
     if (!shift) return
     columns[shift].push(worker.id)
-    tasksByWorkerId[worker.id] = null
+    if (worker.specialtyTaskId && activeTaskIds.has(worker.specialtyTaskId)) {
+      tasksByWorkerId[worker.id] = worker.specialtyTaskId
+    } else {
+      tasksByWorkerId[worker.id] = null
+    }
   })
 
   return { weekStart, columns, tasksByWorkerId }
