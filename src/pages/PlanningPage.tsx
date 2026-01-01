@@ -516,7 +516,8 @@ export function PlanningPage({
     const prevWeekStart = formatDate(currentStart)
     const prevWeekPlan = loadWeekPlan(prevWeekStart)
     const previousShifts = getShiftsByWorker(prevWeekPlan)
-    const seeded = seedWeekPlan(weekStart, activeWorkers, previousShifts)
+    const activeTaskIds = new Set(activeTasks.map((task) => task.id))
+    const seeded = seedWeekPlan(weekStart, activeWorkers, previousShifts, activeTaskIds)
     persist(seeded)
     setToastMessage('Turno creado')
   }
