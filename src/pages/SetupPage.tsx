@@ -29,6 +29,15 @@ export function SetupPage() {
   }, [tasks])
 
   const activeRoleCodes = useMemo(() => roles.map((role) => role.code).join(', '), [roles])
+  const sortedTasks = useMemo(() => {
+    return [...tasks].sort((a, b) => {
+      const roleA = a.allowedRoleCodes.join(', ').trim()
+      const roleB = b.allowedRoleCodes.join(', ').trim()
+      const roleCompare = roleA.localeCompare(roleB)
+      if (roleCompare !== 0) return roleCompare
+      return a.name.localeCompare(b.name)
+    })
+  }, [tasks])
 
   function updateRole(id: string, patch: Partial<Role>) {
     setRolesState((prev) => prev.map((role) => (role.id === id ? { ...role, ...patch } : role)))
@@ -74,7 +83,6 @@ export function SetupPage() {
             <tr>
               <th>Code</th>
               <th>Name</th>
-              <th>Balance</th>
               <th>Active</th>
             </tr>
           </thead>
@@ -91,13 +99,6 @@ export function SetupPage() {
                   <input
                     value={role.name}
                     onChange={(event) => updateRole(role.id, { name: event.target.value })}
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    checked={role.countsForBalance}
-                    onChange={(event) => updateRole(role.id, { countsForBalance: event.target.checked })}
                   />
                 </td>
                 <td>
@@ -124,7 +125,7 @@ export function SetupPage() {
                   onChange={(event) => setNewRole((prev) => ({ ...prev, name: event.target.value }))}
                 />
               </td>
-              <td colSpan={2}>
+              <td>
                 <button type="button" onClick={handleAddRole}>
                   Add role
                 </button>
@@ -142,26 +143,26 @@ export function SetupPage() {
         <table>
           <thead>
             <tr>
-              <th>Name</th>
               <th>Allowed roles (comma)</th>
+              <th>Name</th>
               <th>Active</th>
             </tr>
           </thead>
           <tbody>
-            {tasks.map((task) => (
+            {sortedTasks.map((task) => (
               <tr key={task.id}>
-                <td>
-                  <input
-                    value={task.name}
-                    onChange={(event) => updateTask(task.id, { name: event.target.value })}
-                  />
-                </td>
                 <td>
                   <input
                     value={task.allowedRoleCodes.join(', ')}
                     onChange={(event) =>
                       updateTask(task.id, { allowedRoleCodes: parseRoleCodes(event.target.value) })
                     }
+                  />
+                </td>
+                <td>
+                  <input
+                    value={task.name}
+                    onChange={(event) => updateTask(task.id, { name: event.target.value })}
                   />
                 </td>
                 <td>
@@ -176,18 +177,18 @@ export function SetupPage() {
             <tr>
               <td>
                 <input
-                  placeholder="Task name"
-                  value={newTask.name}
-                  onChange={(event) => setNewTask((prev) => ({ ...prev, name: event.target.value }))}
-                />
-              </td>
-              <td>
-                <input
                   placeholder="OG, AL"
                   value={newTask.allowedRoleCodes}
                   onChange={(event) =>
                     setNewTask((prev) => ({ ...prev, allowedRoleCodes: event.target.value }))
                   }
+                />
+              </td>
+              <td>
+                <input
+                  placeholder="Task name"
+                  value={newTask.name}
+                  onChange={(event) => setNewTask((prev) => ({ ...prev, name: event.target.value }))}
                 />
               </td>
               <td>
