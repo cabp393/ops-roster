@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Trash2 } from 'lucide-react'
 import {
-  getEquipmentRoles,
   getEquipmentStatuses,
   getEquipmentTypes,
   getEquipmentVariants,
   getRoles,
   getTasks,
-  setEquipmentRoles,
   setEquipmentStatuses,
   setEquipmentTypes,
   setEquipmentVariants,
@@ -14,7 +13,6 @@ import {
   setTasks,
 } from '../lib/storage'
 import type {
-  EquipmentRoleOption,
   EquipmentStatusOption,
   EquipmentTypeOption,
   EquipmentVariantOption,
@@ -22,36 +20,26 @@ import type {
   Task,
 } from '../types'
 
-function parseRoleCodes(input: string) {
-  return input
-    .split(',')
-    .map((code) => code.trim())
-    .filter(Boolean)
-}
-
 export function SetupPage() {
   const [roles, setRolesState] = useState<Role[]>([])
   const [tasks, setTasksState] = useState<Task[]>([])
-  const [equipmentRoles, setEquipmentRolesState] = useState<EquipmentRoleOption[]>([])
   const [equipmentTypes, setEquipmentTypesState] = useState<EquipmentTypeOption[]>([])
   const [equipmentVariants, setEquipmentVariantsState] = useState<EquipmentVariantOption[]>([])
   const [equipmentStatuses, setEquipmentStatusesState] = useState<EquipmentStatusOption[]>([])
   const [newRole, setNewRole] = useState({ code: '', name: '' })
   const [newTask, setNewTask] = useState({
     name: '',
-    allowedRoleCodes: '',
+    allowedRoleCode: '',
     equipmentType: '',
     equipmentVariant: '',
   })
-  const [newEquipmentRole, setNewEquipmentRole] = useState({ code: '', name: '' })
-  const [newEquipmentType, setNewEquipmentType] = useState({ name: '' })
+  const [newEquipmentType, setNewEquipmentType] = useState({ name: '', roleCode: '' })
   const [newEquipmentVariant, setNewEquipmentVariant] = useState({ type: '', name: '' })
   const [newEquipmentStatus, setNewEquipmentStatus] = useState({ name: '' })
 
   useEffect(() => {
     setRolesState(getRoles())
     setTasksState(getTasks())
-    setEquipmentRolesState(getEquipmentRoles())
     setEquipmentTypesState(getEquipmentTypes())
     setEquipmentVariantsState(getEquipmentVariants())
     setEquipmentStatusesState(getEquipmentStatuses())
@@ -66,10 +54,6 @@ export function SetupPage() {
   }, [tasks])
 
   useEffect(() => {
-    if (equipmentRoles.length > 0) setEquipmentRoles(equipmentRoles)
-  }, [equipmentRoles])
-
-  useEffect(() => {
     if (equipmentTypes.length > 0) setEquipmentTypes(equipmentTypes)
   }, [equipmentTypes])
 
@@ -81,7 +65,23 @@ export function SetupPage() {
     if (equipmentStatuses.length > 0) setEquipmentStatuses(equipmentStatuses)
   }, [equipmentStatuses])
 
-  const activeRoleCodes = useMemo(() => roles.map((role) => role.code).join(', '), [roles])
+  useEffect(() => {
+    if (roles.length === 0 || equipmentTypes.length === 0) return
+    const defaultRole = roles[0]?.code ?? ''
+    const hasMissingRole = equipmentTypes.some((type) => !type.roleCode)
+    if (!hasMissingRole) return
+    setEquipmentTypesState((prev) =>
+      prev.map((type) => (type.roleCode ? type : { ...type, roleCode: defaultRole })),
+    )
+  }, [roles, equipmentTypes])
+
+  useEffect(() => {
+    if (roles.length === 0) return
+    if (!newEquipmentType.roleCode) {
+      setNewEquipmentType((prev) => ({ ...prev, roleCode: roles[0]?.code ?? '' }))
+    }
+  }, [roles, newEquipmentType.roleCode])
+
   const sortedTasks = useMemo(() => {
     return [...tasks].sort((a, b) => {
       const roleA = a.allowedRoleCodes.join(', ').trim()
@@ -98,12 +98,6 @@ export function SetupPage() {
 
   function updateTask(id: string, patch: Partial<Task>) {
     setTasksState((prev) => prev.map((task) => (task.id === id ? { ...task, ...patch } : task)))
-  }
-
-  function updateEquipmentRole(id: string, patch: Partial<EquipmentRoleOption>) {
-    setEquipmentRolesState((prev) =>
-      prev.map((role) => (role.id === id ? { ...role, ...patch } : role)),
-    )
   }
 
   function updateEquipmentType(id: string, patch: Partial<EquipmentTypeOption>) {
@@ -139,39 +133,30 @@ export function SetupPage() {
 
   function handleAddTask() {
     if (!newTask.name.trim()) return
+    const allowedRoleCodes = newTask.allowedRoleCode ? [newTask.allowedRoleCode] : []
     const nextTask: Task = {
       id: `task-${Date.now()}`,
       name: newTask.name.trim(),
-      allowedRoleCodes: parseRoleCodes(newTask.allowedRoleCodes),
+      allowedRoleCodes,
       isActive: true,
       equipmentType: newTask.equipmentType || null,
       equipmentVariant: newTask.equipmentVariant || null,
     }
     setTasksState((prev) => [...prev, nextTask])
-    setNewTask({ name: '', allowedRoleCodes: '', equipmentType: '', equipmentVariant: '' })
-  }
-
-  function handleAddEquipmentRole() {
-    if (!newEquipmentRole.code.trim() || !newEquipmentRole.name.trim()) return
-    const nextRole: EquipmentRoleOption = {
-      id: `equipment-role-${Date.now()}`,
-      code: newEquipmentRole.code.trim().toUpperCase(),
-      name: newEquipmentRole.name.trim(),
-      isActive: true,
-    }
-    setEquipmentRolesState((prev) => [...prev, nextRole])
-    setNewEquipmentRole({ code: '', name: '' })
+    setNewTask({ name: '', allowedRoleCode: '', equipmentType: '', equipmentVariant: '' })
   }
 
   function handleAddEquipmentType() {
     if (!newEquipmentType.name.trim()) return
+    const roleCode = newEquipmentType.roleCode || roles[0]?.code || ''
     const nextType: EquipmentTypeOption = {
       id: `equipment-type-${Date.now()}`,
       name: newEquipmentType.name.trim(),
+      roleCode,
       isActive: true,
     }
     setEquipmentTypesState((prev) => [...prev, nextType])
-    setNewEquipmentType({ name: '' })
+    setNewEquipmentType({ name: '', roleCode: '' })
   }
 
   function handleAddEquipmentVariant() {
@@ -197,6 +182,26 @@ export function SetupPage() {
     setNewEquipmentStatus({ name: '' })
   }
 
+  function handleDeleteRole(id: string) {
+    setRolesState((prev) => prev.filter((role) => role.id !== id))
+  }
+
+  function handleDeleteTask(id: string) {
+    setTasksState((prev) => prev.filter((task) => task.id !== id))
+  }
+
+  function handleDeleteEquipmentType(id: string) {
+    setEquipmentTypesState((prev) => prev.filter((type) => type.id !== id))
+  }
+
+  function handleDeleteEquipmentVariant(id: string) {
+    setEquipmentVariantsState((prev) => prev.filter((variant) => variant.id !== id))
+  }
+
+  function handleDeleteEquipmentStatus(id: string) {
+    setEquipmentStatusesState((prev) => prev.filter((status) => status.id !== id))
+  }
+
   const equipmentVariantsByType = useMemo(() => {
     const map = new Map<string, EquipmentVariantOption[]>()
     equipmentVariants.forEach((variant) => {
@@ -213,12 +218,13 @@ export function SetupPage() {
         <strong>Roles manager</strong>
       </div>
       <div className="table-wrap">
-        <table>
+        <table className="setup-table">
           <thead>
             <tr>
               <th>Code</th>
               <th>Name</th>
-              <th>Active</th>
+              <th className="cell-active">Active</th>
+              <th className="cell-actions">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -236,12 +242,22 @@ export function SetupPage() {
                     onChange={(event) => updateRole(role.id, { name: event.target.value })}
                   />
                 </td>
-                <td>
+                <td className="cell-active">
                   <input
                     type="checkbox"
                     checked={role.isActive}
                     onChange={(event) => updateRole(role.id, { isActive: event.target.checked })}
                   />
+                </td>
+                <td className="cell-actions">
+                  <button
+                    type="button"
+                    className="icon-button"
+                    onClick={() => handleDeleteRole(role.id)}
+                    aria-label="Borrar rol"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </td>
               </tr>
             ))}
@@ -260,7 +276,10 @@ export function SetupPage() {
                   onChange={(event) => setNewRole((prev) => ({ ...prev, name: event.target.value }))}
                 />
               </td>
-              <td>
+              <td className="cell-active">
+                <input type="checkbox" checked readOnly />
+              </td>
+              <td className="cell-actions">
                 <button type="button" onClick={handleAddRole}>
                   Add role
                 </button>
@@ -273,28 +292,37 @@ export function SetupPage() {
       <div className="summary" style={{ marginTop: '1.5rem' }}>
         <strong>Tasks manager</strong>
       </div>
-      <p className="summary">Active role codes: {activeRoleCodes || 'None'}</p>
       <div className="table-wrap">
-        <table>
+        <table className="setup-table">
           <thead>
             <tr>
-              <th>Allowed roles (comma)</th>
+              <th className="cell-role">Rol</th>
               <th>Name</th>
               <th>Tipo equipo</th>
               <th>Variante</th>
-              <th>Active</th>
+              <th className="cell-active">Active</th>
+              <th className="cell-actions">Acciones</th>
             </tr>
           </thead>
           <tbody>
             {sortedTasks.map((task) => (
               <tr key={task.id}>
-                <td>
-                  <input
-                    value={task.allowedRoleCodes.join(', ')}
+                <td className="cell-role">
+                  <select
+                    value={task.allowedRoleCodes[0] ?? ''}
                     onChange={(event) =>
-                      updateTask(task.id, { allowedRoleCodes: parseRoleCodes(event.target.value) })
+                      updateTask(task.id, {
+                        allowedRoleCodes: event.target.value ? [event.target.value] : [],
+                      })
                     }
-                  />
+                  >
+                    <option value="">Sin rol</option>
+                    {roles.map((role) => (
+                      <option key={role.id} value={role.code}>
+                        {role.code}
+                      </option>
+                    ))}
+                  </select>
                 </td>
                 <td>
                   <input
@@ -336,24 +364,40 @@ export function SetupPage() {
                     ))}
                   </select>
                 </td>
-                <td>
+                <td className="cell-active">
                   <input
                     type="checkbox"
                     checked={task.isActive}
                     onChange={(event) => updateTask(task.id, { isActive: event.target.checked })}
                   />
                 </td>
+                <td className="cell-actions">
+                  <button
+                    type="button"
+                    className="icon-button"
+                    onClick={() => handleDeleteTask(task.id)}
+                    aria-label="Borrar función"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </td>
               </tr>
             ))}
             <tr>
-              <td>
-                <input
-                  placeholder="OG, AL"
-                  value={newTask.allowedRoleCodes}
+              <td className="cell-role">
+                <select
+                  value={newTask.allowedRoleCode}
                   onChange={(event) =>
-                    setNewTask((prev) => ({ ...prev, allowedRoleCodes: event.target.value }))
+                    setNewTask((prev) => ({ ...prev, allowedRoleCode: event.target.value }))
                   }
-                />
+                >
+                  <option value="">Rol</option>
+                  {roles.map((role) => (
+                    <option key={role.id} value={role.code}>
+                      {role.code}
+                    </option>
+                  ))}
+                </select>
               </td>
               <td>
                 <input
@@ -397,78 +441,12 @@ export function SetupPage() {
                   ))}
                 </select>
               </td>
-              <td>
+              <td className="cell-active">
+                <input type="checkbox" checked readOnly />
+              </td>
+              <td className="cell-actions">
                 <button type="button" onClick={handleAddTask}>
                   Add task
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div className="summary" style={{ marginTop: '1.5rem' }}>
-        <strong>Equipos - Roles</strong>
-      </div>
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Code</th>
-              <th>Name</th>
-              <th>Active</th>
-            </tr>
-          </thead>
-          <tbody>
-            {equipmentRoles.map((role) => (
-              <tr key={role.id}>
-                <td>
-                  <input
-                    value={role.code}
-                    onChange={(event) =>
-                      updateEquipmentRole(role.id, { code: event.target.value.toUpperCase() })
-                    }
-                  />
-                </td>
-                <td>
-                  <input
-                    value={role.name}
-                    onChange={(event) => updateEquipmentRole(role.id, { name: event.target.value })}
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    checked={role.isActive}
-                    onChange={(event) =>
-                      updateEquipmentRole(role.id, { isActive: event.target.checked })
-                    }
-                  />
-                </td>
-              </tr>
-            ))}
-            <tr>
-              <td>
-                <input
-                  placeholder="Code"
-                  value={newEquipmentRole.code}
-                  onChange={(event) =>
-                    setNewEquipmentRole((prev) => ({ ...prev, code: event.target.value }))
-                  }
-                />
-              </td>
-              <td>
-                <input
-                  placeholder="Name"
-                  value={newEquipmentRole.name}
-                  onChange={(event) =>
-                    setNewEquipmentRole((prev) => ({ ...prev, name: event.target.value }))
-                  }
-                />
-              </td>
-              <td>
-                <button type="button" onClick={handleAddEquipmentRole}>
-                  Add role
                 </button>
               </td>
             </tr>
@@ -480,16 +458,32 @@ export function SetupPage() {
         <strong>Equipos - Tipos</strong>
       </div>
       <div className="table-wrap">
-        <table>
+        <table className="setup-table">
           <thead>
             <tr>
+              <th className="cell-role">Rol</th>
               <th>Tipo</th>
-              <th>Activo</th>
+              <th className="cell-active">Activo</th>
+              <th className="cell-actions">Acciones</th>
             </tr>
           </thead>
           <tbody>
             {equipmentTypes.map((type) => (
               <tr key={type.id}>
+                <td className="cell-role">
+                  <select
+                    value={type.roleCode}
+                    onChange={(event) =>
+                      updateEquipmentType(type.id, { roleCode: event.target.value })
+                    }
+                  >
+                    {roles.map((role) => (
+                      <option key={role.id} value={role.code}>
+                        {role.code}
+                      </option>
+                    ))}
+                  </select>
+                </td>
                 <td>
                   <input
                     value={type.name}
@@ -507,9 +501,34 @@ export function SetupPage() {
                     }
                   />
                 </td>
+                <td className="cell-actions">
+                  <button
+                    type="button"
+                    className="icon-button"
+                    onClick={() => handleDeleteEquipmentType(type.id)}
+                    aria-label="Borrar tipo"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </td>
               </tr>
             ))}
             <tr>
+              <td className="cell-role">
+                <select
+                  value={newEquipmentType.roleCode}
+                  onChange={(event) =>
+                    setNewEquipmentType((prev) => ({ ...prev, roleCode: event.target.value }))
+                  }
+                >
+                  <option value="">Rol</option>
+                  {roles.map((role) => (
+                    <option key={role.id} value={role.code}>
+                      {role.code}
+                    </option>
+                  ))}
+                </select>
+              </td>
               <td>
                 <input
                   placeholder="Tipo"
@@ -519,7 +538,10 @@ export function SetupPage() {
                   }
                 />
               </td>
-              <td>
+              <td className="cell-active">
+                <input type="checkbox" checked readOnly />
+              </td>
+              <td className="cell-actions">
                 <button type="button" onClick={handleAddEquipmentType}>
                   Add tipo
                 </button>
@@ -533,12 +555,13 @@ export function SetupPage() {
         <strong>Equipos - Variantes</strong>
       </div>
       <div className="table-wrap">
-        <table>
+        <table className="setup-table">
           <thead>
             <tr>
               <th>Tipo</th>
               <th>Variante</th>
-              <th>Activo</th>
+              <th className="cell-active">Activo</th>
+              <th className="cell-actions">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -575,6 +598,16 @@ export function SetupPage() {
                     }
                   />
                 </td>
+                <td className="cell-actions">
+                  <button
+                    type="button"
+                    className="icon-button"
+                    onClick={() => handleDeleteEquipmentVariant(variant.id)}
+                    aria-label="Borrar variante"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </td>
               </tr>
             ))}
             <tr>
@@ -602,7 +635,10 @@ export function SetupPage() {
                   }
                 />
               </td>
-              <td>
+              <td className="cell-active">
+                <input type="checkbox" checked readOnly />
+              </td>
+              <td className="cell-actions">
                 <button type="button" onClick={handleAddEquipmentVariant}>
                   Add variante
                 </button>
@@ -616,11 +652,12 @@ export function SetupPage() {
         <strong>Equipos - Estados</strong>
       </div>
       <div className="table-wrap">
-        <table>
+        <table className="setup-table">
           <thead>
             <tr>
               <th>Estado</th>
-              <th>Activo</th>
+              <th className="cell-active">Activo</th>
+              <th className="cell-actions">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -643,6 +680,16 @@ export function SetupPage() {
                     }
                   />
                 </td>
+                <td className="cell-actions">
+                  <button
+                    type="button"
+                    className="icon-button"
+                    onClick={() => handleDeleteEquipmentStatus(status.id)}
+                    aria-label="Borrar estado"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </td>
               </tr>
             ))}
             <tr>
@@ -655,7 +702,10 @@ export function SetupPage() {
                   }
                 />
               </td>
-              <td>
+              <td className="cell-active">
+                <input type="checkbox" checked readOnly />
+              </td>
+              <td className="cell-actions">
                 <button type="button" onClick={handleAddEquipmentStatus}>
                   Add estado
                 </button>

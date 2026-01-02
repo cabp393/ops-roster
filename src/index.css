@@ -73,11 +73,30 @@ td {
   text-align: left;
   padding: 6px 8px;
   border-bottom: 1px solid #e5e7eb;
+  vertical-align: middle;
 }
 
 th {
   background: #f9fafb;
   font-size: 0.8rem;
+}
+
+.setup-table {
+  table-layout: fixed;
+}
+
+.setup-table .cell-role {
+  width: 120px;
+}
+
+.setup-table .cell-active {
+  width: 90px;
+  text-align: center;
+}
+
+.setup-table .cell-actions {
+  width: 90px;
+  text-align: center;
 }
 
 .field {

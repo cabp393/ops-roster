@@ -177,8 +177,8 @@ export const defaultEquipmentRoles: EquipmentRoleOption[] = [
 ]
 
 export const defaultEquipmentTypes: EquipmentTypeOption[] = [
-  { id: 'equipment-type-grua', name: 'Grua', isActive: true },
-  { id: 'equipment-type-transpaleta', name: 'Transpaleta', isActive: true },
+  { id: 'equipment-type-grua', name: 'Grua', roleCode: 'OG', isActive: true },
+  { id: 'equipment-type-transpaleta', name: 'Transpaleta', roleCode: 'AL', isActive: true },
 ]
 
 export const defaultEquipmentVariants: EquipmentVariantOption[] = [

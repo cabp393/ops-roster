@@ -102,6 +102,15 @@ function normalizeEquipmentOptions<T extends { id: string; name?: string; code?:
   }))
 }
 
+function normalizeEquipmentTypes(raw: unknown): EquipmentTypeOption[] | null {
+  const options = normalizeEquipmentOptions<EquipmentTypeOption>(raw)
+  if (!options) return null
+  return options.map((option) => ({
+    ...option,
+    roleCode: typeof option.roleCode === 'string' ? option.roleCode : '',
+  }))
+}
+
 function normalizeEquipmentVariants(raw: unknown): EquipmentVariantOption[] | null {
   if (!Array.isArray(raw)) return null
   const options = raw.filter((option) => option && typeof option === 'object') as EquipmentVariantOption[]
@@ -173,7 +182,7 @@ export function getEquipmentTypes(): EquipmentTypeOption[] {
     return defaultEquipmentTypes
   }
   try {
-    const parsed = normalizeEquipmentOptions<EquipmentTypeOption>(JSON.parse(raw))
+    const parsed = normalizeEquipmentTypes(JSON.parse(raw))
     if (parsed) return parsed
   } catch {
     // fall through

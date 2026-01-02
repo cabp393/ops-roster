@@ -30,6 +30,16 @@ export function getEligibleEquipments(
     .sort((a, b) => a.serie.localeCompare(b.serie))
 }
 
+export function getEquipmentsForRole(workerRole: string, equipments: Equipment[]): Equipment[] {
+  return equipments
+    .filter((equipment) => {
+      if (equipment.status !== 'Operativa') return false
+      if (equipment.roleCode && equipment.roleCode !== workerRole) return false
+      return true
+    })
+    .sort((a, b) => a.serie.localeCompare(b.serie))
+}
+
 type AssignEquipmentParams = {
   workerIds: number[]
   tasksByWorkerId: Record<number, string | null>
@@ -61,6 +71,39 @@ export function assignEquipmentsForShift({
       return
     }
     const eligible = getEligibleEquipments(requirement, worker.roleCode, equipments)
+    const available = eligible.find((equipment) => !used.has(equipment.id))
+    if (!available) {
+      assignments[workerId] = null
+      return
+    }
+    assignments[workerId] = available.id
+    used.add(available.id)
+  })
+
+  return assignments
+}
+
+type AssignEquipmentByRoleParams = {
+  workerIds: number[]
+  equipments: Equipment[]
+  workerById: Map<number, Worker>
+}
+
+export function assignEquipmentsByRoleForShift({
+  workerIds,
+  equipments,
+  workerById,
+}: AssignEquipmentByRoleParams): Record<number, string | null> {
+  const assignments: Record<number, string | null> = {}
+  const used = new Set<string>()
+
+  workerIds.forEach((workerId) => {
+    const worker = workerById.get(workerId)
+    if (!worker) {
+      assignments[workerId] = null
+      return
+    }
+    const eligible = getEquipmentsForRole(worker.roleCode, equipments)
     const available = eligible.find((equipment) => !used.has(equipment.id))
     if (!available) {
       assignments[workerId] = null
