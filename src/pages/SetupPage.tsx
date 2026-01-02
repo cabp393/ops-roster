@@ -492,7 +492,7 @@ export function SetupPage() {
                     }
                   />
                 </td>
-                <td>
+                <td className="cell-active">
                   <input
                     type="checkbox"
                     checked={type.isActive}
@@ -589,7 +589,7 @@ export function SetupPage() {
                     }
                   />
                 </td>
-                <td>
+                <td className="cell-active">
                   <input
                     type="checkbox"
                     checked={variant.isActive}
@@ -671,7 +671,7 @@ export function SetupPage() {
                     }
                   />
                 </td>
-                <td>
+                <td className="cell-active">
                   <input
                     type="checkbox"
                     checked={status.isActive}

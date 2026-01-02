@@ -29,7 +29,6 @@ import {
   EyeOff,
   Lock,
   RefreshCcw,
-  ClipboardList,
   Users,
   Save,
   Trash2,
@@ -595,25 +594,9 @@ export function PlanningPage({
     persist({
       ...plan,
       columns: seeded.columns,
+      tasksByWorkerId: seeded.tasksByWorkerId,
     })
     setToastMessage('Turnos rotados')
-  }
-
-  function handleAssignTasks() {
-    const activeTaskIds = new Set(activeTasks.map((task) => task.id))
-    const nextTasksByWorkerId = { ...plan.tasksByWorkerId }
-    activeWorkers.forEach((worker) => {
-      if (worker.specialtyTaskId && activeTaskIds.has(worker.specialtyTaskId)) {
-        nextTasksByWorkerId[worker.id] = worker.specialtyTaskId
-      } else {
-        nextTasksByWorkerId[worker.id] = defaultTaskByRole.get(worker.roleCode) ?? null
-      }
-    })
-    persist({
-      ...plan,
-      tasksByWorkerId: nextTasksByWorkerId,
-    })
-    setToastMessage('Funciones asignadas')
   }
 
   function handleAssignEquipments() {
@@ -890,14 +873,6 @@ export function PlanningPage({
               aria-label="Rotar turnos"
             >
               <RefreshCcw size={14} />
-            </button>
-            <button
-              type="button"
-              className="icon-button"
-              onClick={handleAssignTasks}
-              aria-label="Asignar funciones"
-            >
-              <ClipboardList size={14} />
             </button>
             <button
               type="button"
