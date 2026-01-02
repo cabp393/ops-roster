@@ -91,12 +91,16 @@ th {
 
 .setup-table .cell-active {
   width: 90px;
-  text-align: center;
 }
 
 .setup-table .cell-actions {
   width: 90px;
-  text-align: center;
+  text-align: right;
+}
+
+.setup-table th.cell-active,
+.setup-table td.cell-active {
+  text-align: right;
 }
 
 .field {
