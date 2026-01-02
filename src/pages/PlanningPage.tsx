@@ -37,7 +37,7 @@ import * as XLSX from 'xlsx'
 import { SHIFT_LABEL, SHIFTS } from '../data/mock'
 import {
   assignEquipmentsByRoleForShift,
-  getEquipmentsForRole,
+  getEligibleEquipments,
   getTaskEquipmentRequirement,
 } from '../lib/equipment'
 import {
@@ -685,9 +685,19 @@ export function PlanningPage({
     const requirement = normalizedTaskId
       ? getTaskEquipmentRequirement(taskById.get(normalizedTaskId))
       : null
-    const nextEquipmentByWorkerId = requirement
+    let nextEquipmentByWorkerId = requirement
       ? plan.equipmentByWorkerId
       : { ...plan.equipmentByWorkerId, [workerId]: null }
+    if (requirement) {
+      const worker = workerById.get(workerId)
+      const currentEquipmentId = plan.equipmentByWorkerId[workerId] ?? null
+      if (worker && currentEquipmentId) {
+        const eligible = getEligibleEquipments(requirement, worker.roleCode, equipments)
+        if (!eligible.some((equipment) => equipment.id === currentEquipmentId)) {
+          nextEquipmentByWorkerId = { ...plan.equipmentByWorkerId, [workerId]: null }
+        }
+      }
+    }
     const nextPlan: WeekPlan = {
       ...plan,
       tasksByWorkerId: {
@@ -993,15 +1003,13 @@ export function PlanningPage({
                               plan.tasksByWorkerId[workerId] ??
                               defaultTaskByRole.get(worker.roleCode) ??
                               null
-                            const isEquipmentVisible = Boolean(
-                              getTaskEquipmentRequirement(
-                                taskValue ? taskById.get(taskValue) : undefined,
-                              ),
+                            const requirement = getTaskEquipmentRequirement(
+                              taskValue ? taskById.get(taskValue) : undefined,
                             )
-                            const eligibleEquipments = getEquipmentsForRole(
-                              worker.roleCode,
-                              equipments,
-                            )
+                            const isEquipmentVisible = Boolean(requirement)
+                            const eligibleEquipments = requirement
+                              ? getEligibleEquipments(requirement, worker.roleCode, equipments)
+                              : []
                             const currentEquipment = plan.equipmentByWorkerId[workerId] ?? null
                             const equipmentOptions = eligibleEquipments.map((equipment) => {
                               const isUsed =
@@ -1055,10 +1063,13 @@ export function PlanningPage({
                 const taskOptions = tasksByRole.get(worker.roleCode) ?? []
                 const taskValue =
                   plan.tasksByWorkerId[activeId] ?? defaultTaskByRole.get(worker.roleCode) ?? null
-                const isEquipmentVisible = Boolean(
-                  getTaskEquipmentRequirement(taskValue ? taskById.get(taskValue) : undefined),
+                const requirement = getTaskEquipmentRequirement(
+                  taskValue ? taskById.get(taskValue) : undefined,
                 )
-                const eligibleEquipments = getEquipmentsForRole(worker.roleCode, equipments)
+                const isEquipmentVisible = Boolean(requirement)
+                const eligibleEquipments = requirement
+                  ? getEligibleEquipments(requirement, worker.roleCode, equipments)
+                  : []
                 const activeShift = findWorkerShift(plan.columns, activeId)
                 const usedEquipmentIds = new Set(
                   (activeShift ? plan.columns[activeShift] ?? [] : [])
