@@ -27,6 +27,7 @@ export type EquipmentRoleOption = {
 export type EquipmentTypeOption = {
   id: string
   name: string
+  roleCode: string
   isActive: boolean
 }
 

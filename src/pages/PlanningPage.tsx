@@ -28,16 +28,16 @@ import {
   Eye,
   EyeOff,
   Lock,
-  Rocket,
+  RefreshCcw,
+  Users,
   Save,
   Trash2,
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { SHIFT_LABEL, SHIFTS } from '../data/mock'
 import {
-  assignEquipmentsForShift,
-  getEligibleEquipments,
-  getTaskEquipmentRequirement,
+  assignEquipmentsByRoleForShift,
+  getEquipmentsForRole,
 } from '../lib/equipment'
 import {
   clearWeekPlan,
@@ -450,7 +450,6 @@ export function PlanningPage({
     () => new Map(activeTasks.map((task) => [task.id, task.name])),
     [activeTasks],
   )
-  const taskById = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks])
   const equipmentById = useMemo(
     () => new Map(equipments.map((equipment) => [equipment.id, equipment])),
     [equipments],
@@ -584,7 +583,7 @@ export function PlanningPage({
     saveWeekPlan(weekStart, nextPlan)
   }
 
-  function handleSeed() {
+  function handleRotateShifts() {
     const currentStart = new Date(`${weekStart}T00:00:00Z`)
     currentStart.setUTCDate(currentStart.getUTCDate() - 7)
     const prevWeekStart = formatDate(currentStart)
@@ -592,23 +591,30 @@ export function PlanningPage({
     const previousShifts = getShiftsByWorker(prevWeekPlan)
     const activeTaskIds = new Set(activeTasks.map((task) => task.id))
     const seeded = seedWeekPlan(weekStart, activeWorkers, previousShifts, activeTaskIds)
-    const equipmentAssignments: Record<number, string | null> = {}
+    persist({
+      ...plan,
+      columns: seeded.columns,
+      tasksByWorkerId: seeded.tasksByWorkerId,
+    })
+    setToastMessage('Turnos rotados')
+  }
+
+  function handleAssignEquipments() {
+    const nextEquipmentByWorkerId = { ...plan.equipmentByWorkerId }
     SHIFTS.forEach((shift) => {
-      const workerIds = seeded.columns[shift] ?? []
-      const assigned = assignEquipmentsForShift({
+      const workerIds = plan.columns[shift] ?? []
+      const assigned = assignEquipmentsByRoleForShift({
         workerIds,
-        tasksByWorkerId: seeded.tasksByWorkerId,
         equipments,
-        taskById,
         workerById,
       })
-      Object.assign(equipmentAssignments, assigned)
+      Object.assign(nextEquipmentByWorkerId, assigned)
     })
     persist({
-      ...seeded,
-      equipmentByWorkerId: equipmentAssignments,
+      ...plan,
+      equipmentByWorkerId: nextEquipmentByWorkerId,
     })
-    setToastMessage('Turno creado')
+    setToastMessage('Equipos asignados')
   }
 
   function handleSave() {
@@ -663,39 +669,11 @@ export function PlanningPage({
   }
 
   function handleTaskChange(workerId: number, taskId: string) {
-    const shift = findWorkerShift(plan.columns, workerId)
-    const worker = workerById.get(workerId)
-    const requirement = getTaskEquipmentRequirement(taskId ? taskById.get(taskId) : undefined)
-    const eligibleEquipments = worker
-      ? getEligibleEquipments(requirement, worker.roleCode, equipments)
-      : []
-    const usedByOthers = new Set(
-      (shift ? plan.columns[shift] ?? [] : [])
-        .filter((id) => id !== workerId)
-        .map((id) => plan.equipmentByWorkerId[id])
-        .filter((id): id is string => Boolean(id)),
-    )
-    const currentEquipment = plan.equipmentByWorkerId[workerId] ?? null
-    let nextEquipment: string | null = currentEquipment
-    if (!requirement) {
-      nextEquipment = null
-    } else {
-      const stillEligible =
-        nextEquipment && eligibleEquipments.some((equipment) => equipment.id === nextEquipment)
-      if (!stillEligible || (nextEquipment && usedByOthers.has(nextEquipment))) {
-        nextEquipment =
-          eligibleEquipments.find((equipment) => !usedByOthers.has(equipment.id))?.id ?? null
-      }
-    }
     const nextPlan: WeekPlan = {
       ...plan,
       tasksByWorkerId: {
         ...plan.tasksByWorkerId,
         [workerId]: taskId || null,
-      },
-      equipmentByWorkerId: {
-        ...plan.equipmentByWorkerId,
-        [workerId]: nextEquipment,
       },
     }
     persist(nextPlan)
@@ -891,10 +869,18 @@ export function PlanningPage({
             <button
               type="button"
               className="icon-button"
-              onClick={handleSeed}
-              aria-label="Generar turno"
+              onClick={handleRotateShifts}
+              aria-label="Rotar turnos"
             >
-              <Rocket size={14} />
+              <RefreshCcw size={14} />
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              onClick={handleAssignEquipments}
+              aria-label="Asignar equipos"
+            >
+              <Users size={14} />
             </button>
             <button
               type="button"
@@ -987,11 +973,7 @@ export function PlanningPage({
                               plan.tasksByWorkerId[workerId] ??
                               defaultTaskByRole.get(worker.roleCode) ??
                               null
-                            const requirement = getTaskEquipmentRequirement(
-                              taskValue ? taskById.get(taskValue) : undefined,
-                            )
-                            const eligibleEquipments = getEligibleEquipments(
-                              requirement,
+                            const eligibleEquipments = getEquipmentsForRole(
                               worker.roleCode,
                               equipments,
                             )
@@ -1019,7 +1001,7 @@ export function PlanningPage({
                                 onEquipmentChange={(id, value) =>
                                   handleEquipmentChange(id, value, shift)
                                 }
-                                isEquipmentDisabled={!requirement}
+                                isEquipmentDisabled={false}
                               />
                             )
                           })}
@@ -1047,14 +1029,7 @@ export function PlanningPage({
                 const taskOptions = tasksByRole.get(worker.roleCode) ?? []
                 const taskValue =
                   plan.tasksByWorkerId[activeId] ?? defaultTaskByRole.get(worker.roleCode) ?? null
-                const requirement = getTaskEquipmentRequirement(
-                  taskValue ? taskById.get(taskValue) : undefined,
-                )
-                const eligibleEquipments = getEligibleEquipments(
-                  requirement,
-                  worker.roleCode,
-                  equipments,
-                )
+                const eligibleEquipments = getEquipmentsForRole(worker.roleCode, equipments)
                 const activeShift = findWorkerShift(plan.columns, activeId)
                 const usedEquipmentIds = new Set(
                   (activeShift ? plan.columns[activeShift] ?? [] : [])
@@ -1077,7 +1052,7 @@ export function PlanningPage({
                     equipmentOptions={equipmentOptions}
                     equipmentValue={currentEquipment}
                     onEquipmentChange={() => {}}
-                    isEquipmentDisabled={!requirement}
+                    isEquipmentDisabled={false}
                     isReadOnly
                   />
                 )
