@@ -1,4 +1,14 @@
-import type { Role, Shift, Task, Worker } from '../types'
+import type {
+  Equipment,
+  EquipmentRoleOption,
+  EquipmentStatusOption,
+  EquipmentTypeOption,
+  EquipmentVariantOption,
+  Role,
+  Shift,
+  Task,
+  Worker,
+} from '../types'
 
 export const SHIFTS: Shift[] = ['M', 'T', 'N']
 
@@ -20,108 +30,195 @@ export const defaultTasks: Task[] = [
     name: 'Operación grúa',
     allowedRoleCodes: ['OG'],
     isActive: true,
+    equipmentType: 'Grua',
+    equipmentVariant: null,
   },
   {
     id: 'task-apoyo-patio',
     name: 'Apoyo patio',
     allowedRoleCodes: ['OG'],
     isActive: true,
+    equipmentType: null,
+    equipmentVariant: null,
   },
   {
     id: 'task-apoyo-bodega',
     name: 'Apoyo bodega',
     allowedRoleCodes: ['AL'],
     isActive: true,
+    equipmentType: null,
+    equipmentVariant: null,
   },
   {
     id: 'task-control-acceso',
     name: 'Control acceso',
     allowedRoleCodes: ['AL'],
     isActive: true,
+    equipmentType: null,
+    equipmentVariant: null,
   },
   {
     id: 'task-control-ticket',
     name: 'Control Ticket',
     allowedRoleCodes: ['AL', 'JT'],
     isActive: true,
+    equipmentType: null,
+    equipmentVariant: null,
   },
   {
     id: 'task-control-pallet',
     name: 'Control Pallet',
     allowedRoleCodes: ['AL', 'JT'],
     isActive: true,
+    equipmentType: null,
+    equipmentVariant: null,
   },
   {
     id: 'task-descarga',
     name: 'Descarga',
     allowedRoleCodes: ['OG', 'AL'],
     isActive: true,
+    equipmentType: null,
+    equipmentVariant: null,
   },
   {
     id: 'task-carga',
     name: 'Carga',
     allowedRoleCodes: ['OG', 'AL'],
     isActive: true,
+    equipmentType: null,
+    equipmentVariant: null,
   },
   {
     id: 'task-alto-valor',
     name: 'Alto Valor',
     allowedRoleCodes: ['AL', 'JT'],
     isActive: true,
+    equipmentType: null,
+    equipmentVariant: null,
   },
   {
     id: 'task-transferencia-alto-valor',
     name: 'Transferencia Alto Valor',
     allowedRoleCodes: ['AL', 'JT'],
     isActive: true,
+    equipmentType: null,
+    equipmentVariant: null,
   },
   {
     id: 'task-remonte-reposicion',
     name: 'Remonte y Reposición',
     allowedRoleCodes: ['AL'],
     isActive: true,
+    equipmentType: null,
+    equipmentVariant: null,
   },
   {
     id: 'task-retorno-envases',
     name: 'Retorno Envases',
     allowedRoleCodes: ['AL'],
     isActive: true,
+    equipmentType: null,
+    equipmentVariant: null,
   },
   {
     id: 'task-retorno-producto',
     name: 'Retorno Producto',
     allowedRoleCodes: ['AL'],
     isActive: true,
+    equipmentType: null,
+    equipmentVariant: null,
   },
   {
     id: 'task-tygard',
     name: 'Tygard',
     allowedRoleCodes: ['OG', 'AL'],
     isActive: true,
+    equipmentType: 'Grua',
+    equipmentVariant: 'Tygard',
   },
   {
     id: 'task-apoyo-tygard',
     name: 'Apoyo Tygard',
     allowedRoleCodes: ['OG', 'AL'],
     isActive: true,
+    equipmentType: 'Grua',
+    equipmentVariant: 'Tygard',
   },
   {
     id: 'task-apoyo-picking',
     name: 'Apoyo Picking',
     allowedRoleCodes: ['AL'],
     isActive: true,
+    equipmentType: null,
+    equipmentVariant: null,
   },
   {
     id: 'task-reempaque-alto-valor',
     name: 'Reempaque Alto Valor',
     allowedRoleCodes: ['AL'],
     isActive: true,
+    equipmentType: null,
+    equipmentVariant: null,
   },
   {
     id: 'task-picking-alto-valor',
     name: 'Picking Alto Valor',
     allowedRoleCodes: ['AL'],
     isActive: true,
+    equipmentType: null,
+    equipmentVariant: null,
+  },
+]
+
+export const defaultEquipmentRoles: EquipmentRoleOption[] = [
+  { id: 'equipment-role-og', code: 'OG', name: 'Operador Grúa', isActive: true },
+  { id: 'equipment-role-al', code: 'AL', name: 'Auxiliar Logística', isActive: true },
+]
+
+export const defaultEquipmentTypes: EquipmentTypeOption[] = [
+  { id: 'equipment-type-grua', name: 'Grua', isActive: true },
+  { id: 'equipment-type-transpaleta', name: 'Transpaleta', isActive: true },
+]
+
+export const defaultEquipmentVariants: EquipmentVariantOption[] = [
+  { id: 'equipment-variant-tygard', name: 'Tygard', type: 'Grua', isActive: true },
+  { id: 'equipment-variant-duplex', name: 'Duplex', type: 'Grua', isActive: true },
+  { id: 'equipment-variant-torre-normal', name: 'Torre Normal', type: 'Grua', isActive: true },
+  { id: 'equipment-variant-torre-alta', name: 'Torre Alta', type: 'Grua', isActive: true },
+  { id: 'equipment-variant-normal', name: 'Normal', type: 'Transpaleta', isActive: true },
+]
+
+export const defaultEquipmentStatuses: EquipmentStatusOption[] = [
+  { id: 'equipment-status-operativa', name: 'Operativa', isActive: true },
+  { id: 'equipment-status-mantencion', name: 'En mantención', isActive: true },
+  { id: 'equipment-status-inactiva', name: 'Inactiva', isActive: true },
+]
+
+export const defaultEquipments: Equipment[] = [
+  {
+    id: 'equipment-tygard-01',
+    serie: 'TY-001',
+    roleCode: 'OG',
+    type: 'Grua',
+    variant: 'Tygard',
+    status: 'Operativa',
+  },
+  {
+    id: 'equipment-tygard-02',
+    serie: 'TY-002',
+    roleCode: 'OG',
+    type: 'Grua',
+    variant: 'Tygard',
+    status: 'Operativa',
+  },
+  {
+    id: 'equipment-transpaleta-01',
+    serie: 'TP-100',
+    roleCode: 'AL',
+    type: 'Transpaleta',
+    variant: 'Normal',
+    status: 'Operativa',
   },
 ]
 

@@ -35,6 +35,11 @@ import {
 import * as XLSX from 'xlsx'
 import { SHIFT_LABEL, SHIFTS } from '../data/mock'
 import {
+  assignEquipmentsForShift,
+  getEligibleEquipments,
+  getTaskEquipmentRequirement,
+} from '../lib/equipment'
+import {
   clearWeekPlan,
   getShiftsByWorker,
   loadWeekPlan,
@@ -48,14 +53,15 @@ import {
   getWeekRangeLabel,
   getWeekStartDate,
 } from '../lib/week'
-import { getTasks, getWorkers } from '../lib/storage'
+import { getEquipments, getTasks, getWorkers } from '../lib/storage'
 import { getWorkerDisplayName } from '../lib/workerName'
-import type { Shift, Task, WeekPlan, Worker } from '../types'
+import type { Equipment, Shift, Task, WeekPlan, Worker } from '../types'
 
 const emptyPlan: WeekPlan = {
   weekStart: '2025-12-29',
   columns: { M: [], T: [], N: [] },
   tasksByWorkerId: {},
+  equipmentByWorkerId: {},
 }
 
 const planningShiftOrder: Shift[] = ['N', 'M', 'T']
@@ -85,10 +91,16 @@ function allowedShiftsForWorker(worker: Worker): Shift[] {
 
 function sanitizePlan(plan: WeekPlan, activeIds: Set<number>): WeekPlan {
   const tasksByWorkerId: Record<number, string | null> = {}
+  const equipmentByWorkerId: Record<number, string | null> = {}
   Object.entries(plan.tasksByWorkerId).forEach(([key, value]) => {
     const id = Number(key)
     if (Number.isNaN(id) || !activeIds.has(id)) return
     tasksByWorkerId[id] = value
+  })
+  Object.entries(plan.equipmentByWorkerId ?? {}).forEach(([key, value]) => {
+    const id = Number(key)
+    if (Number.isNaN(id) || !activeIds.has(id)) return
+    equipmentByWorkerId[id] = value
   })
 
   const columns = SHIFTS.reduce<Record<Shift, number[]>>(
@@ -99,7 +111,7 @@ function sanitizePlan(plan: WeekPlan, activeIds: Set<number>): WeekPlan {
     { M: [], T: [], N: [] },
   )
 
-  return { ...plan, columns, tasksByWorkerId }
+  return { ...plan, columns, tasksByWorkerId, equipmentByWorkerId }
 }
 
 function findWorkerShift(columns: WeekPlan['columns'], workerId: number): Shift | null {
@@ -159,6 +171,10 @@ type WorkerCardProps = {
   taskOptions: Task[]
   taskValue: string | null
   onTaskChange: (workerId: number, taskId: string) => void
+  equipmentOptions: { id: string; label: string; isUsed: boolean }[]
+  equipmentValue: string | null
+  onEquipmentChange: (workerId: number, equipmentId: string) => void
+  isEquipmentDisabled?: boolean
   isReadOnly?: boolean
 }
 
@@ -167,6 +183,10 @@ function WorkerCardContent({
   taskOptions,
   taskValue,
   onTaskChange,
+  equipmentOptions,
+  equipmentValue,
+  onEquipmentChange,
+  isEquipmentDisabled = false,
   isReadOnly = false,
 }: WorkerCardProps) {
   const allowedShifts = worker.constraints?.allowedShifts ?? []
@@ -202,6 +222,20 @@ function WorkerCardContent({
           ))}
         </select>
       </div>
+      <div className="worker-equipment">
+        <select
+          value={equipmentValue ?? ''}
+          onChange={(event) => onEquipmentChange(worker.id, event.target.value)}
+          disabled={isReadOnly || isEquipmentDisabled}
+        >
+          <option value="">(Sin equipo)</option>
+          {equipmentOptions.map((equipment) => (
+            <option key={equipment.id} value={equipment.id}>
+              {equipment.label}
+            </option>
+          ))}
+        </select>
+      </div>
     </>
   )
 }
@@ -213,6 +247,10 @@ type SortableWorkerCardProps = {
   taskOptions: Task[]
   taskValue: string | null
   onTaskChange: (workerId: number, taskId: string) => void
+  equipmentOptions: { id: string; label: string; isUsed: boolean }[]
+  equipmentValue: string | null
+  onEquipmentChange: (workerId: number, equipmentId: string) => void
+  isEquipmentDisabled?: boolean
 }
 
 function SortableWorkerCard({
@@ -222,6 +260,10 @@ function SortableWorkerCard({
   taskOptions,
   taskValue,
   onTaskChange,
+  equipmentOptions,
+  equipmentValue,
+  onEquipmentChange,
+  isEquipmentDisabled = false,
 }: SortableWorkerCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: worker.id,
@@ -247,6 +289,10 @@ function SortableWorkerCard({
         taskOptions={taskOptions}
         taskValue={taskValue}
         onTaskChange={onTaskChange}
+        equipmentOptions={equipmentOptions}
+        equipmentValue={equipmentValue}
+        onEquipmentChange={onEquipmentChange}
+        isEquipmentDisabled={isEquipmentDisabled}
       />
     </div>
   )
@@ -347,6 +393,7 @@ export function PlanningPage({
   const [plan, setPlan] = useState<WeekPlan>(emptyPlan)
   const [tasks, setTasks] = useState<Task[]>([])
   const [workers, setWorkers] = useState<Worker[]>([])
+  const [equipments, setEquipments] = useState<Equipment[]>([])
   const [hasLoadedPlan, setHasLoadedPlan] = useState(false)
   const [hasLoadedRoster, setHasLoadedRoster] = useState(false)
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(() =>
@@ -358,6 +405,7 @@ export function PlanningPage({
   useEffect(() => {
     setTasks(getTasks())
     setWorkers(getWorkers())
+    setEquipments(getEquipments())
     setHasLoadedRoster(true)
   }, [])
 
@@ -402,6 +450,11 @@ export function PlanningPage({
     () => new Map(activeTasks.map((task) => [task.id, task.name])),
     [activeTasks],
   )
+  const taskById = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks])
+  const equipmentById = useMemo(
+    () => new Map(equipments.map((equipment) => [equipment.id, equipment])),
+    [equipments],
+  )
   const visibleGroupKeys = useMemo(() => {
     const keys: string[] = []
     planningShiftOrder.forEach((shift) => {
@@ -442,6 +495,12 @@ export function PlanningPage({
     return taskNameById.get(taskId) ?? 'Sin tarea'
   }
 
+  function getWorkerEquipmentSerie(workerId: number) {
+    const equipmentId = plan.equipmentByWorkerId[workerId]
+    if (!equipmentId) return ''
+    return equipmentById.get(equipmentId)?.serie ?? ''
+  }
+
   function getShiftExportRows(shift: Shift) {
     const workerIds = plan.columns[shift] ?? []
     const rows = workerIds
@@ -453,9 +512,13 @@ export function PlanningPage({
           name: getWorkerDisplayName(worker),
           role: worker.roleCode,
           task: getWorkerTaskName(workerId) ?? 'Sin tarea',
+          equipment: getWorkerEquipmentSerie(workerId),
         }
       })
-      .filter((row): row is { id: number; name: string; role: string; task: string } => row !== null)
+      .filter(
+        (row): row is { id: number; name: string; role: string; task: string; equipment: string } =>
+          row !== null,
+      )
 
     rows.sort((a, b) => {
       const roleA = ROLE_ORDER_INDEX.get(a.role as RoleCode) ?? Number.MAX_SAFE_INTEGER
@@ -471,14 +534,21 @@ export function PlanningPage({
     if (!hasLoadedPlan) return
     if (activeWorkers.length === 0 || defaultTaskByRole.size === 0) return
     const updates: Record<number, string | null> = {}
+    const equipmentUpdates: Record<number, string | null> = {}
     let hasUpdates = false
     activeWorkers.forEach((worker) => {
       const currentTask = plan.tasksByWorkerId[worker.id]
-      if (currentTask) return
-      const defaultTaskId = defaultTaskByRole.get(worker.roleCode)
-      if (!defaultTaskId) return
-      updates[worker.id] = defaultTaskId
-      hasUpdates = true
+      if (!currentTask) {
+        const defaultTaskId = defaultTaskByRole.get(worker.roleCode)
+        if (defaultTaskId) {
+          updates[worker.id] = defaultTaskId
+          hasUpdates = true
+        }
+      }
+      if (!(worker.id in plan.equipmentByWorkerId)) {
+        equipmentUpdates[worker.id] = null
+        hasUpdates = true
+      }
     })
     if (!hasUpdates) return
     persist({
@@ -486,6 +556,10 @@ export function PlanningPage({
       tasksByWorkerId: {
         ...plan.tasksByWorkerId,
         ...updates,
+      },
+      equipmentByWorkerId: {
+        ...plan.equipmentByWorkerId,
+        ...equipmentUpdates,
       },
     })
   }, [activeWorkers, defaultTaskByRole, hasLoadedPlan, plan])
@@ -518,7 +592,22 @@ export function PlanningPage({
     const previousShifts = getShiftsByWorker(prevWeekPlan)
     const activeTaskIds = new Set(activeTasks.map((task) => task.id))
     const seeded = seedWeekPlan(weekStart, activeWorkers, previousShifts, activeTaskIds)
-    persist(seeded)
+    const equipmentAssignments: Record<number, string | null> = {}
+    SHIFTS.forEach((shift) => {
+      const workerIds = seeded.columns[shift] ?? []
+      const assigned = assignEquipmentsForShift({
+        workerIds,
+        tasksByWorkerId: seeded.tasksByWorkerId,
+        equipments,
+        taskById,
+        workerById,
+      })
+      Object.assign(equipmentAssignments, assigned)
+    })
+    persist({
+      ...seeded,
+      equipmentByWorkerId: equipmentAssignments,
+    })
     setToastMessage('Turno creado')
   }
 
@@ -544,11 +633,11 @@ export function PlanningPage({
         [title],
         [subtitle],
         [],
-        ['ID', 'Nombre', 'Rol', 'Función'],
-        ...rows.map((row) => [row.id, row.name, row.role, row.task]),
+        ['ID', 'Nombre', 'Rol', 'Función', 'Equipo'],
+        ...rows.map((row) => [row.id, row.name, row.role, row.task, row.equipment]),
       ]
       const sheet = XLSX.utils.aoa_to_sheet(data)
-      sheet['!cols'] = [{ wch: 8 }, { wch: 26 }, { wch: 8 }, { wch: 26 }]
+      sheet['!cols'] = [{ wch: 8 }, { wch: 26 }, { wch: 8 }, { wch: 26 }, { wch: 16 }]
       const titleCell = sheet.A1
       if (titleCell) {
         titleCell.s = { font: { bold: true, sz: 14 } }
@@ -574,14 +663,62 @@ export function PlanningPage({
   }
 
   function handleTaskChange(workerId: number, taskId: string) {
+    const shift = findWorkerShift(plan.columns, workerId)
+    const worker = workerById.get(workerId)
+    const requirement = getTaskEquipmentRequirement(taskId ? taskById.get(taskId) : undefined)
+    const eligibleEquipments = worker
+      ? getEligibleEquipments(requirement, worker.roleCode, equipments)
+      : []
+    const usedByOthers = new Set(
+      (shift ? plan.columns[shift] ?? [] : [])
+        .filter((id) => id !== workerId)
+        .map((id) => plan.equipmentByWorkerId[id])
+        .filter((id): id is string => Boolean(id)),
+    )
+    const currentEquipment = plan.equipmentByWorkerId[workerId] ?? null
+    let nextEquipment: string | null = currentEquipment
+    if (!requirement) {
+      nextEquipment = null
+    } else {
+      const stillEligible =
+        nextEquipment && eligibleEquipments.some((equipment) => equipment.id === nextEquipment)
+      if (!stillEligible || (nextEquipment && usedByOthers.has(nextEquipment))) {
+        nextEquipment =
+          eligibleEquipments.find((equipment) => !usedByOthers.has(equipment.id))?.id ?? null
+      }
+    }
     const nextPlan: WeekPlan = {
       ...plan,
       tasksByWorkerId: {
         ...plan.tasksByWorkerId,
         [workerId]: taskId || null,
       },
+      equipmentByWorkerId: {
+        ...plan.equipmentByWorkerId,
+        [workerId]: nextEquipment,
+      },
     }
     persist(nextPlan)
+  }
+
+  function handleEquipmentChange(workerId: number, equipmentId: string, shift: Shift) {
+    const normalized = equipmentId || null
+    const nextEquipmentByWorkerId = {
+      ...plan.equipmentByWorkerId,
+      [workerId]: normalized,
+    }
+    if (normalized) {
+      const workerIds = plan.columns[shift] ?? []
+      workerIds.forEach((id) => {
+        if (id !== workerId && plan.equipmentByWorkerId[id] === normalized) {
+          nextEquipmentByWorkerId[id] = null
+        }
+      })
+    }
+    persist({
+      ...plan,
+      equipmentByWorkerId: nextEquipmentByWorkerId,
+    })
   }
 
   function handleDragStart(event: DragStartEvent) {
@@ -807,6 +944,11 @@ export function PlanningPage({
           {planningShiftOrder.map((shift) => {
             const workerIds = plan.columns[shift] ?? []
             const grouped = groupWorkerIdsByRole(workerIds, workerById)
+            const usedEquipmentIds = new Set(
+              workerIds
+                .map((id) => plan.equipmentByWorkerId[id])
+                .filter((id): id is string => Boolean(id)),
+            )
             return (
               <ShiftColumn key={shift} shift={shift} workerIds={workerIds}>
                 <div className="shift-column-body" data-column={shift}>
@@ -845,6 +987,24 @@ export function PlanningPage({
                               plan.tasksByWorkerId[workerId] ??
                               defaultTaskByRole.get(worker.roleCode) ??
                               null
+                            const requirement = getTaskEquipmentRequirement(
+                              taskValue ? taskById.get(taskValue) : undefined,
+                            )
+                            const eligibleEquipments = getEligibleEquipments(
+                              requirement,
+                              worker.roleCode,
+                              equipments,
+                            )
+                            const currentEquipment = plan.equipmentByWorkerId[workerId] ?? null
+                            const equipmentOptions = eligibleEquipments.map((equipment) => {
+                              const isUsed =
+                                usedEquipmentIds.has(equipment.id) && equipment.id !== currentEquipment
+                              return {
+                                id: equipment.id,
+                                label: `${isUsed ? '*' : ''}${equipment.serie}`,
+                                isUsed,
+                              }
+                            })
                             return (
                               <SortableWorkerCard
                                 key={workerId}
@@ -854,6 +1014,12 @@ export function PlanningPage({
                                 taskOptions={taskOptions}
                                 taskValue={taskValue}
                                 onTaskChange={handleTaskChange}
+                                equipmentOptions={equipmentOptions}
+                                equipmentValue={currentEquipment}
+                                onEquipmentChange={(id, value) =>
+                                  handleEquipmentChange(id, value, shift)
+                                }
+                                isEquipmentDisabled={!requirement}
                               />
                             )
                           })}
@@ -881,12 +1047,37 @@ export function PlanningPage({
                 const taskOptions = tasksByRole.get(worker.roleCode) ?? []
                 const taskValue =
                   plan.tasksByWorkerId[activeId] ?? defaultTaskByRole.get(worker.roleCode) ?? null
+                const requirement = getTaskEquipmentRequirement(
+                  taskValue ? taskById.get(taskValue) : undefined,
+                )
+                const eligibleEquipments = getEligibleEquipments(
+                  requirement,
+                  worker.roleCode,
+                  equipments,
+                )
+                const activeShift = findWorkerShift(plan.columns, activeId)
+                const usedEquipmentIds = new Set(
+                  (activeShift ? plan.columns[activeShift] ?? [] : [])
+                    .filter((id) => id !== activeId)
+                    .map((id) => plan.equipmentByWorkerId[id])
+                    .filter((id): id is string => Boolean(id)),
+                )
+                const currentEquipment = plan.equipmentByWorkerId[activeId] ?? null
+                const equipmentOptions = eligibleEquipments.map((equipment) => ({
+                  id: equipment.id,
+                  label: `${usedEquipmentIds.has(equipment.id) && equipment.id !== currentEquipment ? '*' : ''}${equipment.serie}`,
+                  isUsed: usedEquipmentIds.has(equipment.id) && equipment.id !== currentEquipment,
+                }))
                 return (
                   <WorkerCardContent
                     worker={worker}
                     taskOptions={taskOptions}
                     taskValue={taskValue}
                     onTaskChange={handleTaskChange}
+                    equipmentOptions={equipmentOptions}
+                    equipmentValue={currentEquipment}
+                    onEquipmentChange={() => {}}
+                    isEquipmentDisabled={!requirement}
                     isReadOnly
                   />
                 )
