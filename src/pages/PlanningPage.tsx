@@ -36,7 +36,7 @@ import {
 import * as XLSX from 'xlsx'
 import { SHIFT_LABEL, SHIFTS } from '../data/mock'
 import {
-  assignEquipmentsByRoleForShift,
+  assignEquipmentsForShift,
   getEquipmentsForRole,
   getTaskEquipmentRequirement,
 } from '../lib/equipment'
@@ -615,9 +615,11 @@ export function PlanningPage({
     const nextEquipmentByWorkerId = { ...plan.equipmentByWorkerId }
     SHIFTS.forEach((shift) => {
       const workerIds = plan.columns[shift] ?? []
-      const assigned = assignEquipmentsByRoleForShift({
+      const assigned = assignEquipmentsForShift({
         workerIds,
+        tasksByWorkerId: plan.tasksByWorkerId,
         equipments,
+        taskById,
         workerById,
       })
       Object.assign(nextEquipmentByWorkerId, assigned)
