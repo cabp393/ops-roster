@@ -38,6 +38,7 @@ import { SHIFT_LABEL, SHIFTS } from '../data/mock'
 import {
   assignEquipmentsByRoleForShift,
   getEquipmentsForRole,
+  getTaskEquipmentRequirement,
 } from '../lib/equipment'
 import {
   clearWeekPlan,
@@ -175,6 +176,7 @@ type WorkerCardProps = {
   equipmentValue: string | null
   onEquipmentChange: (workerId: number, equipmentId: string) => void
   isEquipmentDisabled?: boolean
+  isEquipmentVisible?: boolean
   isReadOnly?: boolean
 }
 
@@ -187,6 +189,7 @@ function WorkerCardContent({
   equipmentValue,
   onEquipmentChange,
   isEquipmentDisabled = false,
+  isEquipmentVisible = true,
   isReadOnly = false,
 }: WorkerCardProps) {
   const allowedShifts = worker.constraints?.allowedShifts ?? []
@@ -222,20 +225,22 @@ function WorkerCardContent({
           ))}
         </select>
       </div>
-      <div className="worker-equipment">
-        <select
-          value={equipmentValue ?? ''}
-          onChange={(event) => onEquipmentChange(worker.id, event.target.value)}
-          disabled={isReadOnly || isEquipmentDisabled}
-        >
-          <option value="">(Sin equipo)</option>
-          {equipmentOptions.map((equipment) => (
-            <option key={equipment.id} value={equipment.id}>
-              {equipment.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      {isEquipmentVisible ? (
+        <div className="worker-equipment">
+          <select
+            value={equipmentValue ?? ''}
+            onChange={(event) => onEquipmentChange(worker.id, event.target.value)}
+            disabled={isReadOnly || isEquipmentDisabled}
+          >
+            <option value="">(Sin equipo)</option>
+            {equipmentOptions.map((equipment) => (
+              <option key={equipment.id} value={equipment.id}>
+                {equipment.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
     </>
   )
 }
@@ -251,6 +256,7 @@ type SortableWorkerCardProps = {
   equipmentValue: string | null
   onEquipmentChange: (workerId: number, equipmentId: string) => void
   isEquipmentDisabled?: boolean
+  isEquipmentVisible?: boolean
 }
 
 function SortableWorkerCard({
@@ -264,6 +270,7 @@ function SortableWorkerCard({
   equipmentValue,
   onEquipmentChange,
   isEquipmentDisabled = false,
+  isEquipmentVisible = true,
 }: SortableWorkerCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: worker.id,
@@ -293,6 +300,7 @@ function SortableWorkerCard({
         equipmentValue={equipmentValue}
         onEquipmentChange={onEquipmentChange}
         isEquipmentDisabled={isEquipmentDisabled}
+        isEquipmentVisible={isEquipmentVisible}
       />
     </div>
   )
@@ -446,6 +454,10 @@ export function PlanningPage({
   )
 
   const activeTasks = useMemo(() => tasks.filter((task) => task.isActive), [tasks])
+  const taskById = useMemo(
+    () => new Map(activeTasks.map((task) => [task.id, task])),
+    [activeTasks],
+  )
   const taskNameById = useMemo(
     () => new Map(activeTasks.map((task) => [task.id, task.name])),
     [activeTasks],
@@ -669,12 +681,20 @@ export function PlanningPage({
   }
 
   function handleTaskChange(workerId: number, taskId: string) {
+    const normalizedTaskId = taskId || null
+    const requirement = normalizedTaskId
+      ? getTaskEquipmentRequirement(taskById.get(normalizedTaskId))
+      : null
+    const nextEquipmentByWorkerId = requirement
+      ? plan.equipmentByWorkerId
+      : { ...plan.equipmentByWorkerId, [workerId]: null }
     const nextPlan: WeekPlan = {
       ...plan,
       tasksByWorkerId: {
         ...plan.tasksByWorkerId,
-        [workerId]: taskId || null,
+        [workerId]: normalizedTaskId,
       },
+      equipmentByWorkerId: nextEquipmentByWorkerId,
     }
     persist(nextPlan)
   }
@@ -973,6 +993,11 @@ export function PlanningPage({
                               plan.tasksByWorkerId[workerId] ??
                               defaultTaskByRole.get(worker.roleCode) ??
                               null
+                            const isEquipmentVisible = Boolean(
+                              getTaskEquipmentRequirement(
+                                taskValue ? taskById.get(taskValue) : undefined,
+                              ),
+                            )
                             const eligibleEquipments = getEquipmentsForRole(
                               worker.roleCode,
                               equipments,
@@ -983,7 +1008,7 @@ export function PlanningPage({
                                 usedEquipmentIds.has(equipment.id) && equipment.id !== currentEquipment
                               return {
                                 id: equipment.id,
-                                label: `${isUsed ? '*' : ''}${equipment.serie}`,
+                                label: `${isUsed ? '*' : ''}${equipment.serie} - ${equipment.variant}`,
                                 isUsed,
                               }
                             })
@@ -1001,6 +1026,7 @@ export function PlanningPage({
                                 onEquipmentChange={(id, value) =>
                                   handleEquipmentChange(id, value, shift)
                                 }
+                                isEquipmentVisible={isEquipmentVisible}
                                 isEquipmentDisabled={false}
                               />
                             )
@@ -1029,6 +1055,9 @@ export function PlanningPage({
                 const taskOptions = tasksByRole.get(worker.roleCode) ?? []
                 const taskValue =
                   plan.tasksByWorkerId[activeId] ?? defaultTaskByRole.get(worker.roleCode) ?? null
+                const isEquipmentVisible = Boolean(
+                  getTaskEquipmentRequirement(taskValue ? taskById.get(taskValue) : undefined),
+                )
                 const eligibleEquipments = getEquipmentsForRole(worker.roleCode, equipments)
                 const activeShift = findWorkerShift(plan.columns, activeId)
                 const usedEquipmentIds = new Set(
@@ -1040,7 +1069,7 @@ export function PlanningPage({
                 const currentEquipment = plan.equipmentByWorkerId[activeId] ?? null
                 const equipmentOptions = eligibleEquipments.map((equipment) => ({
                   id: equipment.id,
-                  label: `${usedEquipmentIds.has(equipment.id) && equipment.id !== currentEquipment ? '*' : ''}${equipment.serie}`,
+                  label: `${usedEquipmentIds.has(equipment.id) && equipment.id !== currentEquipment ? '*' : ''}${equipment.serie} - ${equipment.variant}`,
                   isUsed: usedEquipmentIds.has(equipment.id) && equipment.id !== currentEquipment,
                 }))
                 return (
@@ -1053,6 +1082,7 @@ export function PlanningPage({
                     equipmentValue={currentEquipment}
                     onEquipmentChange={() => {}}
                     isEquipmentDisabled={false}
+                    isEquipmentVisible={isEquipmentVisible}
                     isReadOnly
                   />
                 )
