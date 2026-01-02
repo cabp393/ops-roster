@@ -1,11 +1,36 @@
-import type { Assignment, PlanningRecord, Role, Task, Worker } from '../types'
-import { defaultRoles, defaultTasks, defaultWorkers } from '../data/mock'
+import type {
+  Assignment,
+  Equipment,
+  EquipmentRoleOption,
+  EquipmentStatusOption,
+  EquipmentTypeOption,
+  EquipmentVariantOption,
+  PlanningRecord,
+  Role,
+  Task,
+  Worker,
+} from '../types'
+import {
+  defaultEquipments,
+  defaultEquipmentRoles,
+  defaultEquipmentStatuses,
+  defaultEquipmentTypes,
+  defaultEquipmentVariants,
+  defaultRoles,
+  defaultTasks,
+  defaultWorkers,
+} from '../data/mock'
 import { parseLegacyName } from './workerName'
 
 const PLANNING_PREFIX = 'opsRoster:planning'
 const ROLES_KEY = 'opsRoster:roles'
 const TASKS_KEY = 'opsRoster:tasks'
 const WORKERS_KEY = 'opsRoster:workers'
+const EQUIPMENT_KEY = 'opsRoster:equipments'
+const EQUIPMENT_ROLES_KEY = 'opsRoster:equipment:roles'
+const EQUIPMENT_TYPES_KEY = 'opsRoster:equipment:types'
+const EQUIPMENT_VARIANTS_KEY = 'opsRoster:equipment:variants'
+const EQUIPMENT_STATUSES_KEY = 'opsRoster:equipment:statuses'
 
 function planningKey(weekStart: string) {
   return `${PLANNING_PREFIX}:${weekStart}`
@@ -32,6 +57,9 @@ function normalizeTasks(raw: unknown): Task[] | null {
       ...task,
       allowedRoleCodes: Array.isArray(task.allowedRoleCodes) ? task.allowedRoleCodes : [],
       isActive: task.isActive ?? true,
+      equipmentType: typeof task.equipmentType === 'string' ? task.equipmentType : task.equipmentType ?? null,
+      equipmentVariant:
+        typeof task.equipmentVariant === 'string' ? task.equipmentVariant : task.equipmentVariant ?? null,
     }
   })
 }
@@ -62,6 +90,42 @@ function normalizeWorkers(raw: unknown): Worker[] | null {
   })
 }
 
+function normalizeEquipmentOptions<T extends { id: string; name?: string; code?: string; isActive?: boolean }>(
+  raw: unknown,
+): T[] | null {
+  if (!Array.isArray(raw)) return null
+  const options = raw.filter((option) => option && typeof option === 'object') as T[]
+  if (options.length === 0) return null
+  return options.map((option) => ({
+    ...option,
+    isActive: option.isActive ?? true,
+  }))
+}
+
+function normalizeEquipmentVariants(raw: unknown): EquipmentVariantOption[] | null {
+  if (!Array.isArray(raw)) return null
+  const options = raw.filter((option) => option && typeof option === 'object') as EquipmentVariantOption[]
+  if (options.length === 0) return null
+  return options.map((option) => ({
+    ...option,
+    isActive: option.isActive ?? true,
+  }))
+}
+
+function normalizeEquipments(raw: unknown): Equipment[] | null {
+  if (!Array.isArray(raw)) return null
+  const equipments = raw.filter((equipment) => equipment && typeof equipment === 'object') as Equipment[]
+  if (equipments.length === 0) return null
+  return equipments.map((equipment) => ({
+    ...equipment,
+    serie: (equipment.serie ?? '').trim(),
+    roleCode: (equipment.roleCode ?? '').trim(),
+    type: (equipment.type ?? '').trim(),
+    variant: (equipment.variant ?? '').trim(),
+    status: (equipment.status ?? '').trim(),
+  }))
+}
+
 export function getRoles(): Role[] {
   const raw = localStorage.getItem(ROLES_KEY)
   if (!raw) {
@@ -82,6 +146,86 @@ export function setRoles(roles: Role[]) {
   localStorage.setItem(ROLES_KEY, JSON.stringify(roles))
 }
 
+export function getEquipmentRoles(): EquipmentRoleOption[] {
+  const raw = localStorage.getItem(EQUIPMENT_ROLES_KEY)
+  if (!raw) {
+    localStorage.setItem(EQUIPMENT_ROLES_KEY, JSON.stringify(defaultEquipmentRoles))
+    return defaultEquipmentRoles
+  }
+  try {
+    const parsed = normalizeEquipmentOptions<EquipmentRoleOption>(JSON.parse(raw))
+    if (parsed) return parsed
+  } catch {
+    // fall through
+  }
+  localStorage.setItem(EQUIPMENT_ROLES_KEY, JSON.stringify(defaultEquipmentRoles))
+  return defaultEquipmentRoles
+}
+
+export function setEquipmentRoles(roles: EquipmentRoleOption[]) {
+  localStorage.setItem(EQUIPMENT_ROLES_KEY, JSON.stringify(roles))
+}
+
+export function getEquipmentTypes(): EquipmentTypeOption[] {
+  const raw = localStorage.getItem(EQUIPMENT_TYPES_KEY)
+  if (!raw) {
+    localStorage.setItem(EQUIPMENT_TYPES_KEY, JSON.stringify(defaultEquipmentTypes))
+    return defaultEquipmentTypes
+  }
+  try {
+    const parsed = normalizeEquipmentOptions<EquipmentTypeOption>(JSON.parse(raw))
+    if (parsed) return parsed
+  } catch {
+    // fall through
+  }
+  localStorage.setItem(EQUIPMENT_TYPES_KEY, JSON.stringify(defaultEquipmentTypes))
+  return defaultEquipmentTypes
+}
+
+export function setEquipmentTypes(types: EquipmentTypeOption[]) {
+  localStorage.setItem(EQUIPMENT_TYPES_KEY, JSON.stringify(types))
+}
+
+export function getEquipmentVariants(): EquipmentVariantOption[] {
+  const raw = localStorage.getItem(EQUIPMENT_VARIANTS_KEY)
+  if (!raw) {
+    localStorage.setItem(EQUIPMENT_VARIANTS_KEY, JSON.stringify(defaultEquipmentVariants))
+    return defaultEquipmentVariants
+  }
+  try {
+    const parsed = normalizeEquipmentVariants(JSON.parse(raw))
+    if (parsed) return parsed
+  } catch {
+    // fall through
+  }
+  localStorage.setItem(EQUIPMENT_VARIANTS_KEY, JSON.stringify(defaultEquipmentVariants))
+  return defaultEquipmentVariants
+}
+
+export function setEquipmentVariants(variants: EquipmentVariantOption[]) {
+  localStorage.setItem(EQUIPMENT_VARIANTS_KEY, JSON.stringify(variants))
+}
+
+export function getEquipmentStatuses(): EquipmentStatusOption[] {
+  const raw = localStorage.getItem(EQUIPMENT_STATUSES_KEY)
+  if (!raw) {
+    localStorage.setItem(EQUIPMENT_STATUSES_KEY, JSON.stringify(defaultEquipmentStatuses))
+    return defaultEquipmentStatuses
+  }
+  try {
+    const parsed = normalizeEquipmentOptions<EquipmentStatusOption>(JSON.parse(raw))
+    if (parsed) return parsed
+  } catch {
+    // fall through
+  }
+  localStorage.setItem(EQUIPMENT_STATUSES_KEY, JSON.stringify(defaultEquipmentStatuses))
+  return defaultEquipmentStatuses
+}
+
+export function setEquipmentStatuses(statuses: EquipmentStatusOption[]) {
+  localStorage.setItem(EQUIPMENT_STATUSES_KEY, JSON.stringify(statuses))
+}
+
 export function getTasks(): Task[] {
   const raw = localStorage.getItem(TASKS_KEY)
   if (!raw) {
@@ -100,6 +244,26 @@ export function getTasks(): Task[] {
 
 export function setTasks(tasks: Task[]) {
   localStorage.setItem(TASKS_KEY, JSON.stringify(tasks))
+}
+
+export function getEquipments(): Equipment[] {
+  const raw = localStorage.getItem(EQUIPMENT_KEY)
+  if (!raw) {
+    localStorage.setItem(EQUIPMENT_KEY, JSON.stringify(defaultEquipments))
+    return defaultEquipments
+  }
+  try {
+    const parsed = normalizeEquipments(JSON.parse(raw))
+    if (parsed) return parsed
+  } catch {
+    // fall through
+  }
+  localStorage.setItem(EQUIPMENT_KEY, JSON.stringify(defaultEquipments))
+  return defaultEquipments
+}
+
+export function setEquipments(equipments: Equipment[]) {
+  localStorage.setItem(EQUIPMENT_KEY, JSON.stringify(equipments))
 }
 
 export function getWorkers(): Worker[] {
@@ -153,6 +317,7 @@ function normalizeAssignments(raw: unknown, weekStart: string, tasks: Task[]): A
         weekStart,
         shift: (assignment as Assignment).shift,
         taskId,
+        equipmentId: (assignment as Assignment).equipmentId ?? null,
         source: (assignment as Assignment).source ?? 'manual',
       }
     })

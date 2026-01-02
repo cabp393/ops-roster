@@ -413,6 +413,16 @@ th {
   padding: 4px 6px;
 }
 
+.worker-equipment {
+  margin-top: 6px;
+}
+
+.worker-equipment select {
+  width: 100%;
+  font-size: 0.75rem;
+  padding: 4px 6px;
+}
+
 .form-card {
   padding: 16px;
   border-radius: 12px;
@@ -442,6 +452,10 @@ th {
   gap: 8px;
   grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr) minmax(180px, 2fr);
   align-items: center;
+}
+
+.filters-row.equipment-filters {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
 
 .filters-row select,

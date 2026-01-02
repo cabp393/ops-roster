@@ -33,6 +33,20 @@ function normalizeTasks(raw: unknown): Record<number, string | null> {
   return next
 }
 
+function normalizeEquipments(raw: unknown): Record<number, string | null> {
+  if (!raw || typeof raw !== 'object') return {}
+  const record = raw as Record<string, unknown>
+  const next: Record<number, string | null> = {}
+  Object.entries(record).forEach(([key, value]) => {
+    const id = Number(key)
+    if (Number.isNaN(id)) return
+    if (typeof value === 'string' || value === null) {
+      next[id] = value
+    }
+  })
+  return next
+}
+
 export function loadWeekPlan(weekStart: string): WeekPlan | null {
   const raw = localStorage.getItem(planningKey(weekStart))
   if (!raw) return null
@@ -43,6 +57,7 @@ export function loadWeekPlan(weekStart: string): WeekPlan | null {
       weekStart,
       columns: normalizeColumns(parsed.columns),
       tasksByWorkerId: normalizeTasks(parsed.tasksByWorkerId),
+      equipmentByWorkerId: normalizeEquipments(parsed.equipmentByWorkerId),
     }
   } catch {
     return null
@@ -107,6 +122,7 @@ export function seedWeekPlan(
 ): WeekPlan {
   const columns: Record<Shift, number[]> = { M: [], T: [], N: [] }
   const tasksByWorkerId: Record<number, string | null> = {}
+  const equipmentByWorkerId: Record<number, string | null> = {}
   const activeWorkers = workers.filter((worker) => worker.isActive !== false)
 
   activeWorkers.forEach((worker) => {
@@ -120,7 +136,8 @@ export function seedWeekPlan(
     } else {
       tasksByWorkerId[worker.id] = null
     }
+    equipmentByWorkerId[worker.id] = null
   })
 
-  return { weekStart, columns, tasksByWorkerId }
+  return { weekStart, columns, tasksByWorkerId, equipmentByWorkerId }
 }

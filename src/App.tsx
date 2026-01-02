@@ -3,13 +3,14 @@ import { Tabs } from './components/Tabs'
 import { PlanningPage } from './pages/PlanningPage'
 import { WorkersPage } from './pages/WorkersPage'
 import { SetupPage } from './pages/SetupPage'
+import { EquipmentsPage } from './pages/EquipmentsPage'
 import { getIsoWeekNumber, getIsoWeekYear } from './lib/week'
 
 const fallbackWeekNumber = 1
 const fallbackWeekYear = 2025
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<'planning' | 'workers' | 'setup'>('planning')
+  const [activeTab, setActiveTab] = useState<'planning' | 'workers' | 'equipments' | 'setup'>('planning')
   const today = new Date()
   const [weekNumber, setWeekNumber] = useState(() => {
     try {
@@ -46,6 +47,8 @@ export function App() {
           />
         ) : activeTab === 'workers' ? (
           <WorkersPage />
+        ) : activeTab === 'equipments' ? (
+          <EquipmentsPage />
         ) : (
           <SetupPage />
         )}

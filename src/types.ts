@@ -13,6 +13,43 @@ export type Task = {
   name: string
   allowedRoleCodes: string[]
   isActive: boolean
+  equipmentType?: string | null
+  equipmentVariant?: string | null
+}
+
+export type EquipmentRoleOption = {
+  id: string
+  code: string
+  name: string
+  isActive: boolean
+}
+
+export type EquipmentTypeOption = {
+  id: string
+  name: string
+  isActive: boolean
+}
+
+export type EquipmentVariantOption = {
+  id: string
+  name: string
+  type: string
+  isActive: boolean
+}
+
+export type EquipmentStatusOption = {
+  id: string
+  name: string
+  isActive: boolean
+}
+
+export type Equipment = {
+  id: string
+  serie: string
+  roleCode: string
+  type: string
+  variant: string
+  status: string
 }
 
 export type Worker = {
@@ -37,6 +74,7 @@ export type Assignment = {
   weekStart: string
   shift: Shift
   taskId?: string
+  equipmentId?: string | null
   source: 'generated' | 'manual'
 }
 
@@ -49,4 +87,5 @@ export type WeekPlan = {
   weekStart: string
   columns: Record<Shift, number[]>
   tasksByWorkerId: Record<number, string | null>
+  equipmentByWorkerId: Record<number, string | null>
 }
