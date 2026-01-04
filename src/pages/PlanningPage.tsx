@@ -157,7 +157,6 @@ function buildColumnFromGroups(groups: Record<RoleCode, number[]>) {
 }
 
 function getContractToneClass(worker: Worker) {
-  if (worker.contract === 'Indefinido') return ' contract-indefinido'
   if (worker.contract === 'Plazo fijo') return ' contract-plazo'
   return ''
 }

@@ -288,7 +288,7 @@ export function EquipmentsPage() {
         </form>
       ) : null}
       <div className="table-wrap">
-        <table>
+        <table className="setup-table">
           <thead>
             <tr>
               <th>Serie</th>
@@ -296,7 +296,7 @@ export function EquipmentsPage() {
               <th>Tipo</th>
               <th>Variante</th>
               <th>Estado</th>
-              <th>Acciones</th>
+              <th className="cell-actions">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -307,7 +307,7 @@ export function EquipmentsPage() {
                 <td>{equipment.type}</td>
                 <td>{equipment.variant}</td>
                 <td>{equipment.status}</td>
-                <td>
+                <td className="cell-actions">
                   <div className="button-row">
                     <button type="button" className="icon-button" onClick={() => loadForEdit(equipment)} aria-label="Editar">
                       <Pencil size={14} />

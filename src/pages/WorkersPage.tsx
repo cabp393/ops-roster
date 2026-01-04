@@ -381,7 +381,7 @@ export function WorkersPage() {
         </form>
       ) : null}
       <div className="table-wrap">
-        <table>
+        <table className="setup-table">
           <thead>
             <tr>
               <th>ID</th>
@@ -391,7 +391,7 @@ export function WorkersPage() {
               <th>Contrato</th>
               <th>Turnos permitidos</th>
               <th>Estado</th>
-              <th>Acciones</th>
+              <th className="cell-actions">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -408,7 +408,7 @@ export function WorkersPage() {
                     : 'Todas'}
                 </td>
                 <td>{worker.isActive === false ? 'Inactivo' : 'Activo'}</td>
-                <td>
+                <td className="cell-actions">
                   <div className="button-row">
                     <button type="button" className="icon-button" onClick={() => loadForEdit(worker)} aria-label="Editar">
                       <Pencil size={14} />
