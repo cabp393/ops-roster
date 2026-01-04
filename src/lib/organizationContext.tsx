@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { getOrganizationMemberRole } from './storage'
 import { supabase } from './supabaseClient'
+import type { OrganizationMemberRole } from '../types'
 
 const ORGANIZATION_STORAGE_KEY = 'opsRoster:organizationId'
 
@@ -13,6 +15,9 @@ type OrganizationContextValue = {
   activeOrganizationId: string | null
   setActiveOrganizationId: (id: string | null) => void
   refreshOrganizations: () => Promise<void>
+  memberRole: OrganizationMemberRole | null
+  canWrite: boolean
+  refreshMemberRole: () => Promise<void>
   isLoading: boolean
   error: string | null
 }
@@ -36,6 +41,7 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
   const [activeOrganizationId, setActiveOrganizationIdState] = useState<string | null>(() => {
     return loadStoredOrganizationId()
   })
+  const [memberRole, setMemberRole] = useState<OrganizationMemberRole | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -47,6 +53,7 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
       if (userError) throw userError
       if (!userData.user) {
         setOrganizations([])
+        setMemberRole(null)
         setIsLoading(false)
         return
       }
@@ -63,6 +70,7 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
       if (list.length === 0) {
         setActiveOrganizationIdState(null)
         storeOrganizationId(null)
+        setMemberRole(null)
         setIsLoading(false)
         return
       }
@@ -79,9 +87,29 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
     }
   }, [activeOrganizationId])
 
+  const refreshMemberRole = useCallback(async () => {
+    if (!activeOrganizationId) {
+      setMemberRole(null)
+      return
+    }
+    try {
+      const role = await getOrganizationMemberRole(activeOrganizationId)
+      setMemberRole(role)
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'No se pudo validar el rol de la organización.'
+      setError(message)
+      setMemberRole(null)
+    }
+  }, [activeOrganizationId])
+
   useEffect(() => {
     void refreshOrganizations()
   }, [refreshOrganizations])
+
+  useEffect(() => {
+    void refreshMemberRole()
+  }, [refreshMemberRole])
 
   const setActiveOrganizationId = useCallback((id: string | null) => {
     setActiveOrganizationIdState(id)
@@ -94,10 +122,22 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
       activeOrganizationId,
       setActiveOrganizationId,
       refreshOrganizations,
+      memberRole,
+      canWrite: memberRole === 'editor' || memberRole === 'owner',
+      refreshMemberRole,
       isLoading,
       error,
     }),
-    [organizations, activeOrganizationId, setActiveOrganizationId, refreshOrganizations, isLoading, error],
+    [
+      organizations,
+      activeOrganizationId,
+      setActiveOrganizationId,
+      refreshOrganizations,
+      memberRole,
+      refreshMemberRole,
+      isLoading,
+      error,
+    ],
   )
 
   return <OrganizationContext.Provider value={value}>{children}</OrganizationContext.Provider>

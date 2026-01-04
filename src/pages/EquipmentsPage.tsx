@@ -27,7 +27,7 @@ type EquipmentFormState = {
 }
 
 export function EquipmentsPage() {
-  const { activeOrganizationId } = useOrganization()
+  const { activeOrganizationId, canWrite } = useOrganization()
   const [equipments, setEquipmentsState] = useState<Equipment[]>([])
   const [equipmentRoles, setEquipmentRolesState] = useState<EquipmentRoleOption[]>([])
   const [equipmentTypes, setEquipmentTypesState] = useState<EquipmentTypeOption[]>([])
@@ -113,6 +113,7 @@ export function EquipmentsPage() {
   }
 
   function handleOpenNew() {
+    if (!canWrite) return
     resetForm()
     setIsFormOpen(true)
   }
@@ -145,6 +146,7 @@ export function EquipmentsPage() {
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (!canWrite) return
     const trimmedSerie = formState.serie.trim()
     if (!trimmedSerie) return
     const hasDuplicate = equipments.some(
@@ -177,6 +179,7 @@ export function EquipmentsPage() {
   }
 
   function handleDelete(id: string) {
+    if (!canWrite) return
     const nextEquipments = equipments.filter((equipment) => equipment.id !== id)
     setEquipmentsState(nextEquipments)
     if (activeOrganizationId) {
@@ -222,7 +225,13 @@ export function EquipmentsPage() {
             />
           </div>
         </div>
-        <button type="button" className="add-worker-button" onClick={handleOpenNew} aria-label="Añadir equipo">
+        <button
+          type="button"
+          className="add-worker-button"
+          onClick={handleOpenNew}
+          aria-label="Añadir equipo"
+          disabled={!canWrite}
+        >
           +
         </button>
       </div>
@@ -234,7 +243,9 @@ export function EquipmentsPage() {
               <p className="subtitle">Administra los equipos disponibles.</p>
             </div>
             <div className="button-row">
-              <button type="submit">{editingId ? 'Guardar cambios' : 'Agregar'}</button>
+              <button type="submit" disabled={!canWrite}>
+                {editingId ? 'Guardar cambios' : 'Agregar'}
+              </button>
               <button type="button" onClick={resetForm}>
                 Cancelar
               </button>
@@ -331,10 +342,22 @@ export function EquipmentsPage() {
                 <td>{equipment.status}</td>
                 <td>
                   <div className="button-row">
-                    <button type="button" className="icon-button" onClick={() => loadForEdit(equipment)} aria-label="Editar">
+                    <button
+                      type="button"
+                      className="icon-button"
+                      onClick={() => loadForEdit(equipment)}
+                      aria-label="Editar"
+                      disabled={!canWrite}
+                    >
                       <Pencil size={14} />
                     </button>
-                    <button type="button" className="icon-button" onClick={() => handleDelete(equipment.id)} aria-label="Borrar">
+                    <button
+                      type="button"
+                      className="icon-button"
+                      onClick={() => handleDelete(equipment.id)}
+                      aria-label="Borrar"
+                      disabled={!canWrite}
+                    >
                       <Trash2 size={14} />
                     </button>
                   </div>

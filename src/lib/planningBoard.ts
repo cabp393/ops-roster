@@ -1,5 +1,6 @@
 import { SHIFTS } from '../data/mock'
 import type { Assignment, Shift, WeekPlan, Worker } from '../types'
+import { getOrganizationMemberRole } from './storage'
 import { supabase } from './supabaseClient'
 
 const EMPTY_COLUMNS: Record<Shift, number[]> = { M: [], T: [], N: [] }
@@ -25,6 +26,13 @@ function buildPlanFromAssignments(weekStart: string, assignments: AssignmentRow[
     columns,
     tasksByWorkerId,
     equipmentByWorkerId,
+  }
+}
+
+async function ensureWriteAccess(organizationId: string) {
+  const role = await getOrganizationMemberRole(organizationId)
+  if (role !== 'editor' && role !== 'owner') {
+    throw new Error('No tienes permisos para modificar esta organización.')
   }
 }
 
@@ -64,6 +72,7 @@ export async function loadWeekPlan(weekStart: string, organizationId: string): P
 }
 
 export async function saveWeekPlan(weekStart: string, plan: WeekPlan, organizationId: string) {
+  await ensureWriteAccess(organizationId)
   const { error: recordError } = await supabase
     .from('planning_records')
     .upsert(
@@ -116,6 +125,7 @@ export async function saveWeekPlan(weekStart: string, plan: WeekPlan, organizati
 }
 
 export async function clearWeekPlan(weekStart: string, organizationId: string) {
+  await ensureWriteAccess(organizationId)
   const { error } = await supabase
     .from('planning_records')
     .delete()

@@ -46,6 +46,14 @@ body {
   color: #6b7280;
 }
 
+.onboarding-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  margin-top: 12px;
+}
+
 .tabs {
   display: flex;
   gap: 8px;
