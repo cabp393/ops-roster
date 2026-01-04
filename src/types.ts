@@ -81,6 +81,19 @@ export type Assignment = {
   source: 'generated' | 'manual'
 }
 
+export type ShiftHistoryEntry = {
+  id: string
+  weekStart: string
+  workerId: number
+  shift: Shift
+  taskId: string | null
+  equipmentId: string | null
+  source: string
+  createdAt: string
+  taskName?: string | null
+  equipmentSerie?: string | null
+}
+
 export type PlanningRecord = {
   weekStart: string
   assignments: Assignment[]

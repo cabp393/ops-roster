@@ -619,6 +619,60 @@ th {
   margin-top: 6px;
 }
 
+.history-card {
+  margin-top: 24px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.history-header h3 {
+  margin: 0;
+}
+
+.history-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+
+.history-toolbar select {
+  min-width: 240px;
+}
+
+.history-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  gap: 12px;
+}
+
+.history-pagination button {
+  min-width: 140px;
+}
+
+.empty-state {
+  margin: 8px 0 0;
+  color: #6b7280;
+}
+
+.empty-cell {
+  text-align: center;
+  color: #6b7280;
+}
+
 .checkbox-pill {
   display: inline-flex;
   align-items: center;

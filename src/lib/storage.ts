@@ -7,6 +7,7 @@ import type {
   EquipmentVariantOption,
   PlanningRecord,
   Role,
+  ShiftHistoryEntry,
   Task,
   Worker,
 } from '../types'
@@ -109,6 +110,19 @@ type AssignmentRow = {
   equipment_id: string | null
   shift: Assignment['shift']
   source: Assignment['source']
+}
+
+type ShiftHistoryRow = {
+  id: string
+  week_start: string
+  worker_id: number
+  task_id: string | null
+  equipment_id: string | null
+  shift: Assignment['shift']
+  source: string
+  created_at: string
+  task?: { id: string; name: string } | null
+  equipment?: { id: string; serie: string } | null
 }
 
 async function fetchRows<T>(table: string, organizationId: string): Promise<T[]> {
@@ -478,6 +492,33 @@ function assignmentToRow(assignment: Assignment, organizationId: string) {
   }
 }
 
+function shiftHistoryFromRow(row: ShiftHistoryRow): ShiftHistoryEntry {
+  return {
+    id: row.id,
+    weekStart: row.week_start,
+    workerId: row.worker_id,
+    taskId: row.task_id ?? null,
+    equipmentId: row.equipment_id ?? null,
+    shift: row.shift,
+    source: row.source,
+    createdAt: row.created_at,
+    taskName: row.task?.name ?? null,
+    equipmentSerie: row.equipment?.serie ?? null,
+  }
+}
+
+function shiftHistoryToRow(assignment: Assignment, organizationId: string) {
+  return {
+    organization_id: organizationId,
+    week_start: assignment.weekStart,
+    worker_id: assignment.workerId,
+    task_id: assignment.taskId ?? null,
+    equipment_id: assignment.equipmentId ?? null,
+    shift: assignment.shift,
+    source: assignment.source,
+  }
+}
+
 export async function getRoles(organizationId: string): Promise<Role[]> {
   const orgId = ensureOrganizationId(organizationId)
   const roles = await seedTable<Role, RoleRow>('roles', orgId, defaultRoles, roleToRow, roleFromRow)
@@ -755,6 +796,40 @@ export async function setPlanning(weekStart: string, record: PlanningRecord, org
       })
     if (upsertAssignmentsError) throw upsertAssignmentsError
   }
+}
+
+export async function insertShiftHistory(assignments: Assignment[], organizationId: string) {
+  const orgId = ensureOrganizationId(organizationId)
+  if (assignments.length === 0) return
+  const { error } = await supabase
+    .from('shift_history')
+    .insert(assignments.map((assignment) => shiftHistoryToRow(assignment, orgId)))
+  if (error) throw error
+}
+
+export async function getShiftHistoryByWorker(
+  organizationId: string,
+  workerId: number,
+  limit = 25,
+  offset = 0,
+): Promise<{ entries: ShiftHistoryEntry[]; hasMore: boolean }> {
+  const orgId = ensureOrganizationId(organizationId)
+  const rangeEnd = offset + limit
+  const { data, error } = await supabase
+    .from('shift_history')
+    .select(
+      'id, week_start, worker_id, task_id, equipment_id, shift, source, created_at, task:tasks(id, name), equipment:equipments(id, serie)',
+    )
+    .eq('organization_id', orgId)
+    .eq('worker_id', workerId)
+    .order('week_start', { ascending: false })
+    .order('created_at', { ascending: false })
+    .range(offset, rangeEnd)
+  if (error) throw error
+  const rows = (data ?? []) as ShiftHistoryRow[]
+  const hasMore = rows.length > limit
+  const trimmed = hasMore ? rows.slice(0, limit) : rows
+  return { entries: trimmed.map((row) => shiftHistoryFromRow(row)), hasMore }
 }
 
 export async function clearPlanning(weekStart: string, organizationId: string) {

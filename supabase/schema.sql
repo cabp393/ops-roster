@@ -135,6 +135,21 @@ create table if not exists assignments (
   foreign key (organization_id, equipment_id) references equipments(organization_id, id) on delete set null
 );
 
+create table if not exists shift_history (
+  organization_id uuid not null references organizations(id) on delete cascade,
+  id uuid primary key default gen_random_uuid(),
+  week_start text not null,
+  worker_id integer not null,
+  task_id text,
+  equipment_id text,
+  shift text not null,
+  source text not null default 'manual',
+  created_at timestamptz not null default now(),
+  foreign key (organization_id, worker_id) references workers(organization_id, id) on delete cascade,
+  foreign key (organization_id, task_id) references tasks(organization_id, id) on delete set null,
+  foreign key (organization_id, equipment_id) references equipments(organization_id, id) on delete set null
+);
+
 alter table organizations enable row level security;
 alter table organization_members enable row level security;
 alter table roles enable row level security;
@@ -147,6 +162,7 @@ alter table equipment_variants enable row level security;
 alter table equipment_statuses enable row level security;
 alter table planning_records enable row level security;
 alter table assignments enable row level security;
+alter table shift_history enable row level security;
 
 create policy "members can view organizations"
   on organizations for select
@@ -384,6 +400,25 @@ create policy "members can access assignments"
     )
   );
 
+create policy "members can access shift history"
+  on shift_history for all
+  using (
+    exists (
+      select 1
+      from organization_members
+      where organization_members.organization_id = shift_history.organization_id
+        and organization_members.user_id = auth.uid()
+    )
+  )
+  with check (
+    exists (
+      select 1
+      from organization_members
+      where organization_members.organization_id = shift_history.organization_id
+        and organization_members.user_id = auth.uid()
+    )
+  );
+
 create index if not exists roles_organization_id_idx on roles (organization_id);
 create index if not exists tasks_organization_id_idx on tasks (organization_id);
 create index if not exists workers_organization_id_idx on workers (organization_id);
@@ -394,3 +429,5 @@ create index if not exists assignments_organization_week_idx on assignments (org
 create index if not exists assignments_worker_idx on assignments (organization_id, worker_id);
 create index if not exists assignments_task_idx on assignments (organization_id, task_id);
 create index if not exists assignments_equipment_idx on assignments (organization_id, equipment_id);
+create index if not exists shift_history_org_worker_idx on shift_history (organization_id, worker_id, week_start);
+create index if not exists shift_history_org_created_idx on shift_history (organization_id, created_at);
