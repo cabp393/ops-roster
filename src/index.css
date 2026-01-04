@@ -744,6 +744,18 @@ th {
   margin-top: 16px;
 }
 
+.auth-mode-toggle {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.auth-mode-toggle [aria-selected='true'] {
+  background: #e0e7ff;
+  border-color: #6366f1;
+  color: #312e81;
+}
+
 .auth-actions {
   display: flex;
   flex-direction: column;

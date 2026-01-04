@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient'
 export function AuthPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -51,12 +52,69 @@ export function AuthPage() {
     setIsSubmitting(false)
   }
 
+  async function handleRegister(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!email || !password) {
+      setError('Ingresa tu correo y contraseña para registrarte.')
+      return
+    }
+    setIsSubmitting(true)
+    setError(null)
+    setNotice(null)
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+    })
+    if (signUpError) {
+      setError(signUpError.message)
+    } else if (data.session) {
+      setNotice('Registro completado. ¡Bienvenido!')
+    } else {
+      setNotice('Revisa tu correo para confirmar tu cuenta.')
+    }
+    setIsSubmitting(false)
+  }
+
   return (
     <div className="auth-page">
       <div className="auth-card">
         <h1>Ops Roster</h1>
-        <p className="subtitle">Inicia sesión para acceder a la planificación.</p>
-        <form className="auth-form" onSubmit={handlePasswordLogin}>
+        <p className="subtitle">
+          {authMode === 'login'
+            ? 'Inicia sesión para acceder a la planificación.'
+            : 'Crea tu cuenta para comenzar a planificar.'}
+        </p>
+        <div className="auth-mode-toggle" role="tablist" aria-label="Modo de autenticación">
+          <button
+            className="secondary-button"
+            type="button"
+            role="tab"
+            aria-selected={authMode === 'login'}
+            onClick={() => {
+              setAuthMode('login')
+              setError(null)
+              setNotice(null)
+            }}
+            disabled={isSubmitting}
+          >
+            Iniciar sesión
+          </button>
+          <button
+            className="secondary-button"
+            type="button"
+            role="tab"
+            aria-selected={authMode === 'register'}
+            onClick={() => {
+              setAuthMode('register')
+              setError(null)
+              setNotice(null)
+            }}
+            disabled={isSubmitting}
+          >
+            Registrarse
+          </button>
+        </div>
+        <form className="auth-form" onSubmit={authMode === 'login' ? handlePasswordLogin : handleRegister}>
           <label className="field">
             Correo
             <input
@@ -78,11 +136,13 @@ export function AuthPage() {
           </label>
           <div className="auth-actions">
             <button className="primary-button" type="submit" disabled={isSubmitting}>
-              Entrar
+              {authMode === 'login' ? 'Entrar' : 'Crear cuenta'}
             </button>
-            <button className="secondary-button" type="button" onClick={handleMagicLink} disabled={isSubmitting}>
-              Enviar enlace mágico
-            </button>
+            {authMode === 'login' ? (
+              <button className="secondary-button" type="button" onClick={handleMagicLink} disabled={isSubmitting}>
+                Enviar enlace mágico
+              </button>
+            ) : null}
           </div>
         </form>
         {error ? <p className="auth-message error">{error}</p> : null}
