@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   DragOverlay,
   DndContext,
@@ -33,6 +33,8 @@ import {
   Save,
   Trash2,
 } from 'lucide-react'
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
 import * as XLSX from 'xlsx'
 import { SHIFT_LABEL, SHIFTS } from '../data/mock'
 import {
@@ -409,6 +411,8 @@ export function PlanningPage({
   )
   const [activeId, setActiveId] = useState<number | null>(null)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false)
+  const downloadMenuRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     setTasks(getTasks())
@@ -512,7 +516,7 @@ export function PlanningPage({
     return equipmentById.get(equipmentId)?.serie ?? ''
   }
 
-  function getShiftExportRows(shift: Shift) {
+  function getShiftExportRows(shift: Shift, emptyTaskLabel = 'Sin tarea') {
     const workerIds = plan.columns[shift] ?? []
     const rows = workerIds
       .map((workerId) => {
@@ -522,7 +526,7 @@ export function PlanningPage({
           id: worker.id,
           name: getWorkerDisplayName(worker),
           role: worker.roleCode,
-          task: getWorkerTaskName(workerId) ?? 'Sin tarea',
+          task: getWorkerTaskName(workerId) ?? emptyTaskLabel,
           equipment: getWorkerEquipmentSerie(workerId),
         }
       })
@@ -590,6 +594,17 @@ export function PlanningPage({
     return () => window.clearTimeout(timeout)
   }, [toastMessage])
 
+  useEffect(() => {
+    if (!isDownloadMenuOpen) return undefined
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!downloadMenuRef.current) return
+      if (downloadMenuRef.current.contains(event.target as Node)) return
+      setIsDownloadMenuOpen(false)
+    }
+    window.addEventListener('mousedown', handleClickOutside)
+    return () => window.removeEventListener('mousedown', handleClickOutside)
+  }, [isDownloadMenuOpen])
+
   function persist(nextPlan: WeekPlan) {
     setPlan(nextPlan)
     saveWeekPlan(weekStart, nextPlan)
@@ -640,7 +655,7 @@ export function PlanningPage({
     setPlan({ ...emptyPlan, weekStart })
   }
 
-  function handleDownload() {
+  function handleDownloadExcel() {
     const workbook = XLSX.utils.book_new()
     const weekCode = `S${String(weekNumber).padStart(2, '0')}`
     const subtitle = formatWeekStartLabel(weekStartDate)
@@ -653,7 +668,7 @@ export function PlanningPage({
         [title],
         [subtitle],
         [],
-        ['ID', 'Nombre', 'Rol', 'Función', 'Equipo'],
+        ['Legajo', 'Nombre', 'Rol', 'Función', 'Equipo'],
         ...rows.map((row) => [row.id, row.name, row.role, row.task, row.equipment]),
       ]
       const sheet = XLSX.utils.aoa_to_sheet(data)
@@ -680,6 +695,85 @@ export function PlanningPage({
     link.download = fileName
     link.click()
     window.URL.revokeObjectURL(url)
+  }
+
+  function handleDownloadPdf() {
+    const weekCode = `S${String(weekNumber).padStart(2, '0')}`
+    const subtitle = formatWeekStartLabel(weekStartDate)
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' })
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const marginX = 36
+    const marginY = 36
+    const titleFontSize = 18
+    const subtitleFontSize = 12
+    const tableFontSize = 10
+    const cellPadding = 4
+
+    planningShiftOrder.forEach((shift, index) => {
+      if (index > 0) doc.addPage('letter', 'portrait')
+      const shiftLabel = SHIFT_LABEL[shift]
+      const title = `${shiftLabel.toUpperCase()} ${weekCode}`
+
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(titleFontSize)
+      const titleY = marginY + titleFontSize
+      doc.text(title, pageWidth / 2, titleY, { align: 'center' })
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(subtitleFontSize)
+      const subtitleY = titleY + subtitleFontSize + 6
+      doc.text(subtitle, pageWidth / 2, subtitleY, { align: 'center' })
+
+      const lineY = subtitleY + 10
+      doc.setDrawColor(0)
+      doc.setLineWidth(1)
+      doc.line(marginX, lineY, pageWidth - marginX, lineY)
+
+      const rows = getShiftExportRows(shift, '')
+      const headers = ['Legajo', 'Nombre', 'Rol', 'Función', 'Equipo']
+      const body = rows.map((row) => [row.id, row.name, row.role, row.task, row.equipment])
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(tableFontSize)
+      const tableWidth = pageWidth - marginX * 2
+      const tableLeft = marginX
+      const columnWidth = Math.floor(tableWidth / headers.length)
+
+      autoTable(doc, {
+        head: [headers],
+        body,
+        startY: lineY + 12,
+        margin: { left: tableLeft },
+        tableWidth,
+        pageBreak: 'avoid',
+        rowPageBreak: 'avoid',
+        theme: 'grid',
+        styles: {
+          font: 'helvetica',
+          fontSize: tableFontSize,
+          textColor: [0, 0, 0],
+          cellPadding,
+          halign: 'left',
+          valign: 'middle',
+        },
+        headStyles: {
+          fillColor: [120, 120, 120],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          halign: 'left',
+        },
+        columnStyles: {
+          0: { cellWidth: columnWidth },
+          1: { cellWidth: columnWidth },
+          2: { cellWidth: columnWidth },
+          3: { cellWidth: columnWidth },
+          4: { cellWidth: columnWidth },
+        },
+      })
+    })
+
+    const fileName = `ops-roster_${weekCode}_${weekYear}.pdf`
+    doc.save(fileName)
   }
 
   function handleTaskChange(workerId: number, taskId: string) {
@@ -904,14 +998,45 @@ export function PlanningPage({
             >
               <Users size={14} />
             </button>
-            <button
-              type="button"
-              className="icon-button"
-              onClick={handleDownload}
-              aria-label="Descargar Excel"
-            >
-              <Download size={14} />
-            </button>
+            <div className="download-menu" ref={downloadMenuRef}>
+              <button
+                type="button"
+                className="icon-button download-menu-toggle"
+                onClick={() => setIsDownloadMenuOpen((open) => !open)}
+                aria-label="Descargar"
+                aria-haspopup="menu"
+                aria-expanded={isDownloadMenuOpen}
+              >
+                <Download size={14} />
+                <ChevronDown size={12} />
+              </button>
+              {isDownloadMenuOpen ? (
+                <div className="download-menu-panel" role="menu">
+                  <button
+                    type="button"
+                    className="download-menu-item"
+                    onClick={() => {
+                      setIsDownloadMenuOpen(false)
+                      handleDownloadExcel()
+                    }}
+                    role="menuitem"
+                  >
+                    Excel
+                  </button>
+                  <button
+                    type="button"
+                    className="download-menu-item"
+                    onClick={() => {
+                      setIsDownloadMenuOpen(false)
+                      handleDownloadPdf()
+                    }}
+                    role="menuitem"
+                  >
+                    PDF
+                  </button>
+                </div>
+              ) : null}
+            </div>
             <button
               type="button"
               className="icon-button"
