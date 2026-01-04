@@ -150,6 +150,31 @@ create table if not exists shift_history (
   foreign key (organization_id, equipment_id) references equipments(organization_id, id) on delete set null
 );
 
+create or replace function create_organization_with_owner(organization_name text)
+returns table (id uuid, name text)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'User must be authenticated to create organizations';
+  end if;
+
+  insert into organizations (name)
+  values (organization_name)
+  returning organizations.id, organizations.name
+  into id, name;
+
+  insert into organization_members (organization_id, user_id, role)
+  values (id, auth.uid(), 'owner');
+
+  return next;
+end;
+$$;
+
+grant execute on function create_organization_with_owner(text) to authenticated;
+
 alter table organizations enable row level security;
 alter table organization_members enable row level security;
 alter table roles enable row level security;
