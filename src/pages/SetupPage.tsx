@@ -448,7 +448,13 @@ export function SetupPage() {
             <h2>Roles</h2>
             <p className="subtitle">Define los cargos disponibles y su estado.</p>
           </div>
-          <button type="button" className="add-worker-button" onClick={handleOpenNewRole} aria-label="Añadir rol">
+          <button
+            type="button"
+            className="add-worker-button"
+            onClick={handleOpenNewRole}
+            aria-label="Añadir rol"
+            title="Añadir rol"
+          >
             +
           </button>
         </div>
@@ -523,6 +529,7 @@ export function SetupPage() {
                         className="icon-button"
                         onClick={() => handleEditRole(role)}
                         aria-label="Editar rol"
+                        title="Editar rol"
                       >
                         <Pencil size={14} />
                       </button>
@@ -531,6 +538,7 @@ export function SetupPage() {
                         className="icon-button"
                         onClick={() => handleDeleteRole(role.id)}
                         aria-label="Borrar rol"
+                        title="Borrar rol"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -549,7 +557,13 @@ export function SetupPage() {
             <h2>Funciones</h2>
             <p className="subtitle">Configura las tareas disponibles y su relación con roles y equipos.</p>
           </div>
-          <button type="button" className="add-worker-button" onClick={handleOpenNewTask} aria-label="Añadir función">
+          <button
+            type="button"
+            className="add-worker-button"
+            onClick={handleOpenNewTask}
+            aria-label="Añadir función"
+            title="Añadir función"
+          >
             +
           </button>
         </div>
@@ -668,6 +682,7 @@ export function SetupPage() {
                         className="icon-button"
                         onClick={() => handleEditTask(task)}
                         aria-label="Editar función"
+                        title="Editar función"
                       >
                         <Pencil size={14} />
                       </button>
@@ -676,6 +691,7 @@ export function SetupPage() {
                         className="icon-button"
                         onClick={() => handleDeleteTask(task.id)}
                         aria-label="Borrar función"
+                        title="Borrar función"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -699,6 +715,7 @@ export function SetupPage() {
             className="add-worker-button"
             onClick={handleOpenNewEquipmentType}
             aria-label="Añadir tipo de equipo"
+            title="Añadir tipo de equipo"
           >
             +
           </button>
@@ -781,6 +798,7 @@ export function SetupPage() {
                         className="icon-button"
                         onClick={() => handleEditEquipmentType(type)}
                         aria-label="Editar tipo"
+                        title="Editar tipo"
                       >
                         <Pencil size={14} />
                       </button>
@@ -789,6 +807,7 @@ export function SetupPage() {
                         className="icon-button"
                         onClick={() => handleDeleteEquipmentType(type.id)}
                         aria-label="Borrar tipo"
+                        title="Borrar tipo"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -812,6 +831,7 @@ export function SetupPage() {
             className="add-worker-button"
             onClick={handleOpenNewEquipmentVariant}
             aria-label="Añadir variante"
+            title="Añadir variante"
           >
             +
           </button>
@@ -896,6 +916,7 @@ export function SetupPage() {
                         className="icon-button"
                         onClick={() => handleEditEquipmentVariant(variant)}
                         aria-label="Editar variante"
+                        title="Editar variante"
                       >
                         <Pencil size={14} />
                       </button>
@@ -904,6 +925,7 @@ export function SetupPage() {
                         className="icon-button"
                         onClick={() => handleDeleteEquipmentVariant(variant.id)}
                         aria-label="Borrar variante"
+                        title="Borrar variante"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -927,6 +949,7 @@ export function SetupPage() {
             className="add-worker-button"
             onClick={handleOpenNewEquipmentStatus}
             aria-label="Añadir estado"
+            title="Añadir estado"
           >
             +
           </button>
@@ -993,6 +1016,7 @@ export function SetupPage() {
                         className="icon-button"
                         onClick={() => handleEditEquipmentStatus(status)}
                         aria-label="Editar estado"
+                        title="Editar estado"
                       >
                         <Pencil size={14} />
                       </button>
@@ -1001,6 +1025,7 @@ export function SetupPage() {
                         className="icon-button"
                         onClick={() => handleDeleteEquipmentStatus(status.id)}
                         aria-label="Borrar estado"
+                        title="Borrar estado"
                       >
                         <Trash2 size={14} />
                       </button>

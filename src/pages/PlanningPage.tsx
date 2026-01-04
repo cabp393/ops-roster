@@ -3,7 +3,8 @@ import {
   DragOverlay,
   DndContext,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   rectIntersection,
   useDroppable,
   useSensor,
@@ -24,14 +25,12 @@ import {
   ArrowRight,
   ChevronDown,
   ChevronRight,
-  Download,
   Eye,
   EyeOff,
   Lock,
+  MoreHorizontal,
   RefreshCcw,
   Users,
-  Save,
-  Trash2,
 } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -157,7 +156,6 @@ function buildColumnFromGroups(groups: Record<RoleCode, number[]>) {
 }
 
 function getContractToneClass(worker: Worker) {
-  if (worker.contract === 'Indefinido') return ' contract-indefinido'
   if (worker.contract === 'Plazo fijo') return ' contract-plazo'
   return ''
 }
@@ -411,8 +409,8 @@ export function PlanningPage({
   )
   const [activeId, setActiveId] = useState<number | null>(null)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
-  const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false)
-  const downloadMenuRef = useRef<HTMLDivElement | null>(null)
+  const [isOptionsMenuOpen, setIsOptionsMenuOpen] = useState(false)
+  const optionsMenuRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     setTasks(getTasks())
@@ -580,7 +578,8 @@ export function PlanningPage({
   }, [activeWorkers, defaultTaskByRole, hasLoadedPlan, plan])
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
@@ -595,15 +594,15 @@ export function PlanningPage({
   }, [toastMessage])
 
   useEffect(() => {
-    if (!isDownloadMenuOpen) return undefined
+    if (!isOptionsMenuOpen) return undefined
     const handleClickOutside = (event: MouseEvent) => {
-      if (!downloadMenuRef.current) return
-      if (downloadMenuRef.current.contains(event.target as Node)) return
-      setIsDownloadMenuOpen(false)
+      if (!optionsMenuRef.current) return
+      if (optionsMenuRef.current.contains(event.target as Node)) return
+      setIsOptionsMenuOpen(false)
     }
     window.addEventListener('mousedown', handleClickOutside)
     return () => window.removeEventListener('mousedown', handleClickOutside)
-  }, [isDownloadMenuOpen])
+  }, [isOptionsMenuOpen])
 
   function persist(nextPlan: WeekPlan) {
     setPlan(nextPlan)
@@ -644,10 +643,6 @@ export function PlanningPage({
       equipmentByWorkerId: nextEquipmentByWorkerId,
     })
     setToastMessage('Equipos asignados')
-  }
-
-  function handleSave() {
-    saveWeekPlan(weekStart, plan)
   }
 
   function handleClear() {
@@ -979,6 +974,7 @@ export function PlanningPage({
               className="icon-button"
               onClick={() => handleWeekShift('prev')}
               aria-label="Semana anterior"
+              title="Semana anterior"
             >
               <ArrowLeft size={14} />
             </button>
@@ -987,6 +983,7 @@ export function PlanningPage({
               className="icon-button"
               onClick={() => handleWeekShift('next')}
               aria-label="Semana siguiente"
+              title="Semana siguiente"
             >
               <ArrowRight size={14} />
             </button>
@@ -997,6 +994,7 @@ export function PlanningPage({
               className="icon-button"
               onClick={handleRotateShifts}
               aria-label="Rotar turnos"
+              title="Rotar turnos"
             >
               <RefreshCcw size={14} />
             </button>
@@ -1005,73 +1003,70 @@ export function PlanningPage({
               className="icon-button"
               onClick={handleAssignEquipments}
               aria-label="Asignar equipos"
+              title="Asignar equipos"
             >
               <Users size={14} />
-            </button>
-            <div className="download-menu" ref={downloadMenuRef}>
-              <button
-                type="button"
-                className="icon-button download-menu-toggle"
-                onClick={() => setIsDownloadMenuOpen((open) => !open)}
-                aria-label="Descargar"
-                aria-haspopup="menu"
-                aria-expanded={isDownloadMenuOpen}
-              >
-                <Download size={14} />
-                <ChevronDown size={12} />
-              </button>
-              {isDownloadMenuOpen ? (
-                <div className="download-menu-panel" role="menu">
-                  <button
-                    type="button"
-                    className="download-menu-item"
-                    onClick={() => {
-                      setIsDownloadMenuOpen(false)
-                      handleDownloadExcel()
-                    }}
-                    role="menuitem"
-                  >
-                    Excel
-                  </button>
-                  <button
-                    type="button"
-                    className="download-menu-item"
-                    onClick={() => {
-                      setIsDownloadMenuOpen(false)
-                      handleDownloadPdf()
-                    }}
-                    role="menuitem"
-                  >
-                    PDF
-                  </button>
-                </div>
-              ) : null}
-            </div>
-            <button
-              type="button"
-              className="icon-button"
-              onClick={handleSave}
-              aria-label="Guardar turno"
-            >
-              <Save size={14} />
-            </button>
-            <button
-              type="button"
-              className="icon-button"
-              onClick={handleClear}
-              aria-label="Borrar turno"
-            >
-              <Trash2 size={14} />
             </button>
             <button
               type="button"
               className="icon-button"
               onClick={handleToggleAllGroups}
               aria-label={hasCollapsedGroups ? 'Expandir grupos' : 'Colapsar grupos'}
+              title={hasCollapsedGroups ? 'Expandir grupos' : 'Colapsar grupos'}
               disabled={visibleGroupKeys.length === 0}
             >
               {hasCollapsedGroups ? <Eye size={14} /> : <EyeOff size={14} />}
             </button>
+            <div className="options-menu" ref={optionsMenuRef}>
+              <button
+                type="button"
+                className="icon-button options-menu-toggle"
+                onClick={() => setIsOptionsMenuOpen((open) => !open)}
+                aria-label="Más opciones"
+                title="Más opciones"
+                aria-haspopup="menu"
+                aria-expanded={isOptionsMenuOpen}
+              >
+                <MoreHorizontal size={16} />
+              </button>
+              {isOptionsMenuOpen ? (
+                <div className="options-menu-panel" role="menu">
+                  <button
+                    type="button"
+                    className="options-menu-item"
+                    onClick={() => {
+                      setIsOptionsMenuOpen(false)
+                      handleDownloadExcel()
+                    }}
+                    role="menuitem"
+                  >
+                    Descargar Excel
+                  </button>
+                  <button
+                    type="button"
+                    className="options-menu-item"
+                    onClick={() => {
+                      setIsOptionsMenuOpen(false)
+                      handleDownloadPdf()
+                    }}
+                    role="menuitem"
+                  >
+                    Descargar PDF
+                  </button>
+                  <button
+                    type="button"
+                    className="options-menu-item"
+                    onClick={() => {
+                      setIsOptionsMenuOpen(false)
+                      handleClear()
+                    }}
+                    role="menuitem"
+                  >
+                    Borrar semana
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>

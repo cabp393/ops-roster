@@ -6,10 +6,10 @@ type TabsProps = {
 }
 
 const tabs: { key: TabKey; label: string }[] = [
-  { key: 'planning', label: 'Planning' },
-  { key: 'workers', label: 'Workers' },
+  { key: 'planning', label: 'Planificación' },
+  { key: 'workers', label: 'Trabajadores' },
   { key: 'equipments', label: 'Equipos' },
-  { key: 'setup', label: 'Setup' },
+  { key: 'setup', label: 'Configuración' },
 ]
 
 export function Tabs({ activeTab, onChange }: TabsProps) {

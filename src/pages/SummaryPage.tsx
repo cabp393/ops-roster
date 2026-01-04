@@ -67,7 +67,7 @@ export function SummaryPage({ weekNumber, weekYear, onWeekChange, onGoToPlanning
             key: `${shift.shift}-empty`,
             shiftLabel: SHIFT_LABEL[shift.shift],
             roleLabel: '-',
-            taskLabel: 'No assignments',
+            taskLabel: 'Sin asignaciones',
             total: 0,
           },
         ]
@@ -138,6 +138,7 @@ export function SummaryPage({ weekNumber, weekYear, onWeekChange, onGoToPlanning
               className="icon-button"
               onClick={() => handleWeekShift('prev')}
               aria-label="Semana anterior"
+              title="Semana anterior"
             >
               <ArrowLeft size={14} />
             </button>
@@ -146,6 +147,7 @@ export function SummaryPage({ weekNumber, weekYear, onWeekChange, onGoToPlanning
               className="icon-button"
               onClick={() => handleWeekShift('next')}
               aria-label="Semana siguiente"
+              title="Semana siguiente"
             >
               <ArrowRight size={14} />
             </button>
@@ -156,6 +158,7 @@ export function SummaryPage({ weekNumber, weekYear, onWeekChange, onGoToPlanning
               className="icon-button"
               onClick={onGoToPlanning}
               aria-label="Ir a planificación"
+              title="Ir a planificación"
             >
               <Eye size={14} />
             </button>
@@ -163,15 +166,15 @@ export function SummaryPage({ weekNumber, weekYear, onWeekChange, onGoToPlanning
         </div>
       </div>
       {!summary ? (
-        <p className="summary">No plan found for this week. Generate it in Planning.</p>
+        <p className="summary">No hay planificación para esta semana. Genérala en Planificación.</p>
       ) : (
         <>
           <p className="summary">
-            Totals: {SHIFTS.map((shift) => `${shift}: ${summary.totalsByShift[shift]}`).join(', ')}
+            Totales: {SHIFTS.map((shift) => `${shift}: ${summary.totalsByShift[shift]}`).join(', ')}
           </p>
           {summary.warnings.length > 0 ? (
             <div className="summary">
-              <strong>Warnings</strong>
+              <strong>Advertencias</strong>
               <ul>
                 {summary.warnings.map((warning) => (
                   <li key={warning}>{warning}</li>
@@ -183,10 +186,10 @@ export function SummaryPage({ weekNumber, weekYear, onWeekChange, onGoToPlanning
             <table>
               <thead>
                 <tr>
-                  <th>Shift</th>
-                  <th>Role</th>
-                  <th>Task</th>
-                  <th>Count</th>
+                  <th>Turno</th>
+                  <th>Rol</th>
+                  <th>Función</th>
+                  <th>Cantidad</th>
                 </tr>
               </thead>
               <tbody>

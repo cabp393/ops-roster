@@ -175,16 +175,12 @@ th {
   height: 14px;
 }
 
-.download-menu {
+.options-menu {
   position: relative;
   display: inline-flex;
 }
 
-.download-menu-toggle {
-  gap: 4px;
-}
-
-.download-menu-panel {
+.options-menu-panel {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
@@ -199,18 +195,19 @@ th {
   z-index: 15;
 }
 
-.download-menu-item {
+.options-menu-item {
   border: 1px solid transparent;
   background: #f9fafb;
   color: #111827;
   border-radius: 8px;
   padding: 6px 10px;
-  font-weight: 600;
+  font-weight: 400;
   text-align: left;
   cursor: pointer;
+  white-space: nowrap;
 }
 
-.download-menu-item:hover {
+.options-menu-item:hover {
   border-color: #d1d5db;
   background: #f3f4f6;
 }
@@ -410,14 +407,9 @@ th {
   gap: 6px;
 }
 
-.worker-card.contract-indefinido {
-  background: #fef6f2;
-  border-color: #f5d7c6;
-}
-
 .worker-card.contract-plazo {
-  background: #f3f6ff;
-  border-color: #d9e2ff;
+  background: #fef3c7;
+  border-color: #f59e0b;
 }
 
 .worker-card.dragging {
@@ -467,32 +459,20 @@ th {
 }
 
 .badge.role-og {
-  background: #6d28d9;
-  border-color: #5b21b6;
+  background: #4c1d95;
+  border-color: #3b0764;
   color: #ffffff;
 }
 
 .badge.role-al {
-  background: #0ea5e9;
-  border-color: #0284c7;
+  background: #0f766e;
+  border-color: #115e59;
   color: #ffffff;
 }
 
 .badge.role-jt {
-  background: #16a34a;
-  border-color: #15803d;
-  color: #ffffff;
-}
-
-.badge.contract-indefinido {
-  background: #f97316;
-  border-color: #ea580c;
-  color: #ffffff;
-}
-
-.badge.contract-plazo {
-  background: #64748b;
-  border-color: #475569;
+  background: #b45309;
+  border-color: #92400e;
   color: #ffffff;
 }
 
@@ -518,6 +498,52 @@ th {
   border: 1px solid #e5e7eb;
   margin-bottom: 16px;
   background: #f9fafb;
+}
+
+@media (max-width: 720px) {
+  .app {
+    padding: 16px 12px 24px;
+  }
+
+  .planning-controls {
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .planning-week {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .planning-actions {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .button-row {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .button-row button {
+    flex: 1 1 140px;
+  }
+
+  .planning-board {
+    grid-template-columns: 1fr;
+  }
+
+  .shift-column-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .worker-card {
+    touch-action: pan-y;
+  }
 }
 
 .workers-toolbar {

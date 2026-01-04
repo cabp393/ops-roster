@@ -200,7 +200,13 @@ export function EquipmentsPage() {
             />
           </div>
         </div>
-        <button type="button" className="add-worker-button" onClick={handleOpenNew} aria-label="Añadir equipo">
+        <button
+          type="button"
+          className="add-worker-button"
+          onClick={handleOpenNew}
+          aria-label="Añadir equipo"
+          title="Añadir equipo"
+        >
           +
         </button>
       </div>
@@ -309,10 +315,22 @@ export function EquipmentsPage() {
                 <td>{equipment.status}</td>
                 <td>
                   <div className="button-row">
-                    <button type="button" className="icon-button" onClick={() => loadForEdit(equipment)} aria-label="Editar">
+                    <button
+                      type="button"
+                      className="icon-button"
+                      onClick={() => loadForEdit(equipment)}
+                      aria-label="Editar"
+                      title="Editar"
+                    >
                       <Pencil size={14} />
                     </button>
-                    <button type="button" className="icon-button" onClick={() => handleDelete(equipment.id)} aria-label="Borrar">
+                    <button
+                      type="button"
+                      className="icon-button"
+                      onClick={() => handleDelete(equipment.id)}
+                      aria-label="Borrar"
+                      title="Borrar"
+                    >
                       <Trash2 size={14} />
                     </button>
                   </div>

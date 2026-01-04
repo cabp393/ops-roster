@@ -246,7 +246,13 @@ export function WorkersPage() {
             />
           </div>
         </div>
-        <button type="button" className="add-worker-button" onClick={handleOpenNew} aria-label="Añadir trabajador">
+        <button
+          type="button"
+          className="add-worker-button"
+          onClick={handleOpenNew}
+          aria-label="Añadir trabajador"
+          title="Añadir trabajador"
+        >
           +
         </button>
       </div>
@@ -410,10 +416,22 @@ export function WorkersPage() {
                 <td>{worker.isActive === false ? 'Inactivo' : 'Activo'}</td>
                 <td>
                   <div className="button-row">
-                    <button type="button" className="icon-button" onClick={() => loadForEdit(worker)} aria-label="Editar">
+                    <button
+                      type="button"
+                      className="icon-button"
+                      onClick={() => loadForEdit(worker)}
+                      aria-label="Editar"
+                      title="Editar"
+                    >
                       <Pencil size={14} />
                     </button>
-                    <button type="button" className="icon-button" onClick={() => handleDelete(worker.id)} aria-label="Borrar">
+                    <button
+                      type="button"
+                      className="icon-button"
+                      onClick={() => handleDelete(worker.id)}
+                      aria-label="Borrar"
+                      title="Borrar"
+                    >
                       <Trash2 size={14} />
                     </button>
                   </div>
