@@ -1,11 +1,6 @@
 import { SHIFTS } from '../data/mock'
 import type { Shift, WeekPlan, Worker } from '../types'
-
-const PLANNING_PREFIX = 'opsRoster:planning'
-
-function planningKey(weekStart: string) {
-  return `${PLANNING_PREFIX}:${weekStart}`
-}
+import { supabase } from './supabaseClient'
 
 const EMPTY_COLUMNS: Record<Shift, number[]> = { M: [], T: [], N: [] }
 
@@ -47,29 +42,46 @@ function normalizeEquipments(raw: unknown): Record<number, string | null> {
   return next
 }
 
-export function loadWeekPlan(weekStart: string): WeekPlan | null {
-  const raw = localStorage.getItem(planningKey(weekStart))
-  if (!raw) return null
-  try {
-    const parsed = JSON.parse(raw) as WeekPlan
-    if (!parsed || typeof parsed !== 'object') return null
-    return {
-      weekStart,
-      columns: normalizeColumns(parsed.columns),
-      tasksByWorkerId: normalizeTasks(parsed.tasksByWorkerId),
-      equipmentByWorkerId: normalizeEquipments(parsed.equipmentByWorkerId),
-    }
-  } catch {
-    return null
+export async function loadWeekPlan(weekStart: string, organizationId: string): Promise<WeekPlan | null> {
+  const { data, error } = await supabase
+    .from('planning_records')
+    .select('week_start, columns, tasks_by_worker_id, equipment_by_worker_id')
+    .eq('organization_id', organizationId)
+    .eq('week_start', weekStart)
+    .maybeSingle()
+  if (error) throw error
+  if (!data) return null
+  return {
+    weekStart,
+    columns: normalizeColumns(data.columns),
+    tasksByWorkerId: normalizeTasks(data.tasks_by_worker_id),
+    equipmentByWorkerId: normalizeEquipments(data.equipment_by_worker_id),
   }
 }
 
-export function saveWeekPlan(weekStart: string, plan: WeekPlan) {
-  localStorage.setItem(planningKey(weekStart), JSON.stringify(plan))
+export async function saveWeekPlan(weekStart: string, plan: WeekPlan, organizationId: string) {
+  const { error } = await supabase
+    .from('planning_records')
+    .upsert(
+      {
+        organization_id: organizationId,
+        week_start: weekStart,
+        columns: plan.columns,
+        tasks_by_worker_id: plan.tasksByWorkerId,
+        equipment_by_worker_id: plan.equipmentByWorkerId,
+      },
+      { onConflict: 'organization_id,week_start' },
+    )
+  if (error) throw error
 }
 
-export function clearWeekPlan(weekStart: string) {
-  localStorage.removeItem(planningKey(weekStart))
+export async function clearWeekPlan(weekStart: string, organizationId: string) {
+  const { error } = await supabase
+    .from('planning_records')
+    .delete()
+    .eq('organization_id', organizationId)
+    .eq('week_start', weekStart)
+  if (error) throw error
 }
 
 function allowedShiftsForWorker(worker: Worker): Shift[] {
@@ -139,5 +151,10 @@ export function seedWeekPlan(
     equipmentByWorkerId[worker.id] = null
   })
 
-  return { weekStart, columns, tasksByWorkerId, equipmentByWorkerId }
+  return {
+    weekStart,
+    columns,
+    tasksByWorkerId,
+    equipmentByWorkerId,
+  }
 }

@@ -12,6 +12,7 @@ import {
   setRoles,
   setTasks,
 } from '../lib/storage'
+import { useOrganization } from '../lib/organizationContext'
 import type {
   EquipmentStatusOption,
   EquipmentTypeOption,
@@ -52,6 +53,7 @@ type EquipmentStatusFormState = {
 }
 
 export function SetupPage() {
+  const { activeOrganizationId } = useOrganization()
   const [roles, setRolesState] = useState<Role[]>([])
   const [tasks, setTasksState] = useState<Task[]>([])
   const [equipmentTypes, setEquipmentTypesState] = useState<EquipmentTypeOption[]>([])
@@ -91,32 +93,58 @@ export function SetupPage() {
   })
 
   useEffect(() => {
-    setRolesState(getRoles())
-    setTasksState(getTasks())
-    setEquipmentTypesState(getEquipmentTypes())
-    setEquipmentVariantsState(getEquipmentVariants())
-    setEquipmentStatusesState(getEquipmentStatuses())
-  }, [])
+    if (!activeOrganizationId) return
+    let isMounted = true
+    const loadData = async () => {
+      const [rolesData, tasksData, typesData, variantsData, statusesData] = await Promise.all([
+        getRoles(activeOrganizationId),
+        getTasks(activeOrganizationId),
+        getEquipmentTypes(activeOrganizationId),
+        getEquipmentVariants(activeOrganizationId),
+        getEquipmentStatuses(activeOrganizationId),
+      ])
+      if (!isMounted) return
+      setRolesState(rolesData)
+      setTasksState(tasksData)
+      setEquipmentTypesState(typesData)
+      setEquipmentVariantsState(variantsData)
+      setEquipmentStatusesState(statusesData)
+    }
+    void loadData()
+    return () => {
+      isMounted = false
+    }
+  }, [activeOrganizationId])
 
   useEffect(() => {
-    if (roles.length > 0) setRoles(roles)
-  }, [roles])
+    if (roles.length > 0 && activeOrganizationId) {
+      void setRoles(roles, activeOrganizationId)
+    }
+  }, [roles, activeOrganizationId])
 
   useEffect(() => {
-    if (tasks.length > 0) setTasks(tasks)
-  }, [tasks])
+    if (tasks.length > 0 && activeOrganizationId) {
+      void setTasks(tasks, activeOrganizationId)
+    }
+  }, [tasks, activeOrganizationId])
 
   useEffect(() => {
-    if (equipmentTypes.length > 0) setEquipmentTypes(equipmentTypes)
-  }, [equipmentTypes])
+    if (equipmentTypes.length > 0 && activeOrganizationId) {
+      void setEquipmentTypes(equipmentTypes, activeOrganizationId)
+    }
+  }, [equipmentTypes, activeOrganizationId])
 
   useEffect(() => {
-    if (equipmentVariants.length > 0) setEquipmentVariants(equipmentVariants)
-  }, [equipmentVariants])
+    if (equipmentVariants.length > 0 && activeOrganizationId) {
+      void setEquipmentVariants(equipmentVariants, activeOrganizationId)
+    }
+  }, [equipmentVariants, activeOrganizationId])
 
   useEffect(() => {
-    if (equipmentStatuses.length > 0) setEquipmentStatuses(equipmentStatuses)
-  }, [equipmentStatuses])
+    if (equipmentStatuses.length > 0 && activeOrganizationId) {
+      void setEquipmentStatuses(equipmentStatuses, activeOrganizationId)
+    }
+  }, [equipmentStatuses, activeOrganizationId])
 
   useEffect(() => {
     if (roles.length === 0 || equipmentTypes.length === 0) return

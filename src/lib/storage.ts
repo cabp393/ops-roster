@@ -21,21 +21,140 @@ import {
   defaultWorkers,
 } from '../data/mock'
 import { parseLegacyName } from './workerName'
+import { supabase } from './supabaseClient'
 
-const PLANNING_PREFIX = 'opsRoster:planning'
-const ROLES_KEY = 'opsRoster:roles'
-const TASKS_KEY = 'opsRoster:tasks'
-const WORKERS_KEY = 'opsRoster:workers'
-const EQUIPMENT_KEY = 'opsRoster:equipments'
-const EQUIPMENT_ROLES_KEY = 'opsRoster:equipment:roles'
-const EQUIPMENT_TYPES_KEY = 'opsRoster:equipment:types'
-const EQUIPMENT_VARIANTS_KEY = 'opsRoster:equipment:variants'
-const EQUIPMENT_STATUSES_KEY = 'opsRoster:equipment:statuses'
-
-function planningKey(weekStart: string) {
-  return `${PLANNING_PREFIX}:${weekStart}`
+function ensureOrganizationId(organizationId: string) {
+  if (!organizationId) throw new Error('Organization id is required')
+  return organizationId
 }
 
+type RoleRow = {
+  id: string
+  code: string
+  name: string
+  is_active: boolean | null
+  counts_for_balance: boolean | null
+}
+
+type TaskRow = {
+  id: string
+  name: string
+  allowed_role_codes: string[] | null
+  is_active: boolean | null
+  equipment_type: string | null
+  equipment_variant: string | null
+}
+
+type WorkerRow = {
+  id: number
+  name?: string | null
+  first_name?: string | null
+  second_name?: string | null
+  last_name?: string | null
+  mother_last_name?: string | null
+  role_code?: string | null
+  contract?: Worker['contract'] | null
+  constraints?: Worker['constraints'] | null
+  specialty_task_id?: string | null
+  special_role?: string | null
+  is_active?: boolean | null
+}
+
+type EquipmentRow = {
+  id: string
+  serie: string | null
+  role_code: string | null
+  type: string | null
+  variant: string | null
+  status: string | null
+}
+
+type EquipmentRoleRow = {
+  id: string
+  code: string
+  name: string
+  is_active: boolean | null
+}
+
+type EquipmentTypeRow = {
+  id: string
+  name: string
+  role_code: string | null
+  is_active: boolean | null
+}
+
+type EquipmentVariantRow = {
+  id: string
+  name: string
+  type: string
+  is_active: boolean | null
+}
+
+type EquipmentStatusRow = {
+  id: string
+  name: string
+  is_active: boolean | null
+}
+
+async function fetchRows<T>(table: string, organizationId: string): Promise<T[]> {
+  const { data, error } = await supabase
+    .from(table)
+    .select('*')
+    .eq('organization_id', organizationId)
+  if (error) throw error
+  return data ?? []
+}
+
+async function seedTable<T, R>(
+  table: string,
+  organizationId: string,
+  defaults: T[],
+  toRow: (item: T, orgId: string) => R,
+  fromRow: (row: R) => T,
+): Promise<T[]> {
+  const existing = await fetchRows<R>(table, organizationId)
+  if (existing.length > 0) {
+    return existing.map((row) => fromRow(row))
+  }
+  const { data, error } = await supabase
+    .from(table)
+    .insert(defaults.map((item) => toRow(item, organizationId)))
+    .select('*')
+  if (error) throw error
+  return (data ?? []).map((row) => fromRow(row as R))
+}
+
+async function syncTable<T extends { id: string | number }, R>(
+  table: string,
+  organizationId: string,
+  rows: T[],
+  toRow: (item: T, orgId: string) => R,
+) {
+  const { data, error } = await supabase
+    .from(table)
+    .select('id')
+    .eq('organization_id', organizationId)
+  if (error) throw error
+  const existingIds = new Set((data ?? []).map((row: { id: string | number }) => String(row.id)))
+  const incomingIds = new Set(rows.map((row) => String(row.id)))
+  const idsToDelete = [...existingIds].filter((id) => !incomingIds.has(id))
+  if (idsToDelete.length > 0) {
+    const { error: deleteError } = await supabase
+      .from(table)
+      .delete()
+      .eq('organization_id', organizationId)
+      .in('id', idsToDelete)
+    if (deleteError) throw deleteError
+  }
+  if (rows.length > 0) {
+    const { error: upsertError } = await supabase
+      .from(table)
+      .upsert(rows.map((row) => toRow(row, organizationId)), {
+        onConflict: 'organization_id,id',
+      })
+    if (upsertError) throw upsertError
+  }
+}
 
 function normalizeRoles(raw: unknown): Role[] | null {
   if (!Array.isArray(raw)) return null
@@ -72,7 +191,9 @@ function normalizeWorkers(raw: unknown): Worker[] | null {
     const legacyGroup = (worker as { group?: string }).group
     const roleCode = worker.roleCode ?? (legacyGroup === 'Gruero' ? 'OG' : legacyGroup === 'Auxiliar' ? 'AL' : 'AL')
     const hasStructuredName =
-      typeof worker.firstName === 'string' || typeof worker.lastName === 'string' || typeof worker.motherLastName === 'string'
+      typeof worker.firstName === 'string' ||
+      typeof worker.lastName === 'string' ||
+      typeof worker.motherLastName === 'string'
     const parsedName = !hasStructuredName && worker.name ? parseLegacyName(worker.name) : null
     const firstName = (worker.firstName ?? parsedName?.firstName ?? '').trim()
     const secondName = (worker.secondName ?? parsedName?.secondName ?? '').trim()
@@ -135,178 +256,328 @@ function normalizeEquipments(raw: unknown): Equipment[] | null {
   }))
 }
 
-export function getRoles(): Role[] {
-  const raw = localStorage.getItem(ROLES_KEY)
-  if (!raw) {
-    localStorage.setItem(ROLES_KEY, JSON.stringify(defaultRoles))
-    return defaultRoles
+function roleFromRow(row: RoleRow): Role {
+  return {
+    id: row.id,
+    code: row.code,
+    name: row.name,
+    isActive: row.is_active ?? true,
+    countsForBalance: row.counts_for_balance ?? true,
   }
-  try {
-    const parsed = normalizeRoles(JSON.parse(raw))
-    if (parsed) return parsed
-  } catch {
-    // fall through
-  }
-  localStorage.setItem(ROLES_KEY, JSON.stringify(defaultRoles))
-  return defaultRoles
 }
 
-export function setRoles(roles: Role[]) {
-  localStorage.setItem(ROLES_KEY, JSON.stringify(roles))
+function roleToRow(role: Role, organizationId: string) {
+  return {
+    id: role.id,
+    organization_id: organizationId,
+    code: role.code,
+    name: role.name,
+    is_active: role.isActive,
+    counts_for_balance: role.countsForBalance,
+  }
 }
 
-export function getEquipmentRoles(): EquipmentRoleOption[] {
-  const raw = localStorage.getItem(EQUIPMENT_ROLES_KEY)
-  if (!raw) {
-    localStorage.setItem(EQUIPMENT_ROLES_KEY, JSON.stringify(defaultEquipmentRoles))
-    return defaultEquipmentRoles
+function taskFromRow(row: TaskRow): Task {
+  return {
+    id: row.id,
+    name: row.name,
+    allowedRoleCodes: row.allowed_role_codes ?? [],
+    isActive: row.is_active ?? true,
+    equipmentType: row.equipment_type ?? null,
+    equipmentVariant: row.equipment_variant ?? null,
   }
-  try {
-    const parsed = normalizeEquipmentOptions<EquipmentRoleOption>(JSON.parse(raw))
-    if (parsed) return parsed
-  } catch {
-    // fall through
-  }
-  localStorage.setItem(EQUIPMENT_ROLES_KEY, JSON.stringify(defaultEquipmentRoles))
-  return defaultEquipmentRoles
 }
 
-export function setEquipmentRoles(roles: EquipmentRoleOption[]) {
-  localStorage.setItem(EQUIPMENT_ROLES_KEY, JSON.stringify(roles))
+function taskToRow(task: Task, organizationId: string) {
+  return {
+    id: task.id,
+    organization_id: organizationId,
+    name: task.name,
+    allowed_role_codes: task.allowedRoleCodes,
+    is_active: task.isActive,
+    equipment_type: task.equipmentType ?? null,
+    equipment_variant: task.equipmentVariant ?? null,
+  }
 }
 
-export function getEquipmentTypes(): EquipmentTypeOption[] {
-  const raw = localStorage.getItem(EQUIPMENT_TYPES_KEY)
-  if (!raw) {
-    localStorage.setItem(EQUIPMENT_TYPES_KEY, JSON.stringify(defaultEquipmentTypes))
-    return defaultEquipmentTypes
+function workerFromRow(row: WorkerRow): Worker {
+  return {
+    id: row.id,
+    name: row.name ?? undefined,
+    firstName: row.first_name ?? '',
+    secondName: row.second_name ?? undefined,
+    lastName: row.last_name ?? '',
+    motherLastName: row.mother_last_name ?? undefined,
+    roleCode: row.role_code ?? '',
+    contract: row.contract ?? 'Indefinido',
+    constraints: row.constraints ?? undefined,
+    specialtyTaskId: row.specialty_task_id ?? null,
+    specialRole: row.special_role ?? undefined,
+    isActive: row.is_active ?? true,
   }
-  try {
-    const parsed = normalizeEquipmentTypes(JSON.parse(raw))
-    if (parsed) return parsed
-  } catch {
-    // fall through
-  }
-  localStorage.setItem(EQUIPMENT_TYPES_KEY, JSON.stringify(defaultEquipmentTypes))
-  return defaultEquipmentTypes
 }
 
-export function setEquipmentTypes(types: EquipmentTypeOption[]) {
-  localStorage.setItem(EQUIPMENT_TYPES_KEY, JSON.stringify(types))
+function workerToRow(worker: Worker, organizationId: string) {
+  return {
+    id: worker.id,
+    organization_id: organizationId,
+    name: worker.name ?? null,
+    first_name: worker.firstName,
+    second_name: worker.secondName ?? null,
+    last_name: worker.lastName,
+    mother_last_name: worker.motherLastName ?? null,
+    role_code: worker.roleCode,
+    contract: worker.contract,
+    constraints: worker.constraints ?? null,
+    specialty_task_id: worker.specialtyTaskId ?? null,
+    special_role: worker.specialRole ?? null,
+    is_active: worker.isActive ?? true,
+  }
 }
 
-export function getEquipmentVariants(): EquipmentVariantOption[] {
-  const raw = localStorage.getItem(EQUIPMENT_VARIANTS_KEY)
-  if (!raw) {
-    localStorage.setItem(EQUIPMENT_VARIANTS_KEY, JSON.stringify(defaultEquipmentVariants))
-    return defaultEquipmentVariants
+function equipmentFromRow(row: EquipmentRow): Equipment {
+  return {
+    id: row.id,
+    serie: row.serie ?? '',
+    roleCode: row.role_code ?? '',
+    type: row.type ?? '',
+    variant: row.variant ?? '',
+    status: row.status ?? '',
   }
-  try {
-    const parsed = normalizeEquipmentVariants(JSON.parse(raw))
-    if (parsed) return parsed
-  } catch {
-    // fall through
-  }
-  localStorage.setItem(EQUIPMENT_VARIANTS_KEY, JSON.stringify(defaultEquipmentVariants))
-  return defaultEquipmentVariants
 }
 
-export function setEquipmentVariants(variants: EquipmentVariantOption[]) {
-  localStorage.setItem(EQUIPMENT_VARIANTS_KEY, JSON.stringify(variants))
+function equipmentToRow(equipment: Equipment, organizationId: string) {
+  return {
+    id: equipment.id,
+    organization_id: organizationId,
+    serie: equipment.serie,
+    role_code: equipment.roleCode,
+    type: equipment.type,
+    variant: equipment.variant,
+    status: equipment.status,
+  }
 }
 
-export function getEquipmentStatuses(): EquipmentStatusOption[] {
-  const raw = localStorage.getItem(EQUIPMENT_STATUSES_KEY)
-  if (!raw) {
-    localStorage.setItem(EQUIPMENT_STATUSES_KEY, JSON.stringify(defaultEquipmentStatuses))
-    return defaultEquipmentStatuses
+function equipmentRoleFromRow(row: EquipmentRoleRow): EquipmentRoleOption {
+  return {
+    id: row.id,
+    code: row.code,
+    name: row.name,
+    isActive: row.is_active ?? true,
   }
-  try {
-    const parsed = normalizeEquipmentOptions<EquipmentStatusOption>(JSON.parse(raw))
-    if (parsed) return parsed
-  } catch {
-    // fall through
-  }
-  localStorage.setItem(EQUIPMENT_STATUSES_KEY, JSON.stringify(defaultEquipmentStatuses))
-  return defaultEquipmentStatuses
 }
 
-export function setEquipmentStatuses(statuses: EquipmentStatusOption[]) {
-  localStorage.setItem(EQUIPMENT_STATUSES_KEY, JSON.stringify(statuses))
+function equipmentRoleToRow(role: EquipmentRoleOption, organizationId: string) {
+  return {
+    id: role.id,
+    organization_id: organizationId,
+    code: role.code,
+    name: role.name,
+    is_active: role.isActive,
+  }
 }
 
-export function getTasks(): Task[] {
-  const raw = localStorage.getItem(TASKS_KEY)
-  if (!raw) {
-    localStorage.setItem(TASKS_KEY, JSON.stringify(defaultTasks))
-    return defaultTasks
+function equipmentTypeFromRow(row: EquipmentTypeRow): EquipmentTypeOption {
+  return {
+    id: row.id,
+    name: row.name,
+    roleCode: row.role_code ?? '',
+    isActive: row.is_active ?? true,
   }
-  try {
-    const parsed = normalizeTasks(JSON.parse(raw))
-    if (parsed) return parsed
-  } catch {
-    // fall through
-  }
-  localStorage.setItem(TASKS_KEY, JSON.stringify(defaultTasks))
-  return defaultTasks
 }
 
-export function setTasks(tasks: Task[]) {
-  localStorage.setItem(TASKS_KEY, JSON.stringify(tasks))
+function equipmentTypeToRow(type: EquipmentTypeOption, organizationId: string) {
+  return {
+    id: type.id,
+    organization_id: organizationId,
+    name: type.name,
+    role_code: type.roleCode,
+    is_active: type.isActive,
+  }
 }
 
-export function getEquipments(): Equipment[] {
-  const raw = localStorage.getItem(EQUIPMENT_KEY)
-  if (!raw) {
-    localStorage.setItem(EQUIPMENT_KEY, JSON.stringify(defaultEquipments))
-    return defaultEquipments
+function equipmentVariantFromRow(row: EquipmentVariantRow): EquipmentVariantOption {
+  return {
+    id: row.id,
+    name: row.name,
+    type: row.type,
+    isActive: row.is_active ?? true,
   }
-  try {
-    const parsed = normalizeEquipments(JSON.parse(raw))
-    if (parsed) return parsed
-  } catch {
-    // fall through
-  }
-  localStorage.setItem(EQUIPMENT_KEY, JSON.stringify(defaultEquipments))
-  return defaultEquipments
 }
 
-export function setEquipments(equipments: Equipment[]) {
-  localStorage.setItem(EQUIPMENT_KEY, JSON.stringify(equipments))
+function equipmentVariantToRow(variant: EquipmentVariantOption, organizationId: string) {
+  return {
+    id: variant.id,
+    organization_id: organizationId,
+    name: variant.name,
+    type: variant.type,
+    is_active: variant.isActive,
+  }
 }
 
-export function getWorkers(): Worker[] {
-  const raw = localStorage.getItem(WORKERS_KEY)
-  if (!raw) {
-    localStorage.setItem(WORKERS_KEY, JSON.stringify(defaultWorkers))
-    return defaultWorkers
+function equipmentStatusFromRow(row: EquipmentStatusRow): EquipmentStatusOption {
+  return {
+    id: row.id,
+    name: row.name,
+    isActive: row.is_active ?? true,
   }
-  try {
-    const parsed = normalizeWorkers(JSON.parse(raw))
-    if (parsed) {
-      const tasks = getTasks()
-      const withSpecialty = parsed.map((worker) => {
-        if (worker.specialtyTaskId) return worker
-        const defaultTask = tasks.find((task) => task.allowedRoleCodes.includes(worker.roleCode))
-        return {
-          ...worker,
-          specialtyTaskId: defaultTask?.id ?? null,
-        }
-      })
-      localStorage.setItem(WORKERS_KEY, JSON.stringify(withSpecialty))
-      return withSpecialty
+}
+
+function equipmentStatusToRow(status: EquipmentStatusOption, organizationId: string) {
+  return {
+    id: status.id,
+    organization_id: organizationId,
+    name: status.name,
+    is_active: status.isActive,
+  }
+}
+
+export async function getRoles(organizationId: string): Promise<Role[]> {
+  const orgId = ensureOrganizationId(organizationId)
+  const roles = await seedTable<Role, RoleRow>('roles', orgId, defaultRoles, roleToRow, roleFromRow)
+  return normalizeRoles(roles) ?? roles
+}
+
+export async function setRoles(roles: Role[], organizationId: string) {
+  const orgId = ensureOrganizationId(organizationId)
+  await syncTable<Role, ReturnType<typeof roleToRow>>('roles', orgId, roles, roleToRow)
+}
+
+export async function getEquipmentRoles(organizationId: string): Promise<EquipmentRoleOption[]> {
+  const orgId = ensureOrganizationId(organizationId)
+  const roles = await seedTable<EquipmentRoleOption, EquipmentRoleRow>(
+    'equipment_roles',
+    orgId,
+    defaultEquipmentRoles,
+    equipmentRoleToRow,
+    equipmentRoleFromRow,
+  )
+  return normalizeEquipmentOptions<EquipmentRoleOption>(roles) ?? roles
+}
+
+export async function setEquipmentRoles(roles: EquipmentRoleOption[], organizationId: string) {
+  const orgId = ensureOrganizationId(organizationId)
+  await syncTable<EquipmentRoleOption, ReturnType<typeof equipmentRoleToRow>>(
+    'equipment_roles',
+    orgId,
+    roles,
+    equipmentRoleToRow,
+  )
+}
+
+export async function getEquipmentTypes(organizationId: string): Promise<EquipmentTypeOption[]> {
+  const orgId = ensureOrganizationId(organizationId)
+  const types = await seedTable<EquipmentTypeOption, EquipmentTypeRow>(
+    'equipment_types',
+    orgId,
+    defaultEquipmentTypes,
+    equipmentTypeToRow,
+    equipmentTypeFromRow,
+  )
+  return normalizeEquipmentTypes(types) ?? types
+}
+
+export async function setEquipmentTypes(types: EquipmentTypeOption[], organizationId: string) {
+  const orgId = ensureOrganizationId(organizationId)
+  await syncTable<EquipmentTypeOption, ReturnType<typeof equipmentTypeToRow>>(
+    'equipment_types',
+    orgId,
+    types,
+    equipmentTypeToRow,
+  )
+}
+
+export async function getEquipmentVariants(organizationId: string): Promise<EquipmentVariantOption[]> {
+  const orgId = ensureOrganizationId(organizationId)
+  const variants = await seedTable<EquipmentVariantOption, EquipmentVariantRow>(
+    'equipment_variants',
+    orgId,
+    defaultEquipmentVariants,
+    equipmentVariantToRow,
+    equipmentVariantFromRow,
+  )
+  return normalizeEquipmentVariants(variants) ?? variants
+}
+
+export async function setEquipmentVariants(variants: EquipmentVariantOption[], organizationId: string) {
+  const orgId = ensureOrganizationId(organizationId)
+  await syncTable<EquipmentVariantOption, ReturnType<typeof equipmentVariantToRow>>(
+    'equipment_variants',
+    orgId,
+    variants,
+    equipmentVariantToRow,
+  )
+}
+
+export async function getEquipmentStatuses(organizationId: string): Promise<EquipmentStatusOption[]> {
+  const orgId = ensureOrganizationId(organizationId)
+  const statuses = await seedTable<EquipmentStatusOption, EquipmentStatusRow>(
+    'equipment_statuses',
+    orgId,
+    defaultEquipmentStatuses,
+    equipmentStatusToRow,
+    equipmentStatusFromRow,
+  )
+  return normalizeEquipmentOptions<EquipmentStatusOption>(statuses) ?? statuses
+}
+
+export async function setEquipmentStatuses(statuses: EquipmentStatusOption[], organizationId: string) {
+  const orgId = ensureOrganizationId(organizationId)
+  await syncTable<EquipmentStatusOption, ReturnType<typeof equipmentStatusToRow>>(
+    'equipment_statuses',
+    orgId,
+    statuses,
+    equipmentStatusToRow,
+  )
+}
+
+export async function getTasks(organizationId: string): Promise<Task[]> {
+  const orgId = ensureOrganizationId(organizationId)
+  const tasks = await seedTable<Task, TaskRow>('tasks', orgId, defaultTasks, taskToRow, taskFromRow)
+  return normalizeTasks(tasks) ?? tasks
+}
+
+export async function setTasks(tasks: Task[], organizationId: string) {
+  const orgId = ensureOrganizationId(organizationId)
+  await syncTable<Task, ReturnType<typeof taskToRow>>('tasks', orgId, tasks, taskToRow)
+}
+
+export async function getEquipments(organizationId: string): Promise<Equipment[]> {
+  const orgId = ensureOrganizationId(organizationId)
+  const equipments = await seedTable<Equipment, EquipmentRow>(
+    'equipments',
+    orgId,
+    defaultEquipments,
+    equipmentToRow,
+    equipmentFromRow,
+  )
+  return normalizeEquipments(equipments) ?? equipments
+}
+
+export async function setEquipments(equipments: Equipment[], organizationId: string) {
+  const orgId = ensureOrganizationId(organizationId)
+  await syncTable<Equipment, ReturnType<typeof equipmentToRow>>('equipments', orgId, equipments, equipmentToRow)
+}
+
+export async function getWorkers(organizationId: string): Promise<Worker[]> {
+  const orgId = ensureOrganizationId(organizationId)
+  const workers = await seedTable<Worker, WorkerRow>('workers', orgId, defaultWorkers, workerToRow, workerFromRow)
+  const normalized = normalizeWorkers(workers) ?? workers
+  const tasks = await getTasks(orgId)
+  return normalized.map((worker) => {
+    if (worker.specialtyTaskId) return worker
+    const defaultTask = tasks.find((task) => task.allowedRoleCodes.includes(worker.roleCode))
+    return {
+      ...worker,
+      specialtyTaskId: defaultTask?.id ?? null,
     }
-  } catch {
-    // fall through
-  }
-  localStorage.setItem(WORKERS_KEY, JSON.stringify(defaultWorkers))
-  return defaultWorkers
+  })
 }
 
-export function setWorkers(workers: Worker[]) {
-  localStorage.setItem(WORKERS_KEY, JSON.stringify(workers))
+export async function setWorkers(workers: Worker[], organizationId: string) {
+  const orgId = ensureOrganizationId(organizationId)
+  await syncTable<Worker, ReturnType<typeof workerToRow>>('workers', orgId, workers, workerToRow)
 }
-
 
 function mapLegacyTaskName(tasks: Task[], name: string | undefined): string | undefined {
   if (!name) return undefined
@@ -333,26 +604,42 @@ function normalizeAssignments(raw: unknown, weekStart: string, tasks: Task[]): A
     .filter((assignment) => assignment.workerId != null && assignment.shift != null)
 }
 
-export function getPlanning(weekStart: string): PlanningRecord | null {
-  const raw = localStorage.getItem(planningKey(weekStart))
-  if (!raw) return null
-  try {
-    const parsed = JSON.parse(raw) as PlanningRecord
-    if (!parsed || !Array.isArray(parsed.assignments)) {
-      return null
-    }
-    const tasks = getTasks()
-    const assignments = normalizeAssignments(parsed.assignments, weekStart, tasks)
-    return { weekStart, assignments }
-  } catch {
-    return null
-  }
+export async function getPlanning(weekStart: string, organizationId: string): Promise<PlanningRecord | null> {
+  const orgId = ensureOrganizationId(organizationId)
+  const { data, error } = await supabase
+    .from('planning_records')
+    .select('week_start, assignments')
+    .eq('organization_id', orgId)
+    .eq('week_start', weekStart)
+    .maybeSingle()
+  if (error) throw error
+  if (!data || !Array.isArray(data.assignments)) return null
+  const tasks = await getTasks(orgId)
+  const assignments = normalizeAssignments(data.assignments, weekStart, tasks)
+  return { weekStart, assignments }
 }
 
-export function setPlanning(weekStart: string, record: PlanningRecord) {
-  localStorage.setItem(planningKey(weekStart), JSON.stringify(record))
+export async function setPlanning(weekStart: string, record: PlanningRecord, organizationId: string) {
+  const orgId = ensureOrganizationId(organizationId)
+  const { error } = await supabase
+    .from('planning_records')
+    .upsert(
+      {
+        organization_id: orgId,
+        week_start: weekStart,
+        assignments: record.assignments,
+      },
+      { onConflict: 'organization_id,week_start' },
+    )
+  if (error) throw error
 }
 
-export function clearPlanning(weekStart: string) {
-  localStorage.removeItem(planningKey(weekStart))
+export async function clearPlanning(weekStart: string, organizationId: string) {
+  const orgId = ensureOrganizationId(organizationId)
+  const { error } = await supabase
+    .from('planning_records')
+    .delete()
+    .eq('organization_id', orgId)
+    .eq('week_start', weekStart)
+  if (error) throw error
 }
