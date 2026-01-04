@@ -60,6 +60,7 @@ export type Worker = {
   secondName?: string
   lastName: string
   motherLastName?: string
+  roleId?: string | null
   roleCode: string
   contract: 'Indefinido' | 'Plazo fijo'
   constraints?: {
@@ -71,11 +72,12 @@ export type Worker = {
 }
 
 export type Assignment = {
+  id?: string
   workerId: number
   weekStart: string
   shift: Shift
-  taskId?: string
-  equipmentId?: string | null
+  taskId: string | null
+  equipmentId: string | null
   source: 'generated' | 'manual'
 }
 

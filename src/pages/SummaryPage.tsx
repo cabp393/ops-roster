@@ -65,7 +65,8 @@ export function SummaryPage({ weekNumber, weekYear, onWeekChange, onGoToPlanning
             workerId,
             weekStart,
             shift,
-            taskId: saved.tasksByWorkerId[workerId] ?? undefined,
+            taskId: saved.tasksByWorkerId[workerId] ?? null,
+            equipmentId: saved.equipmentByWorkerId[workerId] ?? null,
             source: 'manual',
           })
         })

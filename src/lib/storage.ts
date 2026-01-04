@@ -52,12 +52,17 @@ type WorkerRow = {
   second_name?: string | null
   last_name?: string | null
   mother_last_name?: string | null
-  role_code?: string | null
+  role_id?: string | null
   contract?: Worker['contract'] | null
   constraints?: Worker['constraints'] | null
   specialty_task_id?: string | null
   special_role?: string | null
   is_active?: boolean | null
+  role?: {
+    id: string
+    code: string
+    name: string
+  } | null
 }
 
 type EquipmentRow = {
@@ -94,6 +99,16 @@ type EquipmentStatusRow = {
   id: string
   name: string
   is_active: boolean | null
+}
+
+type AssignmentRow = {
+  id?: string
+  week_start: string
+  worker_id: number
+  task_id: string | null
+  equipment_id: string | null
+  shift: Assignment['shift']
+  source: Assignment['source']
 }
 
 async function fetchRows<T>(table: string, organizationId: string): Promise<T[]> {
@@ -201,6 +216,7 @@ function normalizeWorkers(raw: unknown): Worker[] | null {
     const motherLastName = (worker.motherLastName ?? parsedName?.motherLastName ?? '').trim()
     return {
       ...worker,
+      roleId: worker.roleId ?? null,
       roleCode,
       firstName,
       secondName,
@@ -308,7 +324,8 @@ function workerFromRow(row: WorkerRow): Worker {
     secondName: row.second_name ?? undefined,
     lastName: row.last_name ?? '',
     motherLastName: row.mother_last_name ?? undefined,
-    roleCode: row.role_code ?? '',
+    roleId: row.role_id ?? row.role?.id ?? null,
+    roleCode: row.role?.code ?? '',
     contract: row.contract ?? 'Indefinido',
     constraints: row.constraints ?? undefined,
     specialtyTaskId: row.specialty_task_id ?? null,
@@ -326,7 +343,7 @@ function workerToRow(worker: Worker, organizationId: string) {
     second_name: worker.secondName ?? null,
     last_name: worker.lastName,
     mother_last_name: worker.motherLastName ?? null,
-    role_code: worker.roleCode,
+    role_id: worker.roleId,
     contract: worker.contract,
     constraints: worker.constraints ?? null,
     specialty_task_id: worker.specialtyTaskId ?? null,
@@ -429,6 +446,35 @@ function equipmentStatusToRow(status: EquipmentStatusOption, organizationId: str
     organization_id: organizationId,
     name: status.name,
     is_active: status.isActive,
+  }
+}
+
+function resolveWorkerRoleId(worker: Worker, roleByCode: Map<string, string>, fallbackRoleId: string | null) {
+  return worker.roleId ?? roleByCode.get(worker.roleCode) ?? fallbackRoleId ?? null
+}
+
+function assignmentFromRow(row: AssignmentRow): Assignment {
+  return {
+    id: row.id,
+    weekStart: row.week_start,
+    workerId: row.worker_id,
+    taskId: row.task_id ?? null,
+    equipmentId: row.equipment_id ?? null,
+    shift: row.shift,
+    source: row.source,
+  }
+}
+
+function assignmentToRow(assignment: Assignment, organizationId: string) {
+  return {
+    id: assignment.id,
+    organization_id: organizationId,
+    week_start: assignment.weekStart,
+    worker_id: assignment.workerId,
+    task_id: assignment.taskId ?? null,
+    equipment_id: assignment.equipmentId ?? null,
+    shift: assignment.shift,
+    source: assignment.source,
   }
 }
 
@@ -561,7 +607,38 @@ export async function setEquipments(equipments: Equipment[], organizationId: str
 
 export async function getWorkers(organizationId: string): Promise<Worker[]> {
   const orgId = ensureOrganizationId(organizationId)
-  const workers = await seedTable<Worker, WorkerRow>('workers', orgId, defaultWorkers, workerToRow, workerFromRow)
+  const roles = await getRoles(orgId)
+  const roleByCode = new Map(roles.map((role) => [role.code, role.id]))
+  const fallbackRoleId = roles[0]?.id ?? null
+  const { data: existing, error: existingError } = await supabase
+    .from('workers')
+    .select('id')
+    .eq('organization_id', orgId)
+    .limit(1)
+  if (existingError) throw existingError
+  if (!existing || existing.length === 0) {
+    const rows = defaultWorkers.map((worker) => ({
+      ...worker,
+      roleId: resolveWorkerRoleId(worker, roleByCode, fallbackRoleId),
+    }))
+    if (rows.some((worker) => !worker.roleId)) {
+      throw new Error('Role id is required for workers')
+    }
+    const { error: insertError } = await supabase
+      .from('workers')
+      .insert(rows.map((worker) => workerToRow(worker, orgId)))
+    if (insertError) throw insertError
+  }
+  const { data, error } = await supabase
+    .from('workers')
+    .select(
+      'id, name, first_name, second_name, last_name, mother_last_name, role_id, contract, constraints, specialty_task_id, special_role, is_active, role:roles(id, code, name)',
+    )
+    .eq('organization_id', orgId)
+    .order('code', { foreignTable: 'roles' })
+    .order('id')
+  if (error) throw error
+  const workers = (data ?? []).map((row) => workerFromRow(row as WorkerRow))
   const normalized = normalizeWorkers(workers) ?? workers
   const tasks = await getTasks(orgId)
   return normalized.map((worker) => {
@@ -576,7 +653,17 @@ export async function getWorkers(organizationId: string): Promise<Worker[]> {
 
 export async function setWorkers(workers: Worker[], organizationId: string) {
   const orgId = ensureOrganizationId(organizationId)
-  await syncTable<Worker, ReturnType<typeof workerToRow>>('workers', orgId, workers, workerToRow)
+  const roles = await getRoles(orgId)
+  const roleByCode = new Map(roles.map((role) => [role.code, role.id]))
+  const fallbackRoleId = roles[0]?.id ?? null
+  const rows = workers.map((worker) => ({
+    ...worker,
+    roleId: resolveWorkerRoleId(worker, roleByCode, fallbackRoleId),
+  }))
+  if (rows.some((worker) => !worker.roleId)) {
+    throw new Error('Role id is required for workers')
+  }
+  await syncTable<Worker, ReturnType<typeof workerToRow>>('workers', orgId, rows, workerToRow)
 }
 
 function mapLegacyTaskName(tasks: Task[], name: string | undefined): string | undefined {
@@ -596,7 +683,7 @@ function normalizeAssignments(raw: unknown, weekStart: string, tasks: Task[]): A
         workerId: (assignment as Assignment).workerId,
         weekStart,
         shift: (assignment as Assignment).shift,
-        taskId,
+        taskId: taskId ?? null,
         equipmentId: (assignment as Assignment).equipmentId ?? null,
         source: (assignment as Assignment).source ?? 'manual',
       }
@@ -608,30 +695,66 @@ export async function getPlanning(weekStart: string, organizationId: string): Pr
   const orgId = ensureOrganizationId(organizationId)
   const { data, error } = await supabase
     .from('planning_records')
-    .select('week_start, assignments')
+    .select(
+      'week_start, assignments:assignments (id, week_start, worker_id, task_id, equipment_id, shift, source, task:tasks(id, name), equipment:equipments(id, serie))',
+    )
     .eq('organization_id', orgId)
     .eq('week_start', weekStart)
     .maybeSingle()
   if (error) throw error
-  if (!data || !Array.isArray(data.assignments)) return null
-  const tasks = await getTasks(orgId)
-  const assignments = normalizeAssignments(data.assignments, weekStart, tasks)
+  if (!data) return null
+  const assignments = Array.isArray(data.assignments)
+    ? data.assignments.map((row) => assignmentFromRow(row as AssignmentRow))
+    : []
   return { weekStart, assignments }
 }
 
 export async function setPlanning(weekStart: string, record: PlanningRecord, organizationId: string) {
   const orgId = ensureOrganizationId(organizationId)
-  const { error } = await supabase
+  const { error: upsertRecordError } = await supabase
     .from('planning_records')
     .upsert(
       {
         organization_id: orgId,
         week_start: weekStart,
-        assignments: record.assignments,
+        columns: {},
+        tasks_by_worker_id: {},
+        equipment_by_worker_id: {},
+        assignments: null,
       },
       { onConflict: 'organization_id,week_start' },
     )
-  if (error) throw error
+  if (upsertRecordError) throw upsertRecordError
+  const assignments = record.assignments.map((assignment) => ({
+    ...assignment,
+    weekStart,
+  }))
+  const { data: existing, error: existingError } = await supabase
+    .from('assignments')
+    .select('worker_id')
+    .eq('organization_id', orgId)
+    .eq('week_start', weekStart)
+  if (existingError) throw existingError
+  const existingIds = new Set((existing ?? []).map((row: { worker_id: number }) => String(row.worker_id)))
+  const incomingIds = new Set(assignments.map((assignment) => String(assignment.workerId)))
+  const idsToDelete = [...existingIds].filter((id) => !incomingIds.has(id))
+  if (idsToDelete.length > 0) {
+    const { error: deleteError } = await supabase
+      .from('assignments')
+      .delete()
+      .eq('organization_id', orgId)
+      .eq('week_start', weekStart)
+      .in('worker_id', idsToDelete)
+    if (deleteError) throw deleteError
+  }
+  if (assignments.length > 0) {
+    const { error: upsertAssignmentsError } = await supabase
+      .from('assignments')
+      .upsert(assignments.map((assignment) => assignmentToRow(assignment, orgId)), {
+        onConflict: 'organization_id,week_start,worker_id',
+      })
+    if (upsertAssignmentsError) throw upsertAssignmentsError
+  }
 }
 
 export async function clearPlanning(weekStart: string, organizationId: string) {
