@@ -68,12 +68,6 @@ export function SetupPage() {
   const [equipmentTypes, setEquipmentTypesState] = useState<EquipmentTypeOption[]>([])
   const [equipmentVariants, setEquipmentVariantsState] = useState<EquipmentVariantOption[]>([])
   const [equipmentStatuses, setEquipmentStatusesState] = useState<EquipmentStatusOption[]>([])
-  const [isSetupLoading, setIsSetupLoading] = useState(false)
-  const [isRolesSaving, setIsRolesSaving] = useState(false)
-  const [isTasksSaving, setIsTasksSaving] = useState(false)
-  const [isEquipmentTypesSaving, setIsEquipmentTypesSaving] = useState(false)
-  const [isEquipmentVariantsSaving, setIsEquipmentVariantsSaving] = useState(false)
-  const [isEquipmentStatusesSaving, setIsEquipmentStatusesSaving] = useState(false)
   const [members, setMembers] = useState<OrganizationMember[]>([])
   const [membersLoading, setMembersLoading] = useState(false)
   const [membersError, setMembersError] = useState<string | null>(null)
@@ -113,45 +107,23 @@ export function SetupPage() {
   })
   const [memberForm, setMemberForm] = useState<MemberFormState>({ userId: '', role: 'viewer' })
 
-  const refreshMembers = useCallback(async () => {
-    if (!activeOrganizationId) return
-    setMembersLoading(true)
-    setMembersError(null)
-    try {
-      const data = await getOrganizationMembers(activeOrganizationId)
-      setMembers(data)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'No se pudieron cargar los miembros.'
-      setMembersError(message)
-    } finally {
-      setMembersLoading(false)
-    }
-  }, [activeOrganizationId])
-
   useEffect(() => {
     if (!activeOrganizationId) return
     let isMounted = true
     const loadData = async () => {
-      setIsSetupLoading(true)
-      try {
-        const [rolesData, tasksData, typesData, variantsData, statusesData] = await Promise.all([
-          getRoles(activeOrganizationId),
-          getTasks(activeOrganizationId),
-          getEquipmentTypes(activeOrganizationId),
-          getEquipmentVariants(activeOrganizationId),
-          getEquipmentStatuses(activeOrganizationId),
-        ])
-        if (!isMounted) return
-        setRolesState(rolesData)
-        setTasksState(tasksData)
-        setEquipmentTypesState(typesData)
-        setEquipmentVariantsState(variantsData)
-        setEquipmentStatusesState(statusesData)
-      } finally {
-        if (isMounted) {
-          setIsSetupLoading(false)
-        }
-      }
+      const [rolesData, tasksData, typesData, variantsData, statusesData] = await Promise.all([
+        getRoles(activeOrganizationId),
+        getTasks(activeOrganizationId),
+        getEquipmentTypes(activeOrganizationId),
+        getEquipmentVariants(activeOrganizationId),
+        getEquipmentStatuses(activeOrganizationId),
+      ])
+      if (!isMounted) return
+      setRolesState(rolesData)
+      setTasksState(tasksData)
+      setEquipmentTypesState(typesData)
+      setEquipmentVariantsState(variantsData)
+      setEquipmentStatusesState(statusesData)
     }
     void loadData()
     return () => {
@@ -161,107 +133,32 @@ export function SetupPage() {
 
   useEffect(() => {
     if (roles.length > 0 && activeOrganizationId && canWrite) {
-      let isMounted = true
-      const saveRoles = async () => {
-        setIsRolesSaving(true)
-        try {
-          await setRoles(roles, activeOrganizationId)
-        } finally {
-          if (isMounted) {
-            setIsRolesSaving(false)
-          }
-        }
-      }
-      void saveRoles()
-      return () => {
-        isMounted = false
-      }
+      void setRoles(roles, activeOrganizationId)
     }
-    return undefined
   }, [roles, activeOrganizationId, canWrite])
 
   useEffect(() => {
     if (tasks.length > 0 && activeOrganizationId && canWrite) {
-      let isMounted = true
-      const saveTasks = async () => {
-        setIsTasksSaving(true)
-        try {
-          await setTasks(tasks, activeOrganizationId)
-        } finally {
-          if (isMounted) {
-            setIsTasksSaving(false)
-          }
-        }
-      }
-      void saveTasks()
-      return () => {
-        isMounted = false
-      }
+      void setTasks(tasks, activeOrganizationId)
     }
-    return undefined
   }, [tasks, activeOrganizationId, canWrite])
 
   useEffect(() => {
     if (equipmentTypes.length > 0 && activeOrganizationId && canWrite) {
-      let isMounted = true
-      const saveTypes = async () => {
-        setIsEquipmentTypesSaving(true)
-        try {
-          await setEquipmentTypes(equipmentTypes, activeOrganizationId)
-        } finally {
-          if (isMounted) {
-            setIsEquipmentTypesSaving(false)
-          }
-        }
-      }
-      void saveTypes()
-      return () => {
-        isMounted = false
-      }
+      void setEquipmentTypes(equipmentTypes, activeOrganizationId)
     }
-    return undefined
   }, [equipmentTypes, activeOrganizationId, canWrite])
 
   useEffect(() => {
     if (equipmentVariants.length > 0 && activeOrganizationId && canWrite) {
-      let isMounted = true
-      const saveVariants = async () => {
-        setIsEquipmentVariantsSaving(true)
-        try {
-          await setEquipmentVariants(equipmentVariants, activeOrganizationId)
-        } finally {
-          if (isMounted) {
-            setIsEquipmentVariantsSaving(false)
-          }
-        }
-      }
-      void saveVariants()
-      return () => {
-        isMounted = false
-      }
+      void setEquipmentVariants(equipmentVariants, activeOrganizationId)
     }
-    return undefined
   }, [equipmentVariants, activeOrganizationId, canWrite])
 
   useEffect(() => {
     if (equipmentStatuses.length > 0 && activeOrganizationId && canWrite) {
-      let isMounted = true
-      const saveStatuses = async () => {
-        setIsEquipmentStatusesSaving(true)
-        try {
-          await setEquipmentStatuses(equipmentStatuses, activeOrganizationId)
-        } finally {
-          if (isMounted) {
-            setIsEquipmentStatusesSaving(false)
-          }
-        }
-      }
-      void saveStatuses()
-      return () => {
-        isMounted = false
-      }
+      void setEquipmentStatuses(equipmentStatuses, activeOrganizationId)
     }
-    return undefined
   }, [equipmentStatuses, activeOrganizationId, canWrite])
 
   useEffect(() => {
@@ -297,6 +194,21 @@ export function SetupPage() {
     })
     return map
   }, [equipmentVariants])
+
+  const refreshMembers = useCallback(async () => {
+    if (!activeOrganizationId) return
+    setMembersLoading(true)
+    setMembersError(null)
+    try {
+      const data = await getOrganizationMembers(activeOrganizationId)
+      setMembers(data)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'No se pudieron cargar los miembros.'
+      setMembersError(message)
+    } finally {
+      setMembersLoading(false)
+    }
+  }, [activeOrganizationId])
 
   function normalizeVariant(type: string, variant: string) {
     if (!type) return ''
@@ -652,13 +564,7 @@ export function SetupPage() {
               </tr>
             </thead>
             <tbody>
-              {membersLoading ? (
-                <tr>
-                  <td colSpan={3} className="empty-cell">
-                    Cargando miembros...
-                  </td>
-                </tr>
-              ) : members.length === 0 ? (
+              {members.length === 0 ? (
                 <tr>
                   <td colSpan={3}>Sin miembros aún.</td>
                 </tr>
@@ -749,7 +655,6 @@ export function SetupPage() {
             +
           </button>
         </div>
-        {isRolesSaving ? <p className="helper-text">Guardando roles...</p> : null}
         {isRoleFormOpen ? (
           <form className="form-card" onSubmit={handleRoleSubmit}>
             <div className="form-header">
@@ -758,8 +663,8 @@ export function SetupPage() {
                 <p className="subtitle">Gestiona el código y nombre del rol.</p>
               </div>
               <div className="button-row">
-                <button type="submit" disabled={!canWrite || isRolesSaving}>
-                  {isRolesSaving ? 'Guardando...' : roleEditingId ? 'Guardar cambios' : 'Agregar'}
+                <button type="submit" disabled={!canWrite}>
+                  {roleEditingId ? 'Guardar cambios' : 'Agregar'}
                 </button>
                 <button type="button" onClick={resetRoleForm}>
                   Cancelar
@@ -811,43 +716,35 @@ export function SetupPage() {
               </tr>
             </thead>
             <tbody>
-              {isSetupLoading ? (
-                <tr>
-                  <td colSpan={4} className="empty-cell">
-                    Cargando roles...
+              {roles.map((role) => (
+                <tr key={role.id}>
+                  <td>{role.code}</td>
+                  <td>{role.name}</td>
+                  <td>{role.isActive ? 'Activo' : 'Inactivo'}</td>
+                  <td className="cell-actions">
+                    <div className="button-row">
+                      <button
+                        type="button"
+                        className="icon-button"
+                        onClick={() => handleEditRole(role)}
+                        aria-label="Editar rol"
+                        disabled={!canWrite}
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-button"
+                        onClick={() => handleDeleteRole(role.id)}
+                        aria-label="Borrar rol"
+                        disabled={!canWrite}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
-              ) : (
-                roles.map((role) => (
-                  <tr key={role.id}>
-                    <td>{role.code}</td>
-                    <td>{role.name}</td>
-                    <td>{role.isActive ? 'Activo' : 'Inactivo'}</td>
-                    <td className="cell-actions">
-                      <div className="button-row">
-                        <button
-                          type="button"
-                          className="icon-button"
-                          onClick={() => handleEditRole(role)}
-                          aria-label="Editar rol"
-                          disabled={!canWrite}
-                        >
-                          <Pencil size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          className="icon-button"
-                          onClick={() => handleDeleteRole(role.id)}
-                          aria-label="Borrar rol"
-                          disabled={!canWrite}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
         </div>
@@ -869,7 +766,6 @@ export function SetupPage() {
             +
           </button>
         </div>
-        {isTasksSaving ? <p className="helper-text">Guardando funciones...</p> : null}
         {isTaskFormOpen ? (
           <form className="form-card" onSubmit={handleTaskSubmit}>
             <div className="form-header">
@@ -878,8 +774,8 @@ export function SetupPage() {
                 <p className="subtitle">Selecciona rol y equipo según corresponda.</p>
               </div>
               <div className="button-row">
-                <button type="submit" disabled={!canWrite || isTasksSaving}>
-                  {isTasksSaving ? 'Guardando...' : taskEditingId ? 'Guardar cambios' : 'Agregar'}
+                <button type="submit" disabled={!canWrite}>
+                  {taskEditingId ? 'Guardar cambios' : 'Agregar'}
                 </button>
                 <button type="button" onClick={resetTaskForm}>
                   Cancelar
@@ -973,45 +869,37 @@ export function SetupPage() {
               </tr>
             </thead>
             <tbody>
-              {isSetupLoading ? (
-                <tr>
-                  <td colSpan={6} className="empty-cell">
-                    Cargando funciones...
+              {sortedTasks.map((task) => (
+                <tr key={task.id}>
+                  <td>{task.allowedRoleCodes[0] ?? 'Sin rol'}</td>
+                  <td>{task.name}</td>
+                  <td>{task.equipmentType ?? 'Sin equipo'}</td>
+                  <td>{task.equipmentVariant ?? 'Sin variante'}</td>
+                  <td>{task.isActive ? 'Activo' : 'Inactivo'}</td>
+                  <td className="cell-actions">
+                    <div className="button-row">
+                      <button
+                        type="button"
+                        className="icon-button"
+                        onClick={() => handleEditTask(task)}
+                        aria-label="Editar función"
+                        disabled={!canWrite}
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-button"
+                        onClick={() => handleDeleteTask(task.id)}
+                        aria-label="Borrar función"
+                        disabled={!canWrite}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
-              ) : (
-                sortedTasks.map((task) => (
-                  <tr key={task.id}>
-                    <td>{task.allowedRoleCodes[0] ?? 'Sin rol'}</td>
-                    <td>{task.name}</td>
-                    <td>{task.equipmentType ?? 'Sin equipo'}</td>
-                    <td>{task.equipmentVariant ?? 'Sin variante'}</td>
-                    <td>{task.isActive ? 'Activo' : 'Inactivo'}</td>
-                    <td className="cell-actions">
-                      <div className="button-row">
-                        <button
-                          type="button"
-                          className="icon-button"
-                          onClick={() => handleEditTask(task)}
-                          aria-label="Editar función"
-                          disabled={!canWrite}
-                        >
-                          <Pencil size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          className="icon-button"
-                          onClick={() => handleDeleteTask(task.id)}
-                          aria-label="Borrar función"
-                          disabled={!canWrite}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
         </div>
@@ -1033,7 +921,6 @@ export function SetupPage() {
             +
           </button>
         </div>
-        {isEquipmentTypesSaving ? <p className="helper-text">Guardando tipos...</p> : null}
         {isEquipmentTypeFormOpen ? (
           <form className="form-card" onSubmit={handleEquipmentTypeSubmit}>
             <div className="form-header">
@@ -1042,8 +929,8 @@ export function SetupPage() {
                 <p className="subtitle">Asigna un rol principal al tipo de equipo.</p>
               </div>
               <div className="button-row">
-                <button type="submit" disabled={!canWrite || isEquipmentTypesSaving}>
-                  {isEquipmentTypesSaving ? 'Guardando...' : equipmentTypeEditingId ? 'Guardar cambios' : 'Agregar'}
+                <button type="submit" disabled={!canWrite}>
+                  {equipmentTypeEditingId ? 'Guardar cambios' : 'Agregar'}
                 </button>
                 <button type="button" onClick={resetEquipmentTypeForm}>
                   Cancelar
@@ -1102,43 +989,35 @@ export function SetupPage() {
               </tr>
             </thead>
             <tbody>
-              {isSetupLoading ? (
-                <tr>
-                  <td colSpan={4} className="empty-cell">
-                    Cargando tipos...
+              {equipmentTypes.map((type) => (
+                <tr key={type.id}>
+                  <td>{type.roleCode || 'Sin rol'}</td>
+                  <td>{type.name}</td>
+                  <td>{type.isActive ? 'Activo' : 'Inactivo'}</td>
+                  <td className="cell-actions">
+                    <div className="button-row">
+                      <button
+                        type="button"
+                        className="icon-button"
+                        onClick={() => handleEditEquipmentType(type)}
+                        aria-label="Editar tipo"
+                        disabled={!canWrite}
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-button"
+                        onClick={() => handleDeleteEquipmentType(type.id)}
+                        aria-label="Borrar tipo"
+                        disabled={!canWrite}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
-              ) : (
-                equipmentTypes.map((type) => (
-                  <tr key={type.id}>
-                    <td>{type.roleCode || 'Sin rol'}</td>
-                    <td>{type.name}</td>
-                    <td>{type.isActive ? 'Activo' : 'Inactivo'}</td>
-                    <td className="cell-actions">
-                      <div className="button-row">
-                        <button
-                          type="button"
-                          className="icon-button"
-                          onClick={() => handleEditEquipmentType(type)}
-                          aria-label="Editar tipo"
-                          disabled={!canWrite}
-                        >
-                          <Pencil size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          className="icon-button"
-                          onClick={() => handleDeleteEquipmentType(type.id)}
-                          aria-label="Borrar tipo"
-                          disabled={!canWrite}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
         </div>
@@ -1160,7 +1039,6 @@ export function SetupPage() {
             +
           </button>
         </div>
-        {isEquipmentVariantsSaving ? <p className="helper-text">Guardando variantes...</p> : null}
         {isEquipmentVariantFormOpen ? (
           <form className="form-card" onSubmit={handleEquipmentVariantSubmit}>
             <div className="form-header">
@@ -1169,8 +1047,8 @@ export function SetupPage() {
                 <p className="subtitle">Relaciona la variante con un tipo específico.</p>
               </div>
               <div className="button-row">
-                <button type="submit" disabled={!canWrite || isEquipmentVariantsSaving}>
-                  {isEquipmentVariantsSaving ? 'Guardando...' : equipmentVariantEditingId ? 'Guardar cambios' : 'Agregar'}
+                <button type="submit" disabled={!canWrite}>
+                  {equipmentVariantEditingId ? 'Guardar cambios' : 'Agregar'}
                 </button>
                 <button type="button" onClick={resetEquipmentVariantForm}>
                   Cancelar
@@ -1231,43 +1109,35 @@ export function SetupPage() {
               </tr>
             </thead>
             <tbody>
-              {isSetupLoading ? (
-                <tr>
-                  <td colSpan={4} className="empty-cell">
-                    Cargando variantes...
+              {equipmentVariants.map((variant) => (
+                <tr key={variant.id}>
+                  <td>{variant.type}</td>
+                  <td>{variant.name}</td>
+                  <td>{variant.isActive ? 'Activo' : 'Inactivo'}</td>
+                  <td className="cell-actions">
+                    <div className="button-row">
+                      <button
+                        type="button"
+                        className="icon-button"
+                        onClick={() => handleEditEquipmentVariant(variant)}
+                        aria-label="Editar variante"
+                        disabled={!canWrite}
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-button"
+                        onClick={() => handleDeleteEquipmentVariant(variant.id)}
+                        aria-label="Borrar variante"
+                        disabled={!canWrite}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
-              ) : (
-                equipmentVariants.map((variant) => (
-                  <tr key={variant.id}>
-                    <td>{variant.type}</td>
-                    <td>{variant.name}</td>
-                    <td>{variant.isActive ? 'Activo' : 'Inactivo'}</td>
-                    <td className="cell-actions">
-                      <div className="button-row">
-                        <button
-                          type="button"
-                          className="icon-button"
-                          onClick={() => handleEditEquipmentVariant(variant)}
-                          aria-label="Editar variante"
-                          disabled={!canWrite}
-                        >
-                          <Pencil size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          className="icon-button"
-                          onClick={() => handleDeleteEquipmentVariant(variant.id)}
-                          aria-label="Borrar variante"
-                          disabled={!canWrite}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
         </div>
@@ -1289,7 +1159,6 @@ export function SetupPage() {
             +
           </button>
         </div>
-        {isEquipmentStatusesSaving ? <p className="helper-text">Guardando estados...</p> : null}
         {isEquipmentStatusFormOpen ? (
           <form className="form-card" onSubmit={handleEquipmentStatusSubmit}>
             <div className="form-header">
@@ -1298,8 +1167,8 @@ export function SetupPage() {
                 <p className="subtitle">Controla la disponibilidad de los equipos.</p>
               </div>
               <div className="button-row">
-                <button type="submit" disabled={!canWrite || isEquipmentStatusesSaving}>
-                  {isEquipmentStatusesSaving ? 'Guardando...' : equipmentStatusEditingId ? 'Guardar cambios' : 'Agregar'}
+                <button type="submit" disabled={!canWrite}>
+                  {equipmentStatusEditingId ? 'Guardar cambios' : 'Agregar'}
                 </button>
                 <button type="button" onClick={resetEquipmentStatusForm}>
                   Cancelar
@@ -1343,42 +1212,34 @@ export function SetupPage() {
               </tr>
             </thead>
             <tbody>
-              {isSetupLoading ? (
-                <tr>
-                  <td colSpan={3} className="empty-cell">
-                    Cargando estados...
+              {equipmentStatuses.map((status) => (
+                <tr key={status.id}>
+                  <td>{status.name}</td>
+                  <td>{status.isActive ? 'Activo' : 'Inactivo'}</td>
+                  <td className="cell-actions">
+                    <div className="button-row">
+                      <button
+                        type="button"
+                        className="icon-button"
+                        onClick={() => handleEditEquipmentStatus(status)}
+                        aria-label="Editar estado"
+                        disabled={!canWrite}
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-button"
+                        onClick={() => handleDeleteEquipmentStatus(status.id)}
+                        aria-label="Borrar estado"
+                        disabled={!canWrite}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
-              ) : (
-                equipmentStatuses.map((status) => (
-                  <tr key={status.id}>
-                    <td>{status.name}</td>
-                    <td>{status.isActive ? 'Activo' : 'Inactivo'}</td>
-                    <td className="cell-actions">
-                      <div className="button-row">
-                        <button
-                          type="button"
-                          className="icon-button"
-                          onClick={() => handleEditEquipmentStatus(status)}
-                          aria-label="Editar estado"
-                          disabled={!canWrite}
-                        >
-                          <Pencil size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          className="icon-button"
-                          onClick={() => handleDeleteEquipmentStatus(status.id)}
-                          aria-label="Borrar estado"
-                          disabled={!canWrite}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
         </div>
