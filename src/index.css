@@ -194,6 +194,32 @@ th {
   color: #374151;
 }
 
+.setup-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.setup-section {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  background: #fff;
+}
+
+.setup-section-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.setup-section-header h2 {
+  margin: 0;
+}
+
 .planning-board {
   margin-top: 16px;
   display: grid;
