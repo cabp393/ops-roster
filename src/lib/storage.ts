@@ -577,22 +577,12 @@ function shiftHistoryToRow(assignment: Assignment, organizationId: string) {
 export async function createOrganizationWithOwner(name: string) {
   const trimmedName = name.trim()
   if (!trimmedName) throw new Error('El nombre de la organización es obligatorio.')
-  const userId = await getCurrentUserId()
-  if (!userId) throw new Error('No se encontró el usuario autenticado.')
-  const { data, error } = await supabase
-    .from('organizations')
-    .insert({ name: trimmedName })
-    .select('id,name')
-    .single()
-  if (error) throw error
-  const organizationId = data.id
-  const { error: memberError } = await supabase.from('organization_members').insert({
-    organization_id: organizationId,
-    user_id: userId,
-    role: 'owner',
+  const { data, error } = await supabase.rpc('create_organization_with_owner', {
+    organization_name: trimmedName,
   })
-  if (memberError) throw memberError
-  return data
+  if (error) throw error
+  if (!data || data.length === 0) throw new Error('No se pudo crear la organización.')
+  return data[0]
 }
 
 export async function getOrganizationMembers(organizationId: string): Promise<OrganizationMember[]> {
