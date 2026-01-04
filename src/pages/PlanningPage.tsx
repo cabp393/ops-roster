@@ -156,7 +156,6 @@ function buildColumnFromGroups(groups: Record<RoleCode, number[]>) {
 }
 
 function getContractToneClass(worker: Worker) {
-  if (worker.contract === 'Indefinido') return ' contract-indefinido'
   if (worker.contract === 'Plazo fijo') return ' contract-plazo'
   return ''
 }
@@ -975,6 +974,7 @@ export function PlanningPage({
               className="icon-button"
               onClick={() => handleWeekShift('prev')}
               aria-label="Semana anterior"
+              title="Semana anterior"
             >
               <ArrowLeft size={14} />
             </button>
@@ -983,6 +983,7 @@ export function PlanningPage({
               className="icon-button"
               onClick={() => handleWeekShift('next')}
               aria-label="Semana siguiente"
+              title="Semana siguiente"
             >
               <ArrowRight size={14} />
             </button>
@@ -993,6 +994,7 @@ export function PlanningPage({
               className="icon-button"
               onClick={handleRotateShifts}
               aria-label="Rotar turnos"
+              title="Rotar turnos"
             >
               <RefreshCcw size={14} />
             </button>
@@ -1001,8 +1003,19 @@ export function PlanningPage({
               className="icon-button"
               onClick={handleAssignEquipments}
               aria-label="Asignar equipos"
+              title="Asignar equipos"
             >
               <Users size={14} />
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              onClick={handleToggleAllGroups}
+              aria-label={hasCollapsedGroups ? 'Expandir grupos' : 'Colapsar grupos'}
+              title={hasCollapsedGroups ? 'Expandir grupos' : 'Colapsar grupos'}
+              disabled={visibleGroupKeys.length === 0}
+            >
+              {hasCollapsedGroups ? <Eye size={14} /> : <EyeOff size={14} />}
             </button>
             <div className="options-menu" ref={optionsMenuRef}>
               <button
@@ -1010,6 +1023,7 @@ export function PlanningPage({
                 className="icon-button options-menu-toggle"
                 onClick={() => setIsOptionsMenuOpen((open) => !open)}
                 aria-label="Más opciones"
+                title="Más opciones"
                 aria-haspopup="menu"
                 aria-expanded={isOptionsMenuOpen}
               >
@@ -1053,15 +1067,6 @@ export function PlanningPage({
                 </div>
               ) : null}
             </div>
-            <button
-              type="button"
-              className="icon-button"
-              onClick={handleToggleAllGroups}
-              aria-label={hasCollapsedGroups ? 'Expandir grupos' : 'Colapsar grupos'}
-              disabled={visibleGroupKeys.length === 0}
-            >
-              {hasCollapsedGroups ? <Eye size={14} /> : <EyeOff size={14} />}
-            </button>
           </div>
         </div>
       </div>

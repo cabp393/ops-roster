@@ -138,6 +138,7 @@ export function SummaryPage({ weekNumber, weekYear, onWeekChange, onGoToPlanning
               className="icon-button"
               onClick={() => handleWeekShift('prev')}
               aria-label="Semana anterior"
+              title="Semana anterior"
             >
               <ArrowLeft size={14} />
             </button>
@@ -146,6 +147,7 @@ export function SummaryPage({ weekNumber, weekYear, onWeekChange, onGoToPlanning
               className="icon-button"
               onClick={() => handleWeekShift('next')}
               aria-label="Semana siguiente"
+              title="Semana siguiente"
             >
               <ArrowRight size={14} />
             </button>
@@ -156,6 +158,7 @@ export function SummaryPage({ weekNumber, weekYear, onWeekChange, onGoToPlanning
               className="icon-button"
               onClick={onGoToPlanning}
               aria-label="Ir a planificación"
+              title="Ir a planificación"
             >
               <Eye size={14} />
             </button>
