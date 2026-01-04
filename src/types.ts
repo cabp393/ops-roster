@@ -1,13 +1,5 @@
 export type Shift = 'M' | 'T' | 'N'
 
-export type OrganizationMemberRole = 'viewer' | 'editor' | 'owner'
-
-export type OrganizationMember = {
-  userId: string
-  role: OrganizationMemberRole
-  createdAt: string
-}
-
 export type Role = {
   id: string
   code: string
@@ -68,7 +60,6 @@ export type Worker = {
   secondName?: string
   lastName: string
   motherLastName?: string
-  roleId?: string | null
   roleCode: string
   contract: 'Indefinido' | 'Plazo fijo'
   constraints?: {
@@ -80,26 +71,12 @@ export type Worker = {
 }
 
 export type Assignment = {
-  id?: string
   workerId: number
   weekStart: string
   shift: Shift
-  taskId: string | null
-  equipmentId: string | null
+  taskId?: string
+  equipmentId?: string | null
   source: 'generated' | 'manual'
-}
-
-export type ShiftHistoryEntry = {
-  id: string
-  weekStart: string
-  workerId: number
-  shift: Shift
-  taskId: string | null
-  equipmentId: string | null
-  source: string
-  createdAt: string
-  taskName?: string | null
-  equipmentSerie?: string | null
 }
 
 export type PlanningRecord = {
