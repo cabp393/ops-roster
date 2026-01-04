@@ -668,7 +668,7 @@ export function PlanningPage({
         [title],
         [subtitle],
         [],
-        ['ID', 'Nombre', 'Rol', 'Función', 'Equipo'],
+        ['Legajo', 'Nombre', 'Rol', 'Función', 'Equipo'],
         ...rows.map((row) => [row.id, row.name, row.role, row.task, row.equipment]),
       ]
       const sheet = XLSX.utils.aoa_to_sheet(data)
@@ -730,7 +730,7 @@ export function PlanningPage({
       doc.line(marginX, lineY, pageWidth - marginX, lineY)
 
       const rows = getShiftExportRows(shift, '')
-      const headers = ['ID', 'Nombre', 'Rol', 'Función', 'Equipo']
+      const headers = ['Legajo', 'Nombre', 'Rol', 'Función', 'Equipo']
       const body = rows.map((row) => [row.id, row.name, row.role, row.task, row.equipment])
 
       doc.setFont('helvetica', 'normal')
