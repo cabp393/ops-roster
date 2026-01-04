@@ -175,6 +175,46 @@ th {
   height: 14px;
 }
 
+.download-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.download-menu-toggle {
+  gap: 4px;
+}
+
+.download-menu-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 15;
+}
+
+.download-menu-item {
+  border: 1px solid transparent;
+  background: #f9fafb;
+  color: #111827;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.download-menu-item:hover {
+  border-color: #d1d5db;
+  background: #f3f4f6;
+}
+
 .toast {
   position: fixed;
   right: 24px;
