@@ -8,6 +8,7 @@ import {
   getEquipments,
   setEquipments,
 } from '../lib/storage'
+import { useOrganization } from '../lib/organizationContext'
 import type {
   Equipment,
   EquipmentRoleOption,
@@ -26,6 +27,7 @@ type EquipmentFormState = {
 }
 
 export function EquipmentsPage() {
+  const { activeOrganizationId } = useOrganization()
   const [equipments, setEquipmentsState] = useState<Equipment[]>([])
   const [equipmentRoles, setEquipmentRolesState] = useState<EquipmentRoleOption[]>([])
   const [equipmentTypes, setEquipmentTypesState] = useState<EquipmentTypeOption[]>([])
@@ -47,12 +49,28 @@ export function EquipmentsPage() {
   })
 
   useEffect(() => {
-    setEquipmentsState(getEquipments())
-    setEquipmentRolesState(getEquipmentRoles())
-    setEquipmentTypesState(getEquipmentTypes())
-    setEquipmentVariantsState(getEquipmentVariants())
-    setEquipmentStatusesState(getEquipmentStatuses())
-  }, [])
+    if (!activeOrganizationId) return
+    let isMounted = true
+    const loadData = async () => {
+      const [equipmentsData, rolesData, typesData, variantsData, statusesData] = await Promise.all([
+        getEquipments(activeOrganizationId),
+        getEquipmentRoles(activeOrganizationId),
+        getEquipmentTypes(activeOrganizationId),
+        getEquipmentVariants(activeOrganizationId),
+        getEquipmentStatuses(activeOrganizationId),
+      ])
+      if (!isMounted) return
+      setEquipmentsState(equipmentsData)
+      setEquipmentRolesState(rolesData)
+      setEquipmentTypesState(typesData)
+      setEquipmentVariantsState(variantsData)
+      setEquipmentStatusesState(statusesData)
+    }
+    void loadData()
+    return () => {
+      isMounted = false
+    }
+  }, [activeOrganizationId])
 
   const variantsByType = useMemo(() => {
     const map = new Map<string, EquipmentVariantOption[]>()
@@ -152,14 +170,18 @@ export function EquipmentsPage() {
       ? equipments.map((equipment) => (equipment.id === editingId ? nextEquipment : equipment))
       : [...equipments, nextEquipment]
     setEquipmentsState(nextEquipments)
-    setEquipments(nextEquipments)
+    if (activeOrganizationId) {
+      void setEquipments(nextEquipments, activeOrganizationId)
+    }
     resetForm()
   }
 
   function handleDelete(id: string) {
     const nextEquipments = equipments.filter((equipment) => equipment.id !== id)
     setEquipmentsState(nextEquipments)
-    setEquipments(nextEquipments)
+    if (activeOrganizationId) {
+      void setEquipments(nextEquipments, activeOrganizationId)
+    }
     if (editingId === id) resetForm()
   }
 

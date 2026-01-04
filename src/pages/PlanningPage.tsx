@@ -58,6 +58,7 @@ import {
 } from '../lib/week'
 import { getEquipments, getTasks, getWorkers } from '../lib/storage'
 import { getWorkerDisplayName } from '../lib/workerName'
+import { useOrganization } from '../lib/organizationContext'
 import type { Equipment, Shift, Task, WeekPlan, Worker } from '../types'
 
 const emptyPlan: WeekPlan = {
@@ -400,6 +401,7 @@ export function PlanningPage({
   weekYear,
   onWeekChange,
 }: PlanningPageProps) {
+  const { activeOrganizationId } = useOrganization()
   const [plan, setPlan] = useState<WeekPlan>(emptyPlan)
   const [tasks, setTasks] = useState<Task[]>([])
   const [workers, setWorkers] = useState<Worker[]>([])
@@ -415,11 +417,26 @@ export function PlanningPage({
   const downloadMenuRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    setTasks(getTasks())
-    setWorkers(getWorkers())
-    setEquipments(getEquipments())
-    setHasLoadedRoster(true)
-  }, [])
+    if (!activeOrganizationId) return
+    let isMounted = true
+    setHasLoadedRoster(false)
+    const loadRoster = async () => {
+      const [tasksData, workersData, equipmentsData] = await Promise.all([
+        getTasks(activeOrganizationId),
+        getWorkers(activeOrganizationId),
+        getEquipments(activeOrganizationId),
+      ])
+      if (!isMounted) return
+      setTasks(tasksData)
+      setWorkers(workersData)
+      setEquipments(equipmentsData)
+      setHasLoadedRoster(true)
+    }
+    void loadRoster()
+    return () => {
+      isMounted = false
+    }
+  }, [activeOrganizationId])
 
   const activeWorkers = useMemo(
     () => workers.filter((worker) => worker.isActive !== false),
@@ -440,17 +457,25 @@ export function PlanningPage({
   const weekLabel = useMemo(() => getWeekRangeLabel(weekNumber, weekYear), [weekNumber, weekYear])
 
   useEffect(() => {
-    if (!hasLoadedRoster) return
+    if (!hasLoadedRoster || !activeOrganizationId) return
+    let isMounted = true
     setHasLoadedPlan(false)
-    const saved = loadWeekPlan(weekStart)
-    if (!saved) {
-      setPlan({ ...emptyPlan, weekStart })
+    const loadPlan = async () => {
+      const saved = await loadWeekPlan(weekStart, activeOrganizationId)
+      if (!isMounted) return
+      if (!saved) {
+        setPlan({ ...emptyPlan, weekStart })
+        setHasLoadedPlan(true)
+        return
+      }
+      setPlan(sanitizePlan({ ...saved, weekStart }, activeWorkerIds))
       setHasLoadedPlan(true)
-      return
     }
-    setPlan(sanitizePlan({ ...saved, weekStart }, activeWorkerIds))
-    setHasLoadedPlan(true)
-  }, [weekStart, activeWorkerIds, hasLoadedRoster])
+    void loadPlan()
+    return () => {
+      isMounted = false
+    }
+  }, [weekStart, activeWorkerIds, hasLoadedRoster, activeOrganizationId])
 
   const workerById = useMemo(
     () => new Map(activeWorkers.map((worker) => [worker.id, worker])),
@@ -607,14 +632,17 @@ export function PlanningPage({
 
   function persist(nextPlan: WeekPlan) {
     setPlan(nextPlan)
-    saveWeekPlan(weekStart, nextPlan)
+    if (activeOrganizationId) {
+      void saveWeekPlan(weekStart, nextPlan, activeOrganizationId)
+    }
   }
 
-  function handleRotateShifts() {
+  async function handleRotateShifts() {
+    if (!activeOrganizationId) return
     const currentStart = new Date(`${weekStart}T00:00:00Z`)
     currentStart.setUTCDate(currentStart.getUTCDate() - 7)
     const prevWeekStart = formatDate(currentStart)
-    const prevWeekPlan = loadWeekPlan(prevWeekStart)
+    const prevWeekPlan = await loadWeekPlan(prevWeekStart, activeOrganizationId)
     const previousShifts = getShiftsByWorker(prevWeekPlan)
     const activeTaskIds = new Set(activeTasks.map((task) => task.id))
     const seeded = seedWeekPlan(weekStart, activeWorkers, previousShifts, activeTaskIds)
@@ -647,11 +675,15 @@ export function PlanningPage({
   }
 
   function handleSave() {
-    saveWeekPlan(weekStart, plan)
+    if (activeOrganizationId) {
+      void saveWeekPlan(weekStart, plan, activeOrganizationId)
+    }
   }
 
   function handleClear() {
-    clearWeekPlan(weekStart)
+    if (activeOrganizationId) {
+      void clearWeekPlan(weekStart, activeOrganizationId)
+    }
     setPlan({ ...emptyPlan, weekStart })
   }
 

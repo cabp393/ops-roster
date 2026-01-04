@@ -21,11 +21,28 @@ body {
 }
 
 .header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
   margin-bottom: 20px;
 }
 
 .subtitle {
   margin: 6px 0 0;
+  color: #6b7280;
+}
+
+.organization-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.helper-text {
+  font-size: 0.85rem;
   color: #6b7280;
 }
 

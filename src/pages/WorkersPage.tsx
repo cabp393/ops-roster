@@ -3,6 +3,7 @@ import { Pencil, Trash2 } from 'lucide-react'
 import { SHIFTS } from '../data/mock'
 import { getRoles, getTasks, getWorkers, setWorkers as setWorkersStorage } from '../lib/storage'
 import { getWorkerDisplayName, getWorkerFullName } from '../lib/workerName'
+import { useOrganization } from '../lib/organizationContext'
 import type { Role, Shift, Task, Worker } from '../types'
 
 type WorkerFormState = {
@@ -32,6 +33,7 @@ function createDefaultAllowedShifts(): WorkerFormState['allowedShifts'] {
 }
 
 export function WorkersPage() {
+  const { activeOrganizationId } = useOrganization()
   const [workers, setWorkers] = useState<Worker[]>([])
   const [roles, setRoles] = useState<Role[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
@@ -54,10 +56,24 @@ export function WorkersPage() {
   }))
 
   useEffect(() => {
-    setWorkers(getWorkers())
-    setRoles(getRoles())
-    setTasks(getTasks())
-  }, [])
+    if (!activeOrganizationId) return
+    let isMounted = true
+    const loadData = async () => {
+      const [workersData, rolesData, tasksData] = await Promise.all([
+        getWorkers(activeOrganizationId),
+        getRoles(activeOrganizationId),
+        getTasks(activeOrganizationId),
+      ])
+      if (!isMounted) return
+      setWorkers(workersData)
+      setRoles(rolesData)
+      setTasks(tasksData)
+    }
+    void loadData()
+    return () => {
+      isMounted = false
+    }
+  }, [activeOrganizationId])
 
   useEffect(() => {
     if (roles.length === 0) return
@@ -207,14 +223,18 @@ export function WorkersPage() {
       ? workers.map((worker) => (worker.id === editingId ? updatedWorker : worker))
       : [...workers, updatedWorker]
     setWorkers(nextWorkers)
-    setWorkersStorage(nextWorkers)
+    if (activeOrganizationId) {
+      void setWorkersStorage(nextWorkers, activeOrganizationId)
+    }
     resetForm()
   }
 
   function handleDelete(id: number) {
     const nextWorkers = workers.filter((worker) => worker.id !== id)
     setWorkers(nextWorkers)
-    setWorkersStorage(nextWorkers)
+    if (activeOrganizationId) {
+      void setWorkersStorage(nextWorkers, activeOrganizationId)
+    }
     if (editingId === id) {
       resetForm()
     }

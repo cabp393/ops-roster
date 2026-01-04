@@ -5,6 +5,7 @@ import { loadWeekPlan } from '../lib/planningBoard'
 import { formatDate, getIsoWeekNumber, getIsoWeekYear, getWeekRangeLabel, getWeekStartDate } from '../lib/week'
 import { getRoles, getTasks, getWorkers } from '../lib/storage'
 import { summarizeWeek } from '../lib/summary'
+import { useOrganization } from '../lib/organizationContext'
 import type { Assignment, Role, Task, Worker } from '../types'
 
 type SummaryPageProps = {
@@ -15,6 +16,7 @@ type SummaryPageProps = {
 }
 
 export function SummaryPage({ weekNumber, weekYear, onWeekChange, onGoToPlanning }: SummaryPageProps) {
+  const { activeOrganizationId } = useOrganization()
   const [assignments, setAssignments] = useState<Assignment[] | null>(null)
   const [workers, setWorkers] = useState<Worker[]>([])
   const [roles, setRoles] = useState<Role[]>([])
@@ -26,32 +28,55 @@ export function SummaryPage({ weekNumber, weekYear, onWeekChange, onGoToPlanning
   }, [weekNumber, weekYear])
 
   useEffect(() => {
-    setWorkers(getWorkers())
-    setRoles(getRoles())
-    setTasks(getTasks())
-  }, [])
+    if (!activeOrganizationId) return
+    let isMounted = true
+    const loadData = async () => {
+      const [workersData, rolesData, tasksData] = await Promise.all([
+        getWorkers(activeOrganizationId),
+        getRoles(activeOrganizationId),
+        getTasks(activeOrganizationId),
+      ])
+      if (!isMounted) return
+      setWorkers(workersData)
+      setRoles(rolesData)
+      setTasks(tasksData)
+    }
+    void loadData()
+    return () => {
+      isMounted = false
+    }
+  }, [activeOrganizationId])
 
   useEffect(() => {
-    const saved = loadWeekPlan(weekStart)
-    if (!saved) {
-      setAssignments(null)
-      return
-    }
-    const nextAssignments: Assignment[] = []
-    SHIFTS.forEach((shift) => {
-      const workerIds = saved.columns[shift] ?? []
-      workerIds.forEach((workerId) => {
-        nextAssignments.push({
-          workerId,
-          weekStart,
-          shift,
-          taskId: saved.tasksByWorkerId[workerId] ?? undefined,
-          source: 'manual',
+    if (!activeOrganizationId) return
+    let isMounted = true
+    const loadAssignments = async () => {
+      const saved = await loadWeekPlan(weekStart, activeOrganizationId)
+      if (!isMounted) return
+      if (!saved) {
+        setAssignments(null)
+        return
+      }
+      const nextAssignments: Assignment[] = []
+      SHIFTS.forEach((shift) => {
+        const workerIds = saved.columns[shift] ?? []
+        workerIds.forEach((workerId) => {
+          nextAssignments.push({
+            workerId,
+            weekStart,
+            shift,
+            taskId: saved.tasksByWorkerId[workerId] ?? undefined,
+            source: 'manual',
+          })
         })
       })
-    })
-    setAssignments(nextAssignments)
-  }, [weekStart])
+      setAssignments(nextAssignments)
+    }
+    void loadAssignments()
+    return () => {
+      isMounted = false
+    }
+  }, [weekStart, activeOrganizationId])
 
   const summary = useMemo(() => {
     if (!assignments) return null
