@@ -735,21 +735,9 @@ export function PlanningPage({
 
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(tableFontSize)
-      const columnWidths = headers.map((header, columnIndex) => {
-        const values = [header, ...body.map((row) => String(row[columnIndex] ?? ''))]
-        const maxWidth = Math.max(...values.map((value) => doc.getTextWidth(value)))
-        return Math.ceil(maxWidth + cellPadding * 2)
-      })
-      let tableWidth = columnWidths.reduce((total, width) => total + width, 0)
-      const maxTableWidth = pageWidth - marginX * 2
-      if (tableWidth > maxTableWidth) {
-        const scale = maxTableWidth / tableWidth
-        for (let i = 0; i < columnWidths.length; i += 1) {
-          columnWidths[i] = Math.floor(columnWidths[i] * scale)
-        }
-        tableWidth = columnWidths.reduce((total, width) => total + width, 0)
-      }
-      const tableLeft = Math.max(marginX, (pageWidth - tableWidth) / 2)
+      const tableWidth = pageWidth - marginX * 2
+      const tableLeft = marginX
+      const columnWidth = Math.floor(tableWidth / headers.length)
 
       autoTable(doc, {
         head: [headers],
@@ -775,11 +763,11 @@ export function PlanningPage({
           halign: 'left',
         },
         columnStyles: {
-          0: { cellWidth: columnWidths[0] },
-          1: { cellWidth: columnWidths[1] },
-          2: { cellWidth: columnWidths[2] },
-          3: { cellWidth: columnWidths[3] },
-          4: { cellWidth: columnWidths[4] },
+          0: { cellWidth: columnWidth },
+          1: { cellWidth: columnWidth },
+          2: { cellWidth: columnWidth },
+          3: { cellWidth: columnWidth },
+          4: { cellWidth: columnWidth },
         },
       })
     })
