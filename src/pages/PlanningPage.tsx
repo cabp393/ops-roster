@@ -719,15 +719,15 @@ export function PlanningPage({
       const titleY = marginY + titleFontSize
       doc.text(title, pageWidth / 2, titleY, { align: 'center' })
 
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(subtitleFontSize)
-      const subtitleY = titleY + subtitleFontSize + 6
-      doc.text(subtitle, pageWidth / 2, subtitleY, { align: 'center' })
-
-      const lineY = subtitleY + 10
+      const lineY = titleY + 10
       doc.setDrawColor(0)
       doc.setLineWidth(1)
       doc.line(marginX, lineY, pageWidth - marginX, lineY)
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(subtitleFontSize)
+      const subtitleY = lineY + subtitleFontSize + 6
+      doc.text(subtitle, pageWidth / 2, subtitleY, { align: 'center' })
 
       const rows = getShiftExportRows(shift, '')
       const headers = ['Legajo', 'Nombre', 'Rol', 'Función', 'Equipo']
@@ -737,12 +737,19 @@ export function PlanningPage({
       doc.setFontSize(tableFontSize)
       const tableWidth = pageWidth - marginX * 2
       const tableLeft = marginX
-      const columnWidth = Math.floor(tableWidth / headers.length)
+      const columnWidths = [
+        Math.round(tableWidth * 0.12),
+        Math.round(tableWidth * 0.3),
+        Math.round(tableWidth * 0.12),
+        Math.round(tableWidth * 0.3),
+      ]
+      const remainingWidth =
+        tableWidth - columnWidths.reduce((total, width) => total + width, 0)
 
       autoTable(doc, {
         head: [headers],
         body,
-        startY: lineY + 12,
+        startY: subtitleY + 18,
         margin: { left: tableLeft },
         tableWidth,
         pageBreak: 'avoid',
@@ -755,19 +762,22 @@ export function PlanningPage({
           cellPadding,
           halign: 'left',
           valign: 'middle',
+          minCellHeight: 20,
+          overflow: 'ellipsize',
         },
         headStyles: {
           fillColor: [120, 120, 120],
           textColor: [255, 255, 255],
           fontStyle: 'bold',
           halign: 'left',
+          fontSize: tableFontSize,
         },
         columnStyles: {
-          0: { cellWidth: columnWidth },
-          1: { cellWidth: columnWidth },
-          2: { cellWidth: columnWidth },
-          3: { cellWidth: columnWidth },
-          4: { cellWidth: columnWidth },
+          0: { cellWidth: columnWidths[0] },
+          1: { cellWidth: columnWidths[1] },
+          2: { cellWidth: columnWidths[2] },
+          3: { cellWidth: columnWidths[3] },
+          4: { cellWidth: remainingWidth },
         },
       })
     })
