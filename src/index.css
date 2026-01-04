@@ -492,6 +492,11 @@ th {
   padding: 4px 6px;
 }
 
+.worker-equipment select.missing-equipment {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
 .form-card {
   padding: 16px;
   border-radius: 12px;

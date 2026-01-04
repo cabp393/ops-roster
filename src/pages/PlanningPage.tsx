@@ -67,7 +67,7 @@ const emptyPlan: WeekPlan = {
 }
 
 const planningShiftOrder: Shift[] = ['N', 'M', 'T']
-const ROLE_ORDER = ['AL', 'OG', 'JT'] as const
+const ROLE_ORDER = ['JT', 'AL', 'OG'] as const
 type RoleCode = (typeof ROLE_ORDER)[number]
 const COLLAPSE_STORAGE_KEY = 'opsRoster:planning:roleCollapse'
 const ROLE_ORDER_INDEX = new Map(ROLE_ORDER.map((role, index) => [role, index]))
@@ -177,6 +177,7 @@ type WorkerCardProps = {
   onEquipmentChange: (workerId: number, equipmentId: string) => void
   isEquipmentDisabled?: boolean
   isEquipmentVisible?: boolean
+  isEquipmentRequired?: boolean
   isReadOnly?: boolean
 }
 
@@ -190,6 +191,7 @@ function WorkerCardContent({
   onEquipmentChange,
   isEquipmentDisabled = false,
   isEquipmentVisible = true,
+  isEquipmentRequired = false,
   isReadOnly = false,
 }: WorkerCardProps) {
   const allowedShifts = worker.constraints?.allowedShifts ?? []
@@ -231,6 +233,7 @@ function WorkerCardContent({
             value={equipmentValue ?? ''}
             onChange={(event) => onEquipmentChange(worker.id, event.target.value)}
             disabled={isReadOnly || isEquipmentDisabled}
+            className={isEquipmentRequired && !equipmentValue ? 'missing-equipment' : undefined}
           >
             <option value="">(Sin equipo)</option>
             {equipmentOptions.map((equipment) => (
@@ -257,6 +260,7 @@ type SortableWorkerCardProps = {
   onEquipmentChange: (workerId: number, equipmentId: string) => void
   isEquipmentDisabled?: boolean
   isEquipmentVisible?: boolean
+  isEquipmentRequired?: boolean
 }
 
 function SortableWorkerCard({
@@ -271,6 +275,7 @@ function SortableWorkerCard({
   onEquipmentChange,
   isEquipmentDisabled = false,
   isEquipmentVisible = true,
+  isEquipmentRequired = false,
 }: SortableWorkerCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: worker.id,
@@ -301,6 +306,7 @@ function SortableWorkerCard({
         onEquipmentChange={onEquipmentChange}
         isEquipmentDisabled={isEquipmentDisabled}
         isEquipmentVisible={isEquipmentVisible}
+        isEquipmentRequired={isEquipmentRequired}
       />
     </div>
   )
@@ -1125,11 +1131,10 @@ export function PlanningPage({
                               plan.tasksByWorkerId[workerId] ??
                               defaultTaskByRole.get(worker.roleCode) ??
                               null
-                            const isEquipmentVisible = Boolean(
-                              getTaskEquipmentRequirement(
-                                taskValue ? taskById.get(taskValue) : undefined,
-                              ),
+                            const equipmentRequirement = getTaskEquipmentRequirement(
+                              taskValue ? taskById.get(taskValue) : undefined,
                             )
+                            const isEquipmentVisible = Boolean(equipmentRequirement)
                             const eligibleEquipments = getEquipmentsForRole(
                               worker.roleCode,
                               equipments,
@@ -1160,6 +1165,7 @@ export function PlanningPage({
                                 }
                                 isEquipmentVisible={isEquipmentVisible}
                                 isEquipmentDisabled={false}
+                                isEquipmentRequired={Boolean(equipmentRequirement)}
                               />
                             )
                           })}
@@ -1187,9 +1193,10 @@ export function PlanningPage({
                 const taskOptions = tasksByRole.get(worker.roleCode) ?? []
                 const taskValue =
                   plan.tasksByWorkerId[activeId] ?? defaultTaskByRole.get(worker.roleCode) ?? null
-                const isEquipmentVisible = Boolean(
-                  getTaskEquipmentRequirement(taskValue ? taskById.get(taskValue) : undefined),
+                const equipmentRequirement = getTaskEquipmentRequirement(
+                  taskValue ? taskById.get(taskValue) : undefined,
                 )
+                const isEquipmentVisible = Boolean(equipmentRequirement)
                 const eligibleEquipments = getEquipmentsForRole(worker.roleCode, equipments)
                 const activeShift = findWorkerShift(plan.columns, activeId)
                 const usedEquipmentIds = new Set(
@@ -1215,6 +1222,7 @@ export function PlanningPage({
                     onEquipmentChange={() => {}}
                     isEquipmentDisabled={false}
                     isEquipmentVisible={isEquipmentVisible}
+                    isEquipmentRequired={Boolean(equipmentRequirement)}
                     isReadOnly
                   />
                 )
