@@ -35,7 +35,8 @@ export function App() {
   return (
     <div className="app">
       <header className="header">
-        <h1>Ops Roster</h1>
+        <h1>Roster Operativo</h1>
+        <p className="subtitle">Planificación semanal en un tablero compacto.</p>
       </header>
       <Tabs activeTab={activeTab} onChange={setActiveTab} />
       <main className="content">

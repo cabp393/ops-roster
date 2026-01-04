@@ -242,7 +242,7 @@ export function WorkersPage() {
               type="text"
               value={nameFilter}
               onChange={(event) => setNameFilter(event.target.value)}
-              placeholder="Nombre convencional"
+              placeholder="Nombre o apellido"
             />
           </div>
         </div>

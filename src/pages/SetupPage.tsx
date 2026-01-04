@@ -486,7 +486,7 @@ export function SetupPage() {
                 />
               </label>
               <label className="field">
-                Nombre
+                Estado
                 <select
                   value={roleForm.isActive ? 'active' : 'inactive'}
                   onChange={(event) =>
@@ -958,7 +958,7 @@ export function SetupPage() {
                 />
               </label>
               <label className="field">
-                Estado
+                Disponibilidad
                 <select
                   value={equipmentStatusForm.isActive ? 'active' : 'inactive'}
                   onChange={(event) =>
