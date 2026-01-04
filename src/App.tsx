@@ -6,6 +6,7 @@ import { PlanningPage } from './pages/PlanningPage'
 import { WorkersPage } from './pages/WorkersPage'
 import { SetupPage } from './pages/SetupPage'
 import { EquipmentsPage } from './pages/EquipmentsPage'
+import { OrganizationOnboardingPage } from './pages/OrganizationOnboardingPage'
 import { getIsoWeekNumber, getIsoWeekYear } from './lib/week'
 import { useOrganization } from './lib/organizationContext'
 import { supabase } from './lib/supabaseClient'
@@ -15,8 +16,15 @@ const fallbackWeekYear = 2025
 
 export function App() {
   const [activeTab, setActiveTab] = useState<'planning' | 'workers' | 'equipments' | 'setup'>('planning')
-  const { organizations, activeOrganizationId, setActiveOrganizationId, refreshOrganizations, isLoading, error } =
-    useOrganization()
+  const {
+    organizations,
+    activeOrganizationId,
+    setActiveOrganizationId,
+    refreshOrganizations,
+    refreshMemberRole,
+    isLoading,
+    error,
+  } = useOrganization()
   const [session, setSession] = useState<Session | null>(null)
   const [isAuthLoading, setIsAuthLoading] = useState(true)
   const today = new Date()
@@ -91,6 +99,21 @@ export function App() {
     return <AuthPage />
   }
 
+  if (!isLoading && organizations.length === 0) {
+    return (
+      <OrganizationOnboardingPage
+        onOrganizationCreated={(organization) => {
+          setActiveOrganizationId(organization.id)
+          void refreshOrganizations()
+          void refreshMemberRole()
+        }}
+        onSignOut={() => {
+          void supabase.auth.signOut()
+        }}
+      />
+    )
+  }
+
   return (
     <div className="app">
       <header className="header">
@@ -110,7 +133,7 @@ export function App() {
               disabled={isLoading || organizations.length === 0}
             >
               <option value="" disabled>
-                {isLoading ? 'Cargando...' : 'Selecciona'}
+                {isLoading ? 'Cargando...' : organizations.length === 0 ? 'Sin organizaciones' : 'Selecciona'}
               </option>
               {organizations.map((org) => (
                 <option key={org.id} value={org.id}>

@@ -1,5 +1,13 @@
 export type Shift = 'M' | 'T' | 'N'
 
+export type OrganizationMemberRole = 'viewer' | 'editor' | 'owner'
+
+export type OrganizationMember = {
+  userId: string
+  role: OrganizationMemberRole
+  createdAt: string
+}
+
 export type Role = {
   id: string
   code: string

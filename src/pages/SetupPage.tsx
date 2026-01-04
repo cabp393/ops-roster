@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Pencil, Trash2 } from 'lucide-react'
 import {
   getEquipmentStatuses,
   getEquipmentTypes,
   getEquipmentVariants,
+  getOrganizationMembers,
   getRoles,
   getTasks,
   setEquipmentStatuses,
@@ -11,12 +12,15 @@ import {
   setEquipmentVariants,
   setRoles,
   setTasks,
+  upsertOrganizationMember,
 } from '../lib/storage'
 import { useOrganization } from '../lib/organizationContext'
 import type {
   EquipmentStatusOption,
   EquipmentTypeOption,
   EquipmentVariantOption,
+  OrganizationMember,
+  OrganizationMemberRole,
   Role,
   Task,
 } from '../types'
@@ -52,13 +56,23 @@ type EquipmentStatusFormState = {
   isActive: boolean
 }
 
+type MemberFormState = {
+  userId: string
+  role: OrganizationMemberRole
+}
+
 export function SetupPage() {
-  const { activeOrganizationId } = useOrganization()
+  const { activeOrganizationId, canWrite, memberRole } = useOrganization()
   const [roles, setRolesState] = useState<Role[]>([])
   const [tasks, setTasksState] = useState<Task[]>([])
   const [equipmentTypes, setEquipmentTypesState] = useState<EquipmentTypeOption[]>([])
   const [equipmentVariants, setEquipmentVariantsState] = useState<EquipmentVariantOption[]>([])
   const [equipmentStatuses, setEquipmentStatusesState] = useState<EquipmentStatusOption[]>([])
+  const [members, setMembers] = useState<OrganizationMember[]>([])
+  const [membersLoading, setMembersLoading] = useState(false)
+  const [membersError, setMembersError] = useState<string | null>(null)
+  const [memberActionError, setMemberActionError] = useState<string | null>(null)
+  const [isMemberSaving, setIsMemberSaving] = useState(false)
   const [roleEditingId, setRoleEditingId] = useState<string | null>(null)
   const [taskEditingId, setTaskEditingId] = useState<string | null>(null)
   const [equipmentTypeEditingId, setEquipmentTypeEditingId] = useState<string | null>(null)
@@ -91,6 +105,7 @@ export function SetupPage() {
     name: '',
     isActive: true,
   })
+  const [memberForm, setMemberForm] = useState<MemberFormState>({ userId: '', role: 'viewer' })
 
   useEffect(() => {
     if (!activeOrganizationId) return
@@ -117,34 +132,38 @@ export function SetupPage() {
   }, [activeOrganizationId])
 
   useEffect(() => {
-    if (roles.length > 0 && activeOrganizationId) {
+    if (roles.length > 0 && activeOrganizationId && canWrite) {
       void setRoles(roles, activeOrganizationId)
     }
-  }, [roles, activeOrganizationId])
+  }, [roles, activeOrganizationId, canWrite])
 
   useEffect(() => {
-    if (tasks.length > 0 && activeOrganizationId) {
+    if (tasks.length > 0 && activeOrganizationId && canWrite) {
       void setTasks(tasks, activeOrganizationId)
     }
-  }, [tasks, activeOrganizationId])
+  }, [tasks, activeOrganizationId, canWrite])
 
   useEffect(() => {
-    if (equipmentTypes.length > 0 && activeOrganizationId) {
+    if (equipmentTypes.length > 0 && activeOrganizationId && canWrite) {
       void setEquipmentTypes(equipmentTypes, activeOrganizationId)
     }
-  }, [equipmentTypes, activeOrganizationId])
+  }, [equipmentTypes, activeOrganizationId, canWrite])
 
   useEffect(() => {
-    if (equipmentVariants.length > 0 && activeOrganizationId) {
+    if (equipmentVariants.length > 0 && activeOrganizationId && canWrite) {
       void setEquipmentVariants(equipmentVariants, activeOrganizationId)
     }
-  }, [equipmentVariants, activeOrganizationId])
+  }, [equipmentVariants, activeOrganizationId, canWrite])
 
   useEffect(() => {
-    if (equipmentStatuses.length > 0 && activeOrganizationId) {
+    if (equipmentStatuses.length > 0 && activeOrganizationId && canWrite) {
       void setEquipmentStatuses(equipmentStatuses, activeOrganizationId)
     }
-  }, [equipmentStatuses, activeOrganizationId])
+  }, [equipmentStatuses, activeOrganizationId, canWrite])
+
+  useEffect(() => {
+    void refreshMembers()
+  }, [refreshMembers])
 
   useEffect(() => {
     if (roles.length === 0 || equipmentTypes.length === 0) return
@@ -175,6 +194,21 @@ export function SetupPage() {
     })
     return map
   }, [equipmentVariants])
+
+  const refreshMembers = useCallback(async () => {
+    if (!activeOrganizationId) return
+    setMembersLoading(true)
+    setMembersError(null)
+    try {
+      const data = await getOrganizationMembers(activeOrganizationId)
+      setMembers(data)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'No se pudieron cargar los miembros.'
+      setMembersError(message)
+    } finally {
+      setMembersLoading(false)
+    }
+  }, [activeOrganizationId])
 
   function normalizeVariant(type: string, variant: string) {
     if (!type) return ''
@@ -231,6 +265,38 @@ export function SetupPage() {
       isActive: true,
     })
     setIsEquipmentStatusFormOpen(false)
+  }
+
+  async function handleMemberSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!activeOrganizationId || !canWrite) return
+    setIsMemberSaving(true)
+    setMemberActionError(null)
+    try {
+      await upsertOrganizationMember(activeOrganizationId, memberForm.userId, memberForm.role)
+      setMemberForm({ userId: '', role: 'viewer' })
+      await refreshMembers()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'No se pudo guardar el miembro.'
+      setMemberActionError(message)
+    } finally {
+      setIsMemberSaving(false)
+    }
+  }
+
+  async function handleMemberRoleChange(userId: string, role: OrganizationMemberRole) {
+    if (!activeOrganizationId || !canWrite) return
+    setIsMemberSaving(true)
+    setMemberActionError(null)
+    try {
+      await upsertOrganizationMember(activeOrganizationId, userId, role)
+      await refreshMembers()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'No se pudo actualizar el rol.'
+      setMemberActionError(message)
+    } finally {
+      setIsMemberSaving(false)
+    }
   }
 
   function handleOpenNewRole() {
@@ -468,15 +534,124 @@ export function SetupPage() {
     setEquipmentStatusesState((prev) => prev.filter((status) => status.id !== id))
   }
 
+  const roleLabels: Record<OrganizationMemberRole, string> = {
+    viewer: 'Viewer',
+    editor: 'Editor',
+    owner: 'Owner',
+  }
+
   return (
     <section className="setup-page">
+      <div className="setup-section">
+        <div className="setup-section-header">
+          <div>
+            <h2>Miembros</h2>
+            <p className="subtitle">
+              Administra los roles de acceso. Tu rol actual:{' '}
+              {memberRole ? roleLabels[memberRole] : 'Sin asignar'}.
+            </p>
+          </div>
+        </div>
+        {membersLoading ? <p className="helper-text">Cargando miembros...</p> : null}
+        {membersError ? <p className="helper-text">{membersError}</p> : null}
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Usuario</th>
+                <th>Rol</th>
+                <th>Alta</th>
+              </tr>
+            </thead>
+            <tbody>
+              {members.length === 0 ? (
+                <tr>
+                  <td colSpan={3}>Sin miembros aún.</td>
+                </tr>
+              ) : (
+                members.map((member) => (
+                  <tr key={member.userId}>
+                    <td>{member.userId}</td>
+                    <td>
+                      {canWrite ? (
+                        <select
+                          value={member.role}
+                          onChange={(event) =>
+                            handleMemberRoleChange(member.userId, event.target.value as OrganizationMemberRole)
+                          }
+                          disabled={isMemberSaving}
+                        >
+                          <option value="viewer">Viewer</option>
+                          <option value="editor">Editor</option>
+                          <option value="owner">Owner</option>
+                        </select>
+                      ) : (
+                        roleLabels[member.role]
+                      )}
+                    </td>
+                    <td>{new Date(member.createdAt).toLocaleDateString('es-AR')}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        <form className="form-card" onSubmit={handleMemberSubmit}>
+          <div className="form-header">
+            <div>
+              <h3>Invitar miembro</h3>
+              <p className="subtitle">Ingresa el user_id y asigna un rol.</p>
+            </div>
+            <div className="button-row">
+              <button type="submit" disabled={!canWrite || isMemberSaving}>
+                {isMemberSaving ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+          </div>
+          <div className="form-grid">
+            <label className="field">
+              User ID
+              <input
+                value={memberForm.userId}
+                onChange={(event) => setMemberForm((prev) => ({ ...prev, userId: event.target.value }))}
+                placeholder="UUID del usuario"
+                disabled={!canWrite || isMemberSaving}
+              />
+            </label>
+            <label className="field">
+              Rol
+              <select
+                value={memberForm.role}
+                onChange={(event) =>
+                  setMemberForm((prev) => ({ ...prev, role: event.target.value as OrganizationMemberRole }))
+                }
+                disabled={!canWrite || isMemberSaving}
+              >
+                <option value="viewer">Viewer</option>
+                <option value="editor">Editor</option>
+                <option value="owner">Owner</option>
+              </select>
+            </label>
+            {!canWrite ? (
+              <p className="helper-text">No tienes permisos para administrar miembros.</p>
+            ) : null}
+            {memberActionError ? <p className="helper-text">{memberActionError}</p> : null}
+          </div>
+        </form>
+      </div>
       <div className="setup-section">
         <div className="setup-section-header">
           <div>
             <h2>Roles</h2>
             <p className="subtitle">Define los cargos disponibles y su estado.</p>
           </div>
-          <button type="button" className="add-worker-button" onClick={handleOpenNewRole} aria-label="Añadir rol">
+          <button
+            type="button"
+            className="add-worker-button"
+            onClick={handleOpenNewRole}
+            aria-label="Añadir rol"
+            disabled={!canWrite}
+          >
             +
           </button>
         </div>
@@ -488,7 +663,9 @@ export function SetupPage() {
                 <p className="subtitle">Gestiona el código y nombre del rol.</p>
               </div>
               <div className="button-row">
-                <button type="submit">{roleEditingId ? 'Guardar cambios' : 'Agregar'}</button>
+                <button type="submit" disabled={!canWrite}>
+                  {roleEditingId ? 'Guardar cambios' : 'Agregar'}
+                </button>
                 <button type="button" onClick={resetRoleForm}>
                   Cancelar
                 </button>
@@ -551,6 +728,7 @@ export function SetupPage() {
                         className="icon-button"
                         onClick={() => handleEditRole(role)}
                         aria-label="Editar rol"
+                        disabled={!canWrite}
                       >
                         <Pencil size={14} />
                       </button>
@@ -559,6 +737,7 @@ export function SetupPage() {
                         className="icon-button"
                         onClick={() => handleDeleteRole(role.id)}
                         aria-label="Borrar rol"
+                        disabled={!canWrite}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -577,7 +756,13 @@ export function SetupPage() {
             <h2>Funciones</h2>
             <p className="subtitle">Configura las tareas disponibles y su relación con roles y equipos.</p>
           </div>
-          <button type="button" className="add-worker-button" onClick={handleOpenNewTask} aria-label="Añadir función">
+          <button
+            type="button"
+            className="add-worker-button"
+            onClick={handleOpenNewTask}
+            aria-label="Añadir función"
+            disabled={!canWrite}
+          >
             +
           </button>
         </div>
@@ -589,7 +774,9 @@ export function SetupPage() {
                 <p className="subtitle">Selecciona rol y equipo según corresponda.</p>
               </div>
               <div className="button-row">
-                <button type="submit">{taskEditingId ? 'Guardar cambios' : 'Agregar'}</button>
+                <button type="submit" disabled={!canWrite}>
+                  {taskEditingId ? 'Guardar cambios' : 'Agregar'}
+                </button>
                 <button type="button" onClick={resetTaskForm}>
                   Cancelar
                 </button>
@@ -696,6 +883,7 @@ export function SetupPage() {
                         className="icon-button"
                         onClick={() => handleEditTask(task)}
                         aria-label="Editar función"
+                        disabled={!canWrite}
                       >
                         <Pencil size={14} />
                       </button>
@@ -704,6 +892,7 @@ export function SetupPage() {
                         className="icon-button"
                         onClick={() => handleDeleteTask(task.id)}
                         aria-label="Borrar función"
+                        disabled={!canWrite}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -727,6 +916,7 @@ export function SetupPage() {
             className="add-worker-button"
             onClick={handleOpenNewEquipmentType}
             aria-label="Añadir tipo de equipo"
+            disabled={!canWrite}
           >
             +
           </button>
@@ -739,7 +929,9 @@ export function SetupPage() {
                 <p className="subtitle">Asigna un rol principal al tipo de equipo.</p>
               </div>
               <div className="button-row">
-                <button type="submit">{equipmentTypeEditingId ? 'Guardar cambios' : 'Agregar'}</button>
+                <button type="submit" disabled={!canWrite}>
+                  {equipmentTypeEditingId ? 'Guardar cambios' : 'Agregar'}
+                </button>
                 <button type="button" onClick={resetEquipmentTypeForm}>
                   Cancelar
                 </button>
@@ -809,6 +1001,7 @@ export function SetupPage() {
                         className="icon-button"
                         onClick={() => handleEditEquipmentType(type)}
                         aria-label="Editar tipo"
+                        disabled={!canWrite}
                       >
                         <Pencil size={14} />
                       </button>
@@ -817,6 +1010,7 @@ export function SetupPage() {
                         className="icon-button"
                         onClick={() => handleDeleteEquipmentType(type.id)}
                         aria-label="Borrar tipo"
+                        disabled={!canWrite}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -840,6 +1034,7 @@ export function SetupPage() {
             className="add-worker-button"
             onClick={handleOpenNewEquipmentVariant}
             aria-label="Añadir variante"
+            disabled={!canWrite}
           >
             +
           </button>
@@ -852,7 +1047,9 @@ export function SetupPage() {
                 <p className="subtitle">Relaciona la variante con un tipo específico.</p>
               </div>
               <div className="button-row">
-                <button type="submit">{equipmentVariantEditingId ? 'Guardar cambios' : 'Agregar'}</button>
+                <button type="submit" disabled={!canWrite}>
+                  {equipmentVariantEditingId ? 'Guardar cambios' : 'Agregar'}
+                </button>
                 <button type="button" onClick={resetEquipmentVariantForm}>
                   Cancelar
                 </button>
@@ -924,6 +1121,7 @@ export function SetupPage() {
                         className="icon-button"
                         onClick={() => handleEditEquipmentVariant(variant)}
                         aria-label="Editar variante"
+                        disabled={!canWrite}
                       >
                         <Pencil size={14} />
                       </button>
@@ -932,6 +1130,7 @@ export function SetupPage() {
                         className="icon-button"
                         onClick={() => handleDeleteEquipmentVariant(variant.id)}
                         aria-label="Borrar variante"
+                        disabled={!canWrite}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -955,6 +1154,7 @@ export function SetupPage() {
             className="add-worker-button"
             onClick={handleOpenNewEquipmentStatus}
             aria-label="Añadir estado"
+            disabled={!canWrite}
           >
             +
           </button>
@@ -967,7 +1167,9 @@ export function SetupPage() {
                 <p className="subtitle">Controla la disponibilidad de los equipos.</p>
               </div>
               <div className="button-row">
-                <button type="submit">{equipmentStatusEditingId ? 'Guardar cambios' : 'Agregar'}</button>
+                <button type="submit" disabled={!canWrite}>
+                  {equipmentStatusEditingId ? 'Guardar cambios' : 'Agregar'}
+                </button>
                 <button type="button" onClick={resetEquipmentStatusForm}>
                   Cancelar
                 </button>
@@ -1021,6 +1223,7 @@ export function SetupPage() {
                         className="icon-button"
                         onClick={() => handleEditEquipmentStatus(status)}
                         aria-label="Editar estado"
+                        disabled={!canWrite}
                       >
                         <Pencil size={14} />
                       </button>
@@ -1029,6 +1232,7 @@ export function SetupPage() {
                         className="icon-button"
                         onClick={() => handleDeleteEquipmentStatus(status.id)}
                         aria-label="Borrar estado"
+                        disabled={!canWrite}
                       >
                         <Trash2 size={14} />
                       </button>

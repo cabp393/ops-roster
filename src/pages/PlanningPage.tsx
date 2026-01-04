@@ -261,6 +261,8 @@ type SortableWorkerCardProps = {
   onEquipmentChange: (workerId: number, equipmentId: string) => void
   isEquipmentDisabled?: boolean
   isEquipmentVisible?: boolean
+  isReadOnly?: boolean
+  isDragDisabled?: boolean
 }
 
 function SortableWorkerCard({
@@ -275,10 +277,13 @@ function SortableWorkerCard({
   onEquipmentChange,
   isEquipmentDisabled = false,
   isEquipmentVisible = true,
+  isReadOnly = false,
+  isDragDisabled = false,
 }: SortableWorkerCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: worker.id,
     data: { shift, role },
+    disabled: isDragDisabled,
   })
 
   const style = {
@@ -305,6 +310,7 @@ function SortableWorkerCard({
         onEquipmentChange={onEquipmentChange}
         isEquipmentDisabled={isEquipmentDisabled}
         isEquipmentVisible={isEquipmentVisible}
+        isReadOnly={isReadOnly}
       />
     </div>
   )
@@ -402,7 +408,7 @@ export function PlanningPage({
   weekYear,
   onWeekChange,
 }: PlanningPageProps) {
-  const { activeOrganizationId } = useOrganization()
+  const { activeOrganizationId, canWrite } = useOrganization()
   const [plan, setPlan] = useState<WeekPlan>(emptyPlan)
   const [tasks, setTasks] = useState<Task[]>([])
   const [workers, setWorkers] = useState<Worker[]>([])
@@ -632,6 +638,10 @@ export function PlanningPage({
   }, [isDownloadMenuOpen])
 
   function persist(nextPlan: WeekPlan) {
+    if (!canWrite) {
+      setToastMessage('Solo lectura')
+      return
+    }
     setPlan(nextPlan)
     if (activeOrganizationId) {
       void saveWeekPlan(weekStart, nextPlan, activeOrganizationId)
@@ -639,6 +649,10 @@ export function PlanningPage({
   }
 
   async function handleRotateShifts() {
+    if (!canWrite) {
+      setToastMessage('Solo lectura')
+      return
+    }
     if (!activeOrganizationId) return
     const currentStart = new Date(`${weekStart}T00:00:00Z`)
     currentStart.setUTCDate(currentStart.getUTCDate() - 7)
@@ -659,6 +673,10 @@ export function PlanningPage({
   }
 
   function handleAssignEquipments() {
+    if (!canWrite) {
+      setToastMessage('Solo lectura')
+      return
+    }
     const nextEquipmentByWorkerId = { ...plan.equipmentByWorkerId }
     SHIFTS.forEach((shift) => {
       const workerIds = plan.columns[shift] ?? []
@@ -679,12 +697,20 @@ export function PlanningPage({
   }
 
   async function handleSave() {
+    if (!canWrite) {
+      setToastMessage('Solo lectura')
+      return
+    }
     if (!activeOrganizationId) return
     await saveWeekPlan(weekStart, plan, activeOrganizationId)
     await insertShiftHistory(buildAssignmentsFromPlan(plan, 'manual'), activeOrganizationId)
   }
 
   function handleClear() {
+    if (!canWrite) {
+      setToastMessage('Solo lectura')
+      return
+    }
     if (activeOrganizationId) {
       void clearWeekPlan(weekStart, activeOrganizationId)
     }
@@ -823,6 +849,7 @@ export function PlanningPage({
   }
 
   function handleTaskChange(workerId: number, taskId: string) {
+    if (!canWrite) return
     const normalizedTaskId = taskId || null
     const requirement = normalizedTaskId
       ? getTaskEquipmentRequirement(taskById.get(normalizedTaskId))
@@ -842,6 +869,7 @@ export function PlanningPage({
   }
 
   function handleEquipmentChange(workerId: number, equipmentId: string, shift: Shift) {
+    if (!canWrite) return
     const normalized = equipmentId || null
     const nextEquipmentByWorkerId = {
       ...plan.equipmentByWorkerId,
@@ -862,10 +890,12 @@ export function PlanningPage({
   }
 
   function handleDragStart(event: DragStartEvent) {
+    if (!canWrite) return
     setActiveId(event.active.id as number)
   }
 
   function handleDragEnd(event: DragEndEvent) {
+    if (!canWrite) return
     const { active, over } = event
     setActiveId(null)
     if (!over) return
@@ -1033,6 +1063,7 @@ export function PlanningPage({
               className="icon-button"
               onClick={handleRotateShifts}
               aria-label="Rotar turnos"
+              disabled={!canWrite}
             >
               <RefreshCcw size={14} />
             </button>
@@ -1041,6 +1072,7 @@ export function PlanningPage({
               className="icon-button"
               onClick={handleAssignEquipments}
               aria-label="Asignar equipos"
+              disabled={!canWrite}
             >
               <Users size={14} />
             </button>
@@ -1088,6 +1120,7 @@ export function PlanningPage({
               className="icon-button"
               onClick={handleSave}
               aria-label="Guardar turno"
+              disabled={!canWrite}
             >
               <Save size={14} />
             </button>
@@ -1096,6 +1129,7 @@ export function PlanningPage({
               className="icon-button"
               onClick={handleClear}
               aria-label="Borrar turno"
+              disabled={!canWrite}
             >
               <Trash2 size={14} />
             </button>
@@ -1201,6 +1235,8 @@ export function PlanningPage({
                                 }
                                 isEquipmentVisible={isEquipmentVisible}
                                 isEquipmentDisabled={false}
+                                isReadOnly={!canWrite}
+                                isDragDisabled={!canWrite}
                               />
                             )
                           })}

@@ -7,6 +7,8 @@ import type {
   EquipmentVariantOption,
   PlanningRecord,
   Role,
+  OrganizationMember,
+  OrganizationMemberRole,
   ShiftHistoryEntry,
   Task,
   Worker,
@@ -27,6 +29,49 @@ import { supabase } from './supabaseClient'
 function ensureOrganizationId(organizationId: string) {
   if (!organizationId) throw new Error('Organization id is required')
   return organizationId
+}
+
+const WRITE_ROLES = new Set<OrganizationMemberRole>(['editor', 'owner'])
+
+function normalizeMemberRole(role: string | null | undefined): OrganizationMemberRole | null {
+  if (!role) return null
+  if (role === 'member') return 'viewer'
+  if (role === 'viewer' || role === 'editor' || role === 'owner') return role
+  return null
+}
+
+async function getCurrentUserId() {
+  const { data, error } = await supabase.auth.getUser()
+  if (error) throw error
+  return data.user?.id ?? null
+}
+
+export async function getOrganizationMemberRole(
+  organizationId: string,
+): Promise<OrganizationMemberRole | null> {
+  const orgId = ensureOrganizationId(organizationId)
+  const userId = await getCurrentUserId()
+  if (!userId) return null
+  const { data, error } = await supabase
+    .from('organization_members')
+    .select('role')
+    .eq('organization_id', orgId)
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (error) throw error
+  return normalizeMemberRole(data?.role)
+}
+
+async function canWriteOrganization(organizationId: string) {
+  const role = await getOrganizationMemberRole(organizationId)
+  return role ? WRITE_ROLES.has(role) : false
+}
+
+async function ensureWriteAccess(organizationId: string) {
+  const hasAccess = await canWriteOrganization(organizationId)
+  if (!hasAccess) {
+    throw new Error('No tienes permisos para modificar esta organización.')
+  }
 }
 
 type RoleRow = {
@@ -125,6 +170,12 @@ type ShiftHistoryRow = {
   equipment?: { id: string; serie: string } | null
 }
 
+type OrganizationMemberRow = {
+  user_id: string
+  role: string
+  created_at: string
+}
+
 async function fetchRows<T>(table: string, organizationId: string): Promise<T[]> {
   const { data, error } = await supabase
     .from(table)
@@ -140,10 +191,14 @@ async function seedTable<T, R>(
   defaults: T[],
   toRow: (item: T, orgId: string) => R,
   fromRow: (row: R) => T,
+  options?: { canWrite?: boolean },
 ): Promise<T[]> {
   const existing = await fetchRows<R>(table, organizationId)
   if (existing.length > 0) {
     return existing.map((row) => fromRow(row))
+  }
+  if (options?.canWrite === false) {
+    return []
   }
   const { data, error } = await supabase
     .from(table)
@@ -519,31 +574,94 @@ function shiftHistoryToRow(assignment: Assignment, organizationId: string) {
   }
 }
 
+export async function createOrganizationWithOwner(name: string) {
+  const trimmedName = name.trim()
+  if (!trimmedName) throw new Error('El nombre de la organización es obligatorio.')
+  const userId = await getCurrentUserId()
+  if (!userId) throw new Error('No se encontró el usuario autenticado.')
+  const { data, error } = await supabase
+    .from('organizations')
+    .insert({ name: trimmedName })
+    .select('id,name')
+    .single()
+  if (error) throw error
+  const organizationId = data.id
+  const { error: memberError } = await supabase.from('organization_members').insert({
+    organization_id: organizationId,
+    user_id: userId,
+    role: 'owner',
+  })
+  if (memberError) throw memberError
+  return data
+}
+
+export async function getOrganizationMembers(organizationId: string): Promise<OrganizationMember[]> {
+  const orgId = ensureOrganizationId(organizationId)
+  const { data, error } = await supabase
+    .from('organization_members')
+    .select('user_id, role, created_at')
+    .eq('organization_id', orgId)
+    .order('created_at')
+  if (error) throw error
+  return (data ?? []).map((row) => ({
+    userId: row.user_id,
+    role: normalizeMemberRole(row.role) ?? 'viewer',
+    createdAt: row.created_at,
+  }))
+}
+
+export async function upsertOrganizationMember(
+  organizationId: string,
+  userId: string,
+  role: OrganizationMemberRole,
+) {
+  const orgId = ensureOrganizationId(organizationId)
+  await ensureWriteAccess(orgId)
+  const trimmedUserId = userId.trim()
+  if (!trimmedUserId) throw new Error('El identificador de usuario es obligatorio.')
+  const { error } = await supabase.from('organization_members').upsert(
+    {
+      organization_id: orgId,
+      user_id: trimmedUserId,
+      role,
+    },
+    { onConflict: 'organization_id,user_id' },
+  )
+  if (error) throw error
+}
+
 export async function getRoles(organizationId: string): Promise<Role[]> {
   const orgId = ensureOrganizationId(organizationId)
-  const roles = await seedTable<Role, RoleRow>('roles', orgId, defaultRoles, roleToRow, roleFromRow)
+  const canWrite = await canWriteOrganization(orgId)
+  const roles = await seedTable<Role, RoleRow>('roles', orgId, defaultRoles, roleToRow, roleFromRow, {
+    canWrite,
+  })
   return normalizeRoles(roles) ?? roles
 }
 
 export async function setRoles(roles: Role[], organizationId: string) {
   const orgId = ensureOrganizationId(organizationId)
+  await ensureWriteAccess(orgId)
   await syncTable<Role, ReturnType<typeof roleToRow>>('roles', orgId, roles, roleToRow)
 }
 
 export async function getEquipmentRoles(organizationId: string): Promise<EquipmentRoleOption[]> {
   const orgId = ensureOrganizationId(organizationId)
+  const canWrite = await canWriteOrganization(orgId)
   const roles = await seedTable<EquipmentRoleOption, EquipmentRoleRow>(
     'equipment_roles',
     orgId,
     defaultEquipmentRoles,
     equipmentRoleToRow,
     equipmentRoleFromRow,
+    { canWrite },
   )
   return normalizeEquipmentOptions<EquipmentRoleOption>(roles) ?? roles
 }
 
 export async function setEquipmentRoles(roles: EquipmentRoleOption[], organizationId: string) {
   const orgId = ensureOrganizationId(organizationId)
+  await ensureWriteAccess(orgId)
   await syncTable<EquipmentRoleOption, ReturnType<typeof equipmentRoleToRow>>(
     'equipment_roles',
     orgId,
@@ -554,18 +672,21 @@ export async function setEquipmentRoles(roles: EquipmentRoleOption[], organizati
 
 export async function getEquipmentTypes(organizationId: string): Promise<EquipmentTypeOption[]> {
   const orgId = ensureOrganizationId(organizationId)
+  const canWrite = await canWriteOrganization(orgId)
   const types = await seedTable<EquipmentTypeOption, EquipmentTypeRow>(
     'equipment_types',
     orgId,
     defaultEquipmentTypes,
     equipmentTypeToRow,
     equipmentTypeFromRow,
+    { canWrite },
   )
   return normalizeEquipmentTypes(types) ?? types
 }
 
 export async function setEquipmentTypes(types: EquipmentTypeOption[], organizationId: string) {
   const orgId = ensureOrganizationId(organizationId)
+  await ensureWriteAccess(orgId)
   await syncTable<EquipmentTypeOption, ReturnType<typeof equipmentTypeToRow>>(
     'equipment_types',
     orgId,
@@ -576,18 +697,21 @@ export async function setEquipmentTypes(types: EquipmentTypeOption[], organizati
 
 export async function getEquipmentVariants(organizationId: string): Promise<EquipmentVariantOption[]> {
   const orgId = ensureOrganizationId(organizationId)
+  const canWrite = await canWriteOrganization(orgId)
   const variants = await seedTable<EquipmentVariantOption, EquipmentVariantRow>(
     'equipment_variants',
     orgId,
     defaultEquipmentVariants,
     equipmentVariantToRow,
     equipmentVariantFromRow,
+    { canWrite },
   )
   return normalizeEquipmentVariants(variants) ?? variants
 }
 
 export async function setEquipmentVariants(variants: EquipmentVariantOption[], organizationId: string) {
   const orgId = ensureOrganizationId(organizationId)
+  await ensureWriteAccess(orgId)
   await syncTable<EquipmentVariantOption, ReturnType<typeof equipmentVariantToRow>>(
     'equipment_variants',
     orgId,
@@ -598,18 +722,21 @@ export async function setEquipmentVariants(variants: EquipmentVariantOption[], o
 
 export async function getEquipmentStatuses(organizationId: string): Promise<EquipmentStatusOption[]> {
   const orgId = ensureOrganizationId(organizationId)
+  const canWrite = await canWriteOrganization(orgId)
   const statuses = await seedTable<EquipmentStatusOption, EquipmentStatusRow>(
     'equipment_statuses',
     orgId,
     defaultEquipmentStatuses,
     equipmentStatusToRow,
     equipmentStatusFromRow,
+    { canWrite },
   )
   return normalizeEquipmentOptions<EquipmentStatusOption>(statuses) ?? statuses
 }
 
 export async function setEquipmentStatuses(statuses: EquipmentStatusOption[], organizationId: string) {
   const orgId = ensureOrganizationId(organizationId)
+  await ensureWriteAccess(orgId)
   await syncTable<EquipmentStatusOption, ReturnType<typeof equipmentStatusToRow>>(
     'equipment_statuses',
     orgId,
@@ -620,35 +747,46 @@ export async function setEquipmentStatuses(statuses: EquipmentStatusOption[], or
 
 export async function getTasks(organizationId: string): Promise<Task[]> {
   const orgId = ensureOrganizationId(organizationId)
-  const tasks = await seedTable<Task, TaskRow>('tasks', orgId, defaultTasks, taskToRow, taskFromRow)
+  const canWrite = await canWriteOrganization(orgId)
+  const tasks = await seedTable<Task, TaskRow>('tasks', orgId, defaultTasks, taskToRow, taskFromRow, {
+    canWrite,
+  })
   return normalizeTasks(tasks) ?? tasks
 }
 
 export async function setTasks(tasks: Task[], organizationId: string) {
   const orgId = ensureOrganizationId(organizationId)
+  await ensureWriteAccess(orgId)
   await syncTable<Task, ReturnType<typeof taskToRow>>('tasks', orgId, tasks, taskToRow)
 }
 
 export async function getEquipments(organizationId: string): Promise<Equipment[]> {
   const orgId = ensureOrganizationId(organizationId)
+  const canWrite = await canWriteOrganization(orgId)
   const equipments = await seedTable<Equipment, EquipmentRow>(
     'equipments',
     orgId,
     defaultEquipments,
     equipmentToRow,
     equipmentFromRow,
+    { canWrite },
   )
   return normalizeEquipments(equipments) ?? equipments
 }
 
 export async function setEquipments(equipments: Equipment[], organizationId: string) {
   const orgId = ensureOrganizationId(organizationId)
+  await ensureWriteAccess(orgId)
   await syncTable<Equipment, ReturnType<typeof equipmentToRow>>('equipments', orgId, equipments, equipmentToRow)
 }
 
 export async function getWorkers(organizationId: string): Promise<Worker[]> {
   const orgId = ensureOrganizationId(organizationId)
+  const canWrite = await canWriteOrganization(orgId)
   const roles = await getRoles(orgId)
+  if (roles.length === 0 && !canWrite) {
+    return []
+  }
   const roleByCode = new Map(roles.map((role) => [role.code, role.id]))
   const fallbackRoleId = roles[0]?.id ?? null
   const { data: existing, error: existingError } = await supabase
@@ -658,6 +796,7 @@ export async function getWorkers(organizationId: string): Promise<Worker[]> {
     .limit(1)
   if (existingError) throw existingError
   if (!existing || existing.length === 0) {
+    if (!canWrite) return []
     const rows = defaultWorkers.map((worker) => ({
       ...worker,
       roleId: resolveWorkerRoleId(worker, roleByCode, fallbackRoleId),
@@ -694,6 +833,7 @@ export async function getWorkers(organizationId: string): Promise<Worker[]> {
 
 export async function setWorkers(workers: Worker[], organizationId: string) {
   const orgId = ensureOrganizationId(organizationId)
+  await ensureWriteAccess(orgId)
   const roles = await getRoles(orgId)
   const roleByCode = new Map(roles.map((role) => [role.code, role.id]))
   const fallbackRoleId = roles[0]?.id ?? null
@@ -752,6 +892,7 @@ export async function getPlanning(weekStart: string, organizationId: string): Pr
 
 export async function setPlanning(weekStart: string, record: PlanningRecord, organizationId: string) {
   const orgId = ensureOrganizationId(organizationId)
+  await ensureWriteAccess(orgId)
   const { error: upsertRecordError } = await supabase
     .from('planning_records')
     .upsert(
@@ -800,6 +941,7 @@ export async function setPlanning(weekStart: string, record: PlanningRecord, org
 
 export async function insertShiftHistory(assignments: Assignment[], organizationId: string) {
   const orgId = ensureOrganizationId(organizationId)
+  await ensureWriteAccess(orgId)
   if (assignments.length === 0) return
   const { error } = await supabase
     .from('shift_history')
@@ -834,6 +976,7 @@ export async function getShiftHistoryByWorker(
 
 export async function clearPlanning(weekStart: string, organizationId: string) {
   const orgId = ensureOrganizationId(organizationId)
+  await ensureWriteAccess(orgId)
   const { error } = await supabase
     .from('planning_records')
     .delete()

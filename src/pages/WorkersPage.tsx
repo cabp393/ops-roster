@@ -33,7 +33,7 @@ function createDefaultAllowedShifts(): WorkerFormState['allowedShifts'] {
 }
 
 export function WorkersPage() {
-  const { activeOrganizationId } = useOrganization()
+  const { activeOrganizationId, canWrite } = useOrganization()
   const [workers, setWorkers] = useState<Worker[]>([])
   const [roles, setRoles] = useState<Role[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
@@ -157,6 +157,7 @@ export function WorkersPage() {
   }
 
   function handleOpenNew() {
+    if (!canWrite) return
     resetForm()
     setIsFormOpen(true)
   }
@@ -230,6 +231,7 @@ export function WorkersPage() {
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (!canWrite) return
     const nextId = Number(formState.id)
     if (!Number.isInteger(nextId) || nextId <= 0) return
     const trimmedFirstName = formState.firstName.trim()
@@ -265,6 +267,7 @@ export function WorkersPage() {
   }
 
   function handleDelete(id: number) {
+    if (!canWrite) return
     const nextWorkers = workers.filter((worker) => worker.id !== id)
     setWorkers(nextWorkers)
     if (activeOrganizationId) {
@@ -313,7 +316,13 @@ export function WorkersPage() {
             />
           </div>
         </div>
-        <button type="button" className="add-worker-button" onClick={handleOpenNew} aria-label="Añadir trabajador">
+        <button
+          type="button"
+          className="add-worker-button"
+          onClick={handleOpenNew}
+          aria-label="Añadir trabajador"
+          disabled={!canWrite}
+        >
           +
         </button>
       </div>
@@ -325,7 +334,9 @@ export function WorkersPage() {
               <p className="subtitle">Administra los datos base de cada trabajador.</p>
             </div>
             <div className="button-row">
-              <button type="submit">{editingId ? 'Guardar cambios' : 'Agregar'}</button>
+              <button type="submit" disabled={!canWrite}>
+                {editingId ? 'Guardar cambios' : 'Agregar'}
+              </button>
               <button type="button" onClick={resetForm}>
                 Cancelar
               </button>
@@ -477,10 +488,22 @@ export function WorkersPage() {
                 <td>{worker.isActive === false ? 'Inactivo' : 'Activo'}</td>
                 <td>
                   <div className="button-row">
-                    <button type="button" className="icon-button" onClick={() => loadForEdit(worker)} aria-label="Editar">
+                    <button
+                      type="button"
+                      className="icon-button"
+                      onClick={() => loadForEdit(worker)}
+                      aria-label="Editar"
+                      disabled={!canWrite}
+                    >
                       <Pencil size={14} />
                     </button>
-                    <button type="button" className="icon-button" onClick={() => handleDelete(worker.id)} aria-label="Borrar">
+                    <button
+                      type="button"
+                      className="icon-button"
+                      onClick={() => handleDelete(worker.id)}
+                      aria-label="Borrar"
+                      disabled={!canWrite}
+                    >
                       <Trash2 size={14} />
                     </button>
                   </div>
