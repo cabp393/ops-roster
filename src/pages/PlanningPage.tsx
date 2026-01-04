@@ -706,7 +706,7 @@ export function PlanningPage({
     const marginY = 36
     const titleFontSize = 18
     const subtitleFontSize = 12
-    const tableFontSize = 12
+    const tableFontSize = 10
     const cellPadding = 4
 
     planningShiftOrder.forEach((shift, index) => {
@@ -749,7 +749,7 @@ export function PlanningPage({
       autoTable(doc, {
         head: [headers],
         body,
-        startY: lineY + 12,
+        startY: subtitleY + 18,
         margin: { left: tableLeft },
         tableWidth,
         pageBreak: 'avoid',
