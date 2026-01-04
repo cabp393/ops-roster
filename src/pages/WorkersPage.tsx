@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Clock3, Pencil, Trash2 } from 'lucide-react'
 import { SHIFTS } from '../data/mock'
-import { getRoles, getTasks, getWorkers, setWorkers as setWorkersStorage } from '../lib/storage'
+import { getRoles, getShiftHistoryByWorker, getTasks, getWorkers, setWorkers as setWorkersStorage } from '../lib/storage'
 import { getWorkerDisplayName, getWorkerFullName } from '../lib/workerName'
 import { useOrganization } from '../lib/organizationContext'
-import type { Role, Shift, Task, Worker } from '../types'
+import type { Role, Shift, ShiftHistoryEntry, Task, Worker } from '../types'
 
 type WorkerFormState = {
   id: string
@@ -37,6 +37,11 @@ export function WorkersPage() {
   const [workers, setWorkers] = useState<Worker[]>([])
   const [roles, setRoles] = useState<Role[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
+  const [historyWorkerId, setHistoryWorkerId] = useState<number | null>(null)
+  const [historyEntries, setHistoryEntries] = useState<ShiftHistoryEntry[]>([])
+  const [historyPage, setHistoryPage] = useState(0)
+  const [historyHasMore, setHistoryHasMore] = useState(false)
+  const [historyLoading, setHistoryLoading] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [roleFilter, setRoleFilter] = useState('')
@@ -74,6 +79,36 @@ export function WorkersPage() {
       isMounted = false
     }
   }, [activeOrganizationId])
+
+  useEffect(() => {
+    setHistoryWorkerId(null)
+    setHistoryEntries([])
+    setHistoryPage(0)
+    setHistoryHasMore(false)
+    setHistoryLoading(false)
+  }, [activeOrganizationId])
+
+  useEffect(() => {
+    if (!activeOrganizationId || historyWorkerId === null) return
+    let isMounted = true
+    setHistoryLoading(true)
+    const loadHistory = async () => {
+      const { entries, hasMore } = await getShiftHistoryByWorker(
+        activeOrganizationId,
+        historyWorkerId,
+        20,
+        historyPage * 20,
+      )
+      if (!isMounted) return
+      setHistoryEntries((current) => (historyPage === 0 ? entries : [...current, ...entries]))
+      setHistoryHasMore(hasMore)
+      setHistoryLoading(false)
+    }
+    void loadHistory()
+    return () => {
+      isMounted = false
+    }
+  }, [activeOrganizationId, historyWorkerId, historyPage])
 
   useEffect(() => {
     if (roles.length === 0) return
@@ -238,6 +273,18 @@ export function WorkersPage() {
     if (editingId === id) {
       resetForm()
     }
+  }
+
+  function formatHistoryWeek(value: string) {
+    const parsed = new Date(`${value}T00:00:00Z`)
+    if (Number.isNaN(parsed.getTime())) return value
+    return parsed.toLocaleDateString('es-AR')
+  }
+
+  function formatHistoryTimestamp(value: string) {
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return value
+    return parsed.toLocaleString('es-AR')
   }
 
   return (
@@ -442,6 +489,98 @@ export function WorkersPage() {
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="history-card">
+        <div className="history-header">
+          <div>
+            <h3>Historial de turnos</h3>
+            <p className="subtitle">Consulta los turnos guardados por trabajador.</p>
+          </div>
+          <Clock3 size={18} />
+        </div>
+        <div className="history-toolbar">
+          <label className="field">
+            Trabajador
+            <select
+              value={historyWorkerId ?? ''}
+              onChange={(event) => {
+                const nextValue = event.target.value ? Number(event.target.value) : null
+                setHistoryWorkerId(nextValue)
+                setHistoryEntries([])
+                setHistoryPage(0)
+                setHistoryHasMore(false)
+                setHistoryLoading(false)
+              }}
+            >
+              <option value="">Selecciona un trabajador</option>
+              {workers
+                .slice()
+                .sort((a, b) => a.id - b.id)
+                .map((worker) => (
+                  <option key={worker.id} value={worker.id}>
+                    {worker.id} · {getWorkerDisplayName(worker)}
+                  </option>
+                ))}
+            </select>
+          </label>
+        </div>
+        {historyWorkerId === null ? (
+          <p className="empty-state">Selecciona un trabajador para ver su historial.</p>
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Semana</th>
+                  <th>Turno</th>
+                  <th>Tarea</th>
+                  <th>Equipo</th>
+                  <th>Fuente</th>
+                  <th>Registrado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {historyEntries.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="empty-cell">
+                      {historyLoading ? 'Cargando historial...' : 'Sin registros para este trabajador.'}
+                    </td>
+                  </tr>
+                ) : (
+                  historyEntries.map((entry) => (
+                    <tr key={entry.id}>
+                      <td>{formatHistoryWeek(entry.weekStart)}</td>
+                      <td>{entry.shift}</td>
+                      <td>{entry.taskName ?? entry.taskId ?? '-'}</td>
+                      <td>{entry.equipmentSerie ?? entry.equipmentId ?? '-'}</td>
+                      <td>{entry.source}</td>
+                      <td>{formatHistoryTimestamp(entry.createdAt)}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {historyWorkerId !== null ? (
+          <div className="history-pagination">
+            <button
+              type="button"
+              onClick={() => setHistoryPage((current) => Math.max(current - 1, 0))}
+              disabled={historyPage === 0 || historyLoading}
+            >
+              Página anterior
+            </button>
+            <span>Página {historyPage + 1}</span>
+            <button
+              type="button"
+              onClick={() => setHistoryPage((current) => (historyHasMore ? current + 1 : current))}
+              disabled={!historyHasMore || historyLoading}
+            >
+              Página siguiente
+            </button>
+          </div>
+        ) : null}
       </div>
     </section>
   )

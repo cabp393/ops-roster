@@ -43,6 +43,7 @@ import {
   getTaskEquipmentRequirement,
 } from '../lib/equipment'
 import {
+  buildAssignmentsFromPlan,
   clearWeekPlan,
   getShiftsByWorker,
   loadWeekPlan,
@@ -56,7 +57,7 @@ import {
   getWeekRangeLabel,
   getWeekStartDate,
 } from '../lib/week'
-import { getEquipments, getTasks, getWorkers } from '../lib/storage'
+import { getEquipments, getTasks, getWorkers, insertShiftHistory } from '../lib/storage'
 import { getWorkerDisplayName } from '../lib/workerName'
 import { useOrganization } from '../lib/organizationContext'
 import type { Equipment, Shift, Task, WeekPlan, Worker } from '../types'
@@ -646,11 +647,14 @@ export function PlanningPage({
     const previousShifts = getShiftsByWorker(prevWeekPlan)
     const activeTaskIds = new Set(activeTasks.map((task) => task.id))
     const seeded = seedWeekPlan(weekStart, activeWorkers, previousShifts, activeTaskIds)
-    persist({
+    const nextPlan = {
       ...plan,
       columns: seeded.columns,
       tasksByWorkerId: seeded.tasksByWorkerId,
-    })
+    }
+    setPlan(nextPlan)
+    await saveWeekPlan(weekStart, nextPlan, activeOrganizationId)
+    await insertShiftHistory(buildAssignmentsFromPlan(nextPlan, 'generated'), activeOrganizationId)
     setToastMessage('Turnos rotados')
   }
 
@@ -674,10 +678,10 @@ export function PlanningPage({
     setToastMessage('Equipos asignados')
   }
 
-  function handleSave() {
-    if (activeOrganizationId) {
-      void saveWeekPlan(weekStart, plan, activeOrganizationId)
-    }
+  async function handleSave() {
+    if (!activeOrganizationId) return
+    await saveWeekPlan(weekStart, plan, activeOrganizationId)
+    await insertShiftHistory(buildAssignmentsFromPlan(plan, 'manual'), activeOrganizationId)
   }
 
   function handleClear() {

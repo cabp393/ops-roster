@@ -28,7 +28,7 @@ function buildPlanFromAssignments(weekStart: string, assignments: AssignmentRow[
   }
 }
 
-function buildAssignmentsFromPlan(plan: WeekPlan): Assignment[] {
+export function buildAssignmentsFromPlan(plan: WeekPlan, source: Assignment['source'] = 'manual'): Assignment[] {
   const assignments: Assignment[] = []
   SHIFTS.forEach((shift) => {
     plan.columns[shift].forEach((workerId) => {
@@ -38,7 +38,7 @@ function buildAssignmentsFromPlan(plan: WeekPlan): Assignment[] {
         shift,
         taskId: plan.tasksByWorkerId[workerId] ?? null,
         equipmentId: plan.equipmentByWorkerId[workerId] ?? null,
-        source: 'manual',
+        source,
       })
     })
   })
