@@ -8,7 +8,6 @@ import {
   getEquipments,
   setEquipments,
 } from '../lib/storage'
-import { useOrganization } from '../lib/organizationContext'
 import type {
   Equipment,
   EquipmentRoleOption,
@@ -27,7 +26,6 @@ type EquipmentFormState = {
 }
 
 export function EquipmentsPage() {
-  const { activeOrganizationId, canWrite } = useOrganization()
   const [equipments, setEquipmentsState] = useState<Equipment[]>([])
   const [equipmentRoles, setEquipmentRolesState] = useState<EquipmentRoleOption[]>([])
   const [equipmentTypes, setEquipmentTypesState] = useState<EquipmentTypeOption[]>([])
@@ -49,28 +47,12 @@ export function EquipmentsPage() {
   })
 
   useEffect(() => {
-    if (!activeOrganizationId) return
-    let isMounted = true
-    const loadData = async () => {
-      const [equipmentsData, rolesData, typesData, variantsData, statusesData] = await Promise.all([
-        getEquipments(activeOrganizationId),
-        getEquipmentRoles(activeOrganizationId),
-        getEquipmentTypes(activeOrganizationId),
-        getEquipmentVariants(activeOrganizationId),
-        getEquipmentStatuses(activeOrganizationId),
-      ])
-      if (!isMounted) return
-      setEquipmentsState(equipmentsData)
-      setEquipmentRolesState(rolesData)
-      setEquipmentTypesState(typesData)
-      setEquipmentVariantsState(variantsData)
-      setEquipmentStatusesState(statusesData)
-    }
-    void loadData()
-    return () => {
-      isMounted = false
-    }
-  }, [activeOrganizationId])
+    setEquipmentsState(getEquipments())
+    setEquipmentRolesState(getEquipmentRoles())
+    setEquipmentTypesState(getEquipmentTypes())
+    setEquipmentVariantsState(getEquipmentVariants())
+    setEquipmentStatusesState(getEquipmentStatuses())
+  }, [])
 
   const variantsByType = useMemo(() => {
     const map = new Map<string, EquipmentVariantOption[]>()
@@ -113,7 +95,6 @@ export function EquipmentsPage() {
   }
 
   function handleOpenNew() {
-    if (!canWrite) return
     resetForm()
     setIsFormOpen(true)
   }
@@ -146,7 +127,6 @@ export function EquipmentsPage() {
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!canWrite) return
     const trimmedSerie = formState.serie.trim()
     if (!trimmedSerie) return
     const hasDuplicate = equipments.some(
@@ -172,19 +152,14 @@ export function EquipmentsPage() {
       ? equipments.map((equipment) => (equipment.id === editingId ? nextEquipment : equipment))
       : [...equipments, nextEquipment]
     setEquipmentsState(nextEquipments)
-    if (activeOrganizationId) {
-      void setEquipments(nextEquipments, activeOrganizationId)
-    }
+    setEquipments(nextEquipments)
     resetForm()
   }
 
   function handleDelete(id: string) {
-    if (!canWrite) return
     const nextEquipments = equipments.filter((equipment) => equipment.id !== id)
     setEquipmentsState(nextEquipments)
-    if (activeOrganizationId) {
-      void setEquipments(nextEquipments, activeOrganizationId)
-    }
+    setEquipments(nextEquipments)
     if (editingId === id) resetForm()
   }
 
@@ -225,13 +200,7 @@ export function EquipmentsPage() {
             />
           </div>
         </div>
-        <button
-          type="button"
-          className="add-worker-button"
-          onClick={handleOpenNew}
-          aria-label="Añadir equipo"
-          disabled={!canWrite}
-        >
+        <button type="button" className="add-worker-button" onClick={handleOpenNew} aria-label="Añadir equipo">
           +
         </button>
       </div>
@@ -243,9 +212,7 @@ export function EquipmentsPage() {
               <p className="subtitle">Administra los equipos disponibles.</p>
             </div>
             <div className="button-row">
-              <button type="submit" disabled={!canWrite}>
-                {editingId ? 'Guardar cambios' : 'Agregar'}
-              </button>
+              <button type="submit">{editingId ? 'Guardar cambios' : 'Agregar'}</button>
               <button type="button" onClick={resetForm}>
                 Cancelar
               </button>
@@ -342,22 +309,10 @@ export function EquipmentsPage() {
                 <td>{equipment.status}</td>
                 <td>
                   <div className="button-row">
-                    <button
-                      type="button"
-                      className="icon-button"
-                      onClick={() => loadForEdit(equipment)}
-                      aria-label="Editar"
-                      disabled={!canWrite}
-                    >
+                    <button type="button" className="icon-button" onClick={() => loadForEdit(equipment)} aria-label="Editar">
                       <Pencil size={14} />
                     </button>
-                    <button
-                      type="button"
-                      className="icon-button"
-                      onClick={() => handleDelete(equipment.id)}
-                      aria-label="Borrar"
-                      disabled={!canWrite}
-                    >
+                    <button type="button" className="icon-button" onClick={() => handleDelete(equipment.id)} aria-label="Borrar">
                       <Trash2 size={14} />
                     </button>
                   </div>
