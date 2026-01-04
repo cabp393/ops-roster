@@ -175,16 +175,12 @@ th {
   height: 14px;
 }
 
-.download-menu {
+.options-menu {
   position: relative;
   display: inline-flex;
 }
 
-.download-menu-toggle {
-  gap: 4px;
-}
-
-.download-menu-panel {
+.options-menu-panel {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
@@ -199,7 +195,7 @@ th {
   z-index: 15;
 }
 
-.download-menu-item {
+.options-menu-item {
   border: 1px solid transparent;
   background: #f9fafb;
   color: #111827;
@@ -210,7 +206,7 @@ th {
   cursor: pointer;
 }
 
-.download-menu-item:hover {
+.options-menu-item:hover {
   border-color: #d1d5db;
   background: #f3f4f6;
 }
@@ -518,6 +514,52 @@ th {
   border: 1px solid #e5e7eb;
   margin-bottom: 16px;
   background: #f9fafb;
+}
+
+@media (max-width: 720px) {
+  .app {
+    padding: 16px 12px 24px;
+  }
+
+  .planning-controls {
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .planning-week {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .planning-actions {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .button-row {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .button-row button {
+    flex: 1 1 140px;
+  }
+
+  .planning-board {
+    grid-template-columns: 1fr;
+  }
+
+  .shift-column-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .worker-card {
+    touch-action: pan-y;
+  }
 }
 
 .workers-toolbar {

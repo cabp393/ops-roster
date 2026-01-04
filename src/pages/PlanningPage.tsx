@@ -3,7 +3,8 @@ import {
   DragOverlay,
   DndContext,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   rectIntersection,
   useDroppable,
   useSensor,
@@ -24,14 +25,12 @@ import {
   ArrowRight,
   ChevronDown,
   ChevronRight,
-  Download,
   Eye,
   EyeOff,
   Lock,
+  MoreHorizontal,
   RefreshCcw,
   Users,
-  Save,
-  Trash2,
 } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -411,8 +410,8 @@ export function PlanningPage({
   )
   const [activeId, setActiveId] = useState<number | null>(null)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
-  const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false)
-  const downloadMenuRef = useRef<HTMLDivElement | null>(null)
+  const [isOptionsMenuOpen, setIsOptionsMenuOpen] = useState(false)
+  const optionsMenuRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     setTasks(getTasks())
@@ -580,7 +579,8 @@ export function PlanningPage({
   }, [activeWorkers, defaultTaskByRole, hasLoadedPlan, plan])
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
@@ -595,15 +595,15 @@ export function PlanningPage({
   }, [toastMessage])
 
   useEffect(() => {
-    if (!isDownloadMenuOpen) return undefined
+    if (!isOptionsMenuOpen) return undefined
     const handleClickOutside = (event: MouseEvent) => {
-      if (!downloadMenuRef.current) return
-      if (downloadMenuRef.current.contains(event.target as Node)) return
-      setIsDownloadMenuOpen(false)
+      if (!optionsMenuRef.current) return
+      if (optionsMenuRef.current.contains(event.target as Node)) return
+      setIsOptionsMenuOpen(false)
     }
     window.addEventListener('mousedown', handleClickOutside)
     return () => window.removeEventListener('mousedown', handleClickOutside)
-  }, [isDownloadMenuOpen])
+  }, [isOptionsMenuOpen])
 
   function persist(nextPlan: WeekPlan) {
     setPlan(nextPlan)
@@ -644,10 +644,6 @@ export function PlanningPage({
       equipmentByWorkerId: nextEquipmentByWorkerId,
     })
     setToastMessage('Equipos asignados')
-  }
-
-  function handleSave() {
-    saveWeekPlan(weekStart, plan)
   }
 
   function handleClear() {
@@ -1008,61 +1004,55 @@ export function PlanningPage({
             >
               <Users size={14} />
             </button>
-            <div className="download-menu" ref={downloadMenuRef}>
+            <div className="options-menu" ref={optionsMenuRef}>
               <button
                 type="button"
-                className="icon-button download-menu-toggle"
-                onClick={() => setIsDownloadMenuOpen((open) => !open)}
-                aria-label="Descargar"
+                className="icon-button options-menu-toggle"
+                onClick={() => setIsOptionsMenuOpen((open) => !open)}
+                aria-label="Más opciones"
                 aria-haspopup="menu"
-                aria-expanded={isDownloadMenuOpen}
+                aria-expanded={isOptionsMenuOpen}
               >
-                <Download size={14} />
-                <ChevronDown size={12} />
+                <MoreHorizontal size={16} />
               </button>
-              {isDownloadMenuOpen ? (
-                <div className="download-menu-panel" role="menu">
+              {isOptionsMenuOpen ? (
+                <div className="options-menu-panel" role="menu">
                   <button
                     type="button"
-                    className="download-menu-item"
+                    className="options-menu-item"
                     onClick={() => {
-                      setIsDownloadMenuOpen(false)
+                      setIsOptionsMenuOpen(false)
                       handleDownloadExcel()
                     }}
                     role="menuitem"
                   >
-                    Excel
+                    Descargar Excel
                   </button>
                   <button
                     type="button"
-                    className="download-menu-item"
+                    className="options-menu-item"
                     onClick={() => {
-                      setIsDownloadMenuOpen(false)
+                      setIsOptionsMenuOpen(false)
                       handleDownloadPdf()
                     }}
                     role="menuitem"
                   >
-                    PDF
+                    Descargar PDF
+                  </button>
+                  <button
+                    type="button"
+                    className="options-menu-item"
+                    onClick={() => {
+                      setIsOptionsMenuOpen(false)
+                      handleClear()
+                    }}
+                    role="menuitem"
+                  >
+                    Borrar semana
                   </button>
                 </div>
               ) : null}
             </div>
-            <button
-              type="button"
-              className="icon-button"
-              onClick={handleSave}
-              aria-label="Guardar turno"
-            >
-              <Save size={14} />
-            </button>
-            <button
-              type="button"
-              className="icon-button"
-              onClick={handleClear}
-              aria-label="Borrar turno"
-            >
-              <Trash2 size={14} />
-            </button>
             <button
               type="button"
               className="icon-button"

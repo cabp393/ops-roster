@@ -34,8 +34,8 @@ type SummaryOutput = {
   warnings: string[]
 }
 
-const UNKNOWN_ROLE = 'Unknown'
-const UNASSIGNED_TASK = 'Unassigned'
+const UNKNOWN_ROLE = 'Desconocido'
+const UNASSIGNED_TASK = 'Sin asignar'
 
 function compareRoles(a: SummaryRole, b: SummaryRole) {
   if (a.roleCode === UNKNOWN_ROLE) return 1
@@ -75,7 +75,7 @@ export function summarizeWeek({ workers, assignments, roles, tasks }: SummaryInp
       missingTaskCount += 1
     } else if (!task || (worker && !task.allowedRoleCodes.includes(worker.roleCode))) {
       invalidTaskCount += 1
-      taskLabel = `${task?.name ?? 'Unknown task'} (invalid)`
+      taskLabel = `${task?.name ?? 'Función desconocida'} (inválida)`
     }
 
     if (!shiftMap.has(assignment.shift)) {
@@ -111,13 +111,15 @@ export function summarizeWeek({ workers, assignments, roles, tasks }: SummaryInp
 
   const warnings: string[] = []
   if (missingWorkerIds.size > 0) {
-    warnings.push(`Assignments for unknown workers: ${Array.from(missingWorkerIds).join(', ')}`)
+    warnings.push(
+      `Asignaciones para trabajadores desconocidos: ${Array.from(missingWorkerIds).join(', ')}`,
+    )
   }
   if (invalidTaskCount > 0) {
-    warnings.push(`Invalid tasks detected: ${invalidTaskCount}.`)
+    warnings.push(`Funciones inválidas detectadas: ${invalidTaskCount}.`)
   }
   if (missingTaskCount > 0) {
-    warnings.push(`Unassigned tasks: ${missingTaskCount}.`)
+    warnings.push(`Funciones sin asignar: ${missingTaskCount}.`)
   }
 
   return { totalsByShift, tree, warnings }
