@@ -1,18 +1,24 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import type { Session } from '@supabase/supabase-js'
 import { Tabs } from './components/Tabs'
+import { AuthPage } from './pages/AuthPage'
 import { PlanningPage } from './pages/PlanningPage'
 import { WorkersPage } from './pages/WorkersPage'
 import { SetupPage } from './pages/SetupPage'
 import { EquipmentsPage } from './pages/EquipmentsPage'
 import { getIsoWeekNumber, getIsoWeekYear } from './lib/week'
 import { useOrganization } from './lib/organizationContext'
+import { supabase } from './lib/supabaseClient'
 
 const fallbackWeekNumber = 1
 const fallbackWeekYear = 2025
 
 export function App() {
   const [activeTab, setActiveTab] = useState<'planning' | 'workers' | 'equipments' | 'setup'>('planning')
-  const { organizations, activeOrganizationId, setActiveOrganizationId, isLoading, error } = useOrganization()
+  const { organizations, activeOrganizationId, setActiveOrganizationId, refreshOrganizations, isLoading, error } =
+    useOrganization()
+  const [session, setSession] = useState<Session | null>(null)
+  const [isAuthLoading, setIsAuthLoading] = useState(true)
   const today = new Date()
   const [weekNumber, setWeekNumber] = useState(() => {
     try {
@@ -32,6 +38,57 @@ export function App() {
   function handleWeekChange(nextWeekNumber: number, nextWeekYear: number) {
     setWeekNumber(nextWeekNumber)
     setWeekYear(nextWeekYear)
+  }
+
+  useEffect(() => {
+    let isMounted = true
+    supabase.auth
+      .getSession()
+      .then(({ data, error: sessionError }) => {
+        if (!isMounted) return
+        if (sessionError) {
+          console.warn(sessionError.message)
+        }
+        setSession(data.session ?? null)
+        setIsAuthLoading(false)
+        if (data.session) {
+          void refreshOrganizations()
+        } else {
+          setActiveOrganizationId(null)
+        }
+      })
+      .catch((err) => {
+        if (!isMounted) return
+        console.warn(err instanceof Error ? err.message : 'No se pudo validar la sesión.')
+        setSession(null)
+        setIsAuthLoading(false)
+      })
+
+    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession)
+      if (nextSession) {
+        void refreshOrganizations()
+      } else {
+        setActiveOrganizationId(null)
+      }
+    })
+
+    return () => {
+      isMounted = false
+      data.subscription.unsubscribe()
+    }
+  }, [refreshOrganizations, setActiveOrganizationId])
+
+  if (isAuthLoading) {
+    return (
+      <div className="app">
+        <p className="helper-text">Validando sesión...</p>
+      </div>
+    )
+  }
+
+  if (!session) {
+    return <AuthPage />
   }
 
   return (
@@ -63,6 +120,15 @@ export function App() {
             </select>
           </label>
           {error ? <span className="helper-text">{error}</span> : null}
+          <button
+            className="auth-secondary"
+            type="button"
+            onClick={() => {
+              void supabase.auth.signOut()
+            }}
+          >
+            Cerrar sesión
+          </button>
         </div>
       </header>
       <Tabs activeTab={activeTab} onChange={setActiveTab} />
