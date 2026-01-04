@@ -1,66 +1,70 @@
 import { SHIFTS } from '../data/mock'
-import type { Shift, WeekPlan, Worker } from '../types'
+import type { Assignment, Shift, WeekPlan, Worker } from '../types'
 import { supabase } from './supabaseClient'
 
 const EMPTY_COLUMNS: Record<Shift, number[]> = { M: [], T: [], N: [] }
 
-function normalizeColumns(raw: unknown): Record<Shift, number[]> {
-  if (!raw || typeof raw !== 'object') return { ...EMPTY_COLUMNS }
-  const record = raw as Record<string, unknown>
+type AssignmentRow = {
+  worker_id: number
+  shift: Assignment['shift']
+  task_id: string | null
+  equipment_id: string | null
+}
+
+function buildPlanFromAssignments(weekStart: string, assignments: AssignmentRow[]): WeekPlan {
+  const columns: Record<Shift, number[]> = { ...EMPTY_COLUMNS }
+  const tasksByWorkerId: Record<number, string | null> = {}
+  const equipmentByWorkerId: Record<number, string | null> = {}
+  assignments.forEach((assignment) => {
+    columns[assignment.shift].push(assignment.worker_id)
+    tasksByWorkerId[assignment.worker_id] = assignment.task_id ?? null
+    equipmentByWorkerId[assignment.worker_id] = assignment.equipment_id ?? null
+  })
   return {
-    M: Array.isArray(record.M) ? record.M.filter((id) => typeof id === 'number') : [],
-    T: Array.isArray(record.T) ? record.T.filter((id) => typeof id === 'number') : [],
-    N: Array.isArray(record.N) ? record.N.filter((id) => typeof id === 'number') : [],
+    weekStart,
+    columns,
+    tasksByWorkerId,
+    equipmentByWorkerId,
   }
 }
 
-function normalizeTasks(raw: unknown): Record<number, string | null> {
-  if (!raw || typeof raw !== 'object') return {}
-  const record = raw as Record<string, unknown>
-  const next: Record<number, string | null> = {}
-  Object.entries(record).forEach(([key, value]) => {
-    const id = Number(key)
-    if (Number.isNaN(id)) return
-    if (typeof value === 'string' || value === null) {
-      next[id] = value
-    }
+function buildAssignmentsFromPlan(plan: WeekPlan): Assignment[] {
+  const assignments: Assignment[] = []
+  SHIFTS.forEach((shift) => {
+    plan.columns[shift].forEach((workerId) => {
+      assignments.push({
+        workerId,
+        weekStart: plan.weekStart,
+        shift,
+        taskId: plan.tasksByWorkerId[workerId] ?? null,
+        equipmentId: plan.equipmentByWorkerId[workerId] ?? null,
+        source: 'manual',
+      })
+    })
   })
-  return next
-}
-
-function normalizeEquipments(raw: unknown): Record<number, string | null> {
-  if (!raw || typeof raw !== 'object') return {}
-  const record = raw as Record<string, unknown>
-  const next: Record<number, string | null> = {}
-  Object.entries(record).forEach(([key, value]) => {
-    const id = Number(key)
-    if (Number.isNaN(id)) return
-    if (typeof value === 'string' || value === null) {
-      next[id] = value
-    }
-  })
-  return next
+  return assignments
 }
 
 export async function loadWeekPlan(weekStart: string, organizationId: string): Promise<WeekPlan | null> {
-  const { data, error } = await supabase
+  const { data: record, error: recordError } = await supabase
     .from('planning_records')
-    .select('week_start, columns, tasks_by_worker_id, equipment_by_worker_id')
+    .select('week_start')
     .eq('organization_id', organizationId)
     .eq('week_start', weekStart)
     .maybeSingle()
+  if (recordError) throw recordError
+  if (!record) return null
+  const { data, error } = await supabase
+    .from('assignments')
+    .select('worker_id, shift, task_id, equipment_id, task:tasks(id), equipment:equipments(id)')
+    .eq('organization_id', organizationId)
+    .eq('week_start', weekStart)
   if (error) throw error
-  if (!data) return null
-  return {
-    weekStart,
-    columns: normalizeColumns(data.columns),
-    tasksByWorkerId: normalizeTasks(data.tasks_by_worker_id),
-    equipmentByWorkerId: normalizeEquipments(data.equipment_by_worker_id),
-  }
+  return buildPlanFromAssignments(weekStart, (data ?? []) as AssignmentRow[])
 }
 
 export async function saveWeekPlan(weekStart: string, plan: WeekPlan, organizationId: string) {
-  const { error } = await supabase
+  const { error: recordError } = await supabase
     .from('planning_records')
     .upsert(
       {
@@ -72,7 +76,43 @@ export async function saveWeekPlan(weekStart: string, plan: WeekPlan, organizati
       },
       { onConflict: 'organization_id,week_start' },
     )
-  if (error) throw error
+  if (recordError) throw recordError
+  const assignments = buildAssignmentsFromPlan(plan)
+  const { data: existing, error: existingError } = await supabase
+    .from('assignments')
+    .select('worker_id')
+    .eq('organization_id', organizationId)
+    .eq('week_start', weekStart)
+  if (existingError) throw existingError
+  const existingIds = new Set((existing ?? []).map((row: { worker_id: number }) => String(row.worker_id)))
+  const incomingIds = new Set(assignments.map((assignment) => String(assignment.workerId)))
+  const idsToDelete = [...existingIds].filter((id) => !incomingIds.has(id))
+  if (idsToDelete.length > 0) {
+    const { error: deleteError } = await supabase
+      .from('assignments')
+      .delete()
+      .eq('organization_id', organizationId)
+      .eq('week_start', weekStart)
+      .in('worker_id', idsToDelete)
+    if (deleteError) throw deleteError
+  }
+  if (assignments.length > 0) {
+    const { error: upsertError } = await supabase
+      .from('assignments')
+      .upsert(
+        assignments.map((assignment) => ({
+          organization_id: organizationId,
+          week_start: assignment.weekStart,
+          worker_id: assignment.workerId,
+          task_id: assignment.taskId ?? null,
+          equipment_id: assignment.equipmentId ?? null,
+          shift: assignment.shift,
+          source: assignment.source,
+        })),
+        { onConflict: 'organization_id,week_start,worker_id' },
+      )
+    if (upsertError) throw upsertError
+  }
 }
 
 export async function clearWeekPlan(weekStart: string, organizationId: string) {
