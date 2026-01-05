@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Pencil, Trash2 } from 'lucide-react'
 import {
   getEquipmentStatuses,
@@ -89,6 +89,7 @@ export function SetupPage() {
     name: '',
     isActive: true,
   })
+  const importInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     setRolesState(getRoles())
@@ -438,6 +439,55 @@ export function SetupPage() {
 
   function handleDeleteEquipmentStatus(id: string) {
     setEquipmentStatusesState((prev) => prev.filter((status) => status.id !== id))
+  }
+
+  function handleExportData() {
+    const items = Object.keys(localStorage).reduce<Record<string, string>>((acc, key) => {
+      const value = localStorage.getItem(key)
+      if (value !== null) acc[key] = value
+      return acc
+    }, {})
+    const payload = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      items,
+    }
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `ops-roster-backup-${new Date().toISOString().slice(0, 10)}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  function handleImportClick() {
+    importInputRef.current?.click()
+  }
+
+  async function handleImportData(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    const shouldReplace = window.confirm(
+      'Al importar se reemplazará todo el contenido actual. ¿Deseas continuar?',
+    )
+    if (!shouldReplace) return
+    const text = await file.text()
+    const parsed = JSON.parse(text) as { items?: Record<string, unknown> } | Record<string, unknown>
+    const items = 'items' in parsed && parsed.items ? parsed.items : parsed
+    if (!items || typeof items !== 'object') return
+    localStorage.clear()
+    Object.entries(items).forEach(([key, value]) => {
+      if (typeof value === 'string') {
+        localStorage.setItem(key, value)
+        return
+      }
+      if (value !== null && value !== undefined) {
+        localStorage.setItem(key, JSON.stringify(value))
+      }
+    })
+    window.location.reload()
   }
 
   return (
@@ -1036,6 +1086,33 @@ export function SetupPage() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      <div className="setup-section">
+        <div className="setup-section-header">
+          <div>
+            <h2>Exportar e importar</h2>
+            <p className="subtitle">
+              Descarga o carga un archivo con toda la información guardada en este dispositivo.
+              Importar reemplazará todo el contenido anterior.
+            </p>
+          </div>
+        </div>
+        <div className="button-row">
+          <button type="button" onClick={handleExportData}>
+            Exportar
+          </button>
+          <button type="button" onClick={handleImportClick}>
+            Importar
+          </button>
+        </div>
+        <input
+          ref={importInputRef}
+          type="file"
+          accept="application/json"
+          onChange={handleImportData}
+          style={{ display: 'none' }}
+        />
       </div>
     </section>
   )
