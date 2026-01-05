@@ -89,6 +89,7 @@ export function SetupPage() {
     name: '',
     isActive: true,
   })
+
   const importInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -571,7 +572,11 @@ export function SetupPage() {
                 <tr key={role.id}>
                   <td>{role.code}</td>
                   <td>{role.name}</td>
-                  <td>{role.isActive ? 'Activo' : 'Inactivo'}</td>
+                  <td>
+                    <span className="status-pill" data-status={role.isActive ? 'activo' : 'inactivo'}>
+                      {role.isActive ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </td>
                   <td className="cell-actions">
                     <div className="button-row">
                       <button
@@ -724,7 +729,11 @@ export function SetupPage() {
                   <td>{task.name}</td>
                   <td>{task.equipmentType ?? 'Sin equipo'}</td>
                   <td>{task.equipmentVariant ?? 'Sin variante'}</td>
-                  <td>{task.isActive ? 'Activo' : 'Inactivo'}</td>
+                  <td>
+                    <span className="status-pill" data-status={task.isActive ? 'activo' : 'inactivo'}>
+                      {task.isActive ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </td>
                   <td className="cell-actions">
                     <div className="button-row">
                       <button
@@ -840,7 +849,11 @@ export function SetupPage() {
                 <tr key={type.id}>
                   <td>{type.roleCode || 'Sin rol'}</td>
                   <td>{type.name}</td>
-                  <td>{type.isActive ? 'Activo' : 'Inactivo'}</td>
+                  <td>
+                    <span className="status-pill" data-status={type.isActive ? 'activo' : 'inactivo'}>
+                      {type.isActive ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </td>
                   <td className="cell-actions">
                     <div className="button-row">
                       <button
@@ -958,7 +971,14 @@ export function SetupPage() {
                 <tr key={variant.id}>
                   <td>{variant.type}</td>
                   <td>{variant.name}</td>
-                  <td>{variant.isActive ? 'Activo' : 'Inactivo'}</td>
+                  <td>
+                    <span
+                      className="status-pill"
+                      data-status={variant.isActive ? 'activo' : 'inactivo'}
+                    >
+                      {variant.isActive ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </td>
                   <td className="cell-actions">
                     <div className="button-row">
                       <button
@@ -1058,7 +1078,14 @@ export function SetupPage() {
               {equipmentStatuses.map((status) => (
                 <tr key={status.id}>
                   <td>{status.name}</td>
-                  <td>{status.isActive ? 'Activo' : 'Inactivo'}</td>
+                  <td>
+                    <span
+                      className="status-pill"
+                      data-status={status.isActive ? 'activo' : 'inactivo'}
+                    >
+                      {status.isActive ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </td>
                   <td className="cell-actions">
                     <div className="button-row">
                       <button
