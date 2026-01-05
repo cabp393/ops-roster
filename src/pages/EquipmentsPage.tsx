@@ -33,8 +33,8 @@ export function EquipmentsPage() {
   const [equipmentStatuses, setEquipmentStatusesState] = useState<EquipmentStatusOption[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [isFormOpen, setIsFormOpen] = useState(false)
-  const [roleFilter, setRoleFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
+  const [variantFilter, setVariantFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [serieFilter, setSerieFilter] = useState('')
   const [formState, setFormState] = useState<EquipmentFormState>({
@@ -68,14 +68,28 @@ export function EquipmentsPage() {
     const serieValue = serieFilter.trim().toLowerCase()
     return equipments
       .filter((equipment) => {
-        if (roleFilter && equipment.roleCode !== roleFilter) return false
         if (typeFilter && equipment.type !== typeFilter) return false
+        if (variantFilter && equipment.variant !== variantFilter) return false
         if (statusFilter && equipment.status !== statusFilter) return false
         if (serieValue && !equipment.serie.toLowerCase().includes(serieValue)) return false
         return true
       })
       .sort((a, b) => a.serie.localeCompare(b.serie))
-  }, [equipments, roleFilter, serieFilter, statusFilter, typeFilter])
+  }, [equipments, serieFilter, statusFilter, typeFilter, variantFilter])
+
+  const filterVariants = useMemo(() => {
+    if (!typeFilter) return equipmentVariants
+    return variantsByType.get(typeFilter) ?? []
+  }, [equipmentVariants, typeFilter, variantsByType])
+
+  function handleTypeFilterChange(nextType: string) {
+    setTypeFilter(nextType)
+    if (!nextType) return
+    const availableVariants = variantsByType.get(nextType) ?? []
+    if (variantFilter && !availableVariants.some((variant) => variant.name === variantFilter)) {
+      setVariantFilter('')
+    }
+  }
 
   function resetForm() {
     setEditingId(null)
@@ -168,19 +182,19 @@ export function EquipmentsPage() {
       <div className="workers-toolbar">
         <div className="filters-card">
           <div className="filters-row equipment-filters">
-            <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
-              <option value="">Rol</option>
-              {equipmentRoles.map((role) => (
-                <option key={role.id} value={role.code}>
-                  {role.code}
-                </option>
-              ))}
-            </select>
-            <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+            <select value={typeFilter} onChange={(event) => handleTypeFilterChange(event.target.value)}>
               <option value="">Tipo</option>
               {equipmentTypes.map((type) => (
                 <option key={type.id} value={type.name}>
                   {type.name}
+                </option>
+              ))}
+            </select>
+            <select value={variantFilter} onChange={(event) => setVariantFilter(event.target.value)}>
+              <option value="">Variante</option>
+              {filterVariants.map((variant) => (
+                <option key={variant.id} value={variant.name}>
+                  {variant.name}
                 </option>
               ))}
             </select>
