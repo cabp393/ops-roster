@@ -89,6 +89,7 @@ export function SetupPage() {
     name: '',
     isActive: true,
   })
+
   const importInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -958,7 +959,14 @@ export function SetupPage() {
                 <tr key={variant.id}>
                   <td>{variant.type}</td>
                   <td>{variant.name}</td>
-                  <td>{variant.isActive ? 'Activo' : 'Inactivo'}</td>
+                  <td>
+                    <span
+                      className="status-pill"
+                      data-status={variant.isActive ? 'activo' : 'inactivo'}
+                    >
+                      {variant.isActive ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </td>
                   <td className="cell-actions">
                     <div className="button-row">
                       <button
@@ -1058,7 +1066,14 @@ export function SetupPage() {
               {equipmentStatuses.map((status) => (
                 <tr key={status.id}>
                   <td>{status.name}</td>
-                  <td>{status.isActive ? 'Activo' : 'Inactivo'}</td>
+                  <td>
+                    <span
+                      className="status-pill"
+                      data-status={status.isActive ? 'activo' : 'inactivo'}
+                    >
+                      {status.isActive ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </td>
                   <td className="cell-actions">
                     <div className="button-row">
                       <button

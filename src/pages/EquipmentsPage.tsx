@@ -46,6 +46,16 @@ export function EquipmentsPage() {
     status: '',
   })
 
+  function statusToKey(status: string) {
+    return status
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '')
+  }
+
   useEffect(() => {
     setEquipmentsState(getEquipments())
     setEquipmentRolesState(getEquipmentRoles())
@@ -326,7 +336,11 @@ export function EquipmentsPage() {
                 <td>{equipment.roleCode}</td>
                 <td>{equipment.type}</td>
                 <td>{equipment.variant}</td>
-                <td>{equipment.status}</td>
+                <td>
+                  <span className="status-pill" data-status={statusToKey(equipment.status)}>
+                    {equipment.status}
+                  </span>
+                </td>
                 <td>
                   <div className="button-row">
                     <button

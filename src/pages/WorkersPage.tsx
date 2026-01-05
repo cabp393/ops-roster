@@ -413,7 +413,14 @@ export function WorkersPage() {
                     ? worker.constraints.allowedShifts.join(', ')
                     : 'Todas'}
                 </td>
-                <td>{worker.isActive === false ? 'Inactivo' : 'Activo'}</td>
+                <td>
+                  <span
+                    className="status-pill"
+                    data-status={worker.isActive === false ? 'inactivo' : 'activo'}
+                  >
+                    {worker.isActive === false ? 'Inactivo' : 'Activo'}
+                  </span>
+                </td>
                 <td>
                   <div className="button-row">
                     <button
