@@ -705,9 +705,9 @@ export function PlanningPage({
     const pageWidth = doc.internal.pageSize.getWidth()
     const marginX = 36
     const marginY = 36
-    const titleFontSize = 18
-    const subtitleFontSize = 12
-    const tableFontSize = 10
+    const titleFontSize = 16
+    const subtitleFontSize = 10
+    const tableFontSize = 8
     const cellPadding = 4
 
     planningShiftOrder.forEach((shift, index) => {
@@ -760,10 +760,12 @@ export function PlanningPage({
           font: 'helvetica',
           fontSize: tableFontSize,
           textColor: [0, 0, 0],
+          lineColor: [0, 0, 0],
+          lineWidth: 0.5,
           cellPadding,
           halign: 'left',
           valign: 'middle',
-          minCellHeight: 20,
+          minCellHeight: 18,
           overflow: 'ellipsize',
         },
         headStyles: {
@@ -772,6 +774,8 @@ export function PlanningPage({
           fontStyle: 'bold',
           halign: 'left',
           fontSize: tableFontSize,
+          lineColor: [0, 0, 0],
+          lineWidth: 0.5,
         },
         columnStyles: {
           0: { cellWidth: columnWidths[0] },
