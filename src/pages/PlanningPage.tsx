@@ -704,11 +704,11 @@ export function PlanningPage({
     const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' })
     const pageWidth = doc.internal.pageSize.getWidth()
     const marginX = 36
-    const marginY = 36
-    const titleFontSize = 17
-    const subtitleFontSize = 11
-    const tableFontSize = 9
-    const cellPadding = 4
+    const marginY = 30
+    const titleFontSize = 16
+    const subtitleFontSize = 10
+    const tableFontSize = 8
+    const cellPadding = 2
 
     planningShiftOrder.forEach((shift, index) => {
       if (index > 0) doc.addPage('letter', 'portrait')
@@ -765,7 +765,7 @@ export function PlanningPage({
           cellPadding,
           halign: 'left',
           valign: 'middle',
-          minCellHeight: 20,
+          minCellHeight: 16,
           overflow: 'ellipsize',
         },
         headStyles: {
