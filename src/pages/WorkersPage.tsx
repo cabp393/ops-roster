@@ -39,6 +39,7 @@ export function WorkersPage() {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [roleFilter, setRoleFilter] = useState('')
   const [contractFilter, setContractFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
   const [nameFilter, setNameFilter] = useState('')
   const [formState, setFormState] = useState<WorkerFormState>(() => ({
     id: '',
@@ -92,6 +93,11 @@ export function WorkersPage() {
       .filter((worker) => {
         if (roleFilter && worker.roleCode !== roleFilter) return false
         if (contractFilter && worker.contract !== contractFilter) return false
+        if (statusFilter) {
+          const isInactive = worker.isActive === false
+          if (statusFilter === 'active' && isInactive) return false
+          if (statusFilter === 'inactive' && !isInactive) return false
+        }
         if (nameValue) {
           const fullName = getWorkerFullName(worker).toLowerCase()
           if (!fullName.includes(nameValue)) return false
@@ -99,7 +105,7 @@ export function WorkersPage() {
         return true
       })
       .sort((a, b) => a.id - b.id)
-  }, [workers, roleFilter, contractFilter, nameFilter])
+  }, [workers, roleFilter, contractFilter, statusFilter, nameFilter])
 
   function getDefaultSpecialty(roleCode: string, availableTasks: Task[]) {
     return availableTasks.find((task) => task.allowedRoleCodes.includes(roleCode))?.id ?? ''
@@ -237,6 +243,11 @@ export function WorkersPage() {
               <option value="">Tipo de contrato</option>
               <option value="Indefinido">Indefinido</option>
               <option value="Plazo fijo">Plazo fijo</option>
+            </select>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+              <option value="">Estado</option>
+              <option value="active">Activo</option>
+              <option value="inactive">Inactivo</option>
             </select>
             <input
               type="text"
