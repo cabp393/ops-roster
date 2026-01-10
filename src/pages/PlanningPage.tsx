@@ -68,9 +68,13 @@ const emptyPlan: WeekPlan = {
 
 const planningShiftOrder: Shift[] = ['N', 'M', 'T']
 const ROLE_ORDER = ['JT', 'AL', 'OG'] as const
+const CONTRACT_ORDER = ['Indefinido', 'Plazo fijo'] as const
 type RoleCode = (typeof ROLE_ORDER)[number]
 const COLLAPSE_STORAGE_KEY = 'opsRoster:planning:roleCollapse'
 const ROLE_ORDER_INDEX = new Map(ROLE_ORDER.map((role, index) => [role, index]))
+const CONTRACT_ORDER_INDEX = new Map(
+  CONTRACT_ORDER.map((contract, index) => [contract, index]),
+)
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 const MONTH_NAMES = [
   'enero',
@@ -148,11 +152,38 @@ function groupWorkerIdsByRole(
     const role = workerById.get(workerId)?.roleCode as RoleCode | undefined
     if (role && ROLE_ORDER.includes(role)) grouped[role].push(workerId)
   })
+  ROLE_ORDER.forEach((role) => {
+    sortGroupWorkerIds(grouped[role], workerById)
+  })
   return grouped
 }
 
 function buildColumnFromGroups(groups: Record<RoleCode, number[]>) {
   return ROLE_ORDER.flatMap((role) => groups[role])
+}
+
+function sortGroupWorkerIds(workerIds: number[], workerById: Map<number, Worker>) {
+  workerIds.sort((a, b) => compareWorkerOrder(a, b, workerById))
+}
+
+function compareWorkerOrder(
+  workerIdA: number,
+  workerIdB: number,
+  workerById: Map<number, Worker>,
+) {
+  const workerA = workerById.get(workerIdA)
+  const workerB = workerById.get(workerIdB)
+  const contractRankA =
+    CONTRACT_ORDER_INDEX.get(workerA?.contract ?? '') ?? CONTRACT_ORDER.length
+  const contractRankB =
+    CONTRACT_ORDER_INDEX.get(workerB?.contract ?? '') ?? CONTRACT_ORDER.length
+  const contractCompare = contractRankA - contractRankB
+  if (contractCompare !== 0) return contractCompare
+  const nameA = workerA ? getWorkerDisplayName(workerA) : ''
+  const nameB = workerB ? getWorkerDisplayName(workerB) : ''
+  const nameCompare = nameA.localeCompare(nameB, 'es', { sensitivity: 'base' })
+  if (nameCompare !== 0) return nameCompare
+  return workerIdA - workerIdB
 }
 
 function getContractToneClass(worker: Worker) {
@@ -891,6 +922,7 @@ export function PlanningPage({
       const boundedIndex = targetIndex < 0 ? maxIndex : Math.max(0, Math.min(targetIndex, maxIndex))
       if (sourceIndex === boundedIndex) return
       sourceGroups[activeRole] = arrayMove(sourceGroup, sourceIndex, boundedIndex)
+      sortGroupWorkerIds(sourceGroups[activeRole], workerById)
       persist({
         ...plan,
         columns: {
@@ -906,6 +938,8 @@ export function PlanningPage({
     const nextTargetGroup = [...targetGroup]
     nextTargetGroup.splice(insertIndex, 0, activeId)
     targetGroups[activeRole] = nextTargetGroup
+    sortGroupWorkerIds(sourceGroups[activeRole], workerById)
+    sortGroupWorkerIds(targetGroups[activeRole], workerById)
 
     persist({
       ...plan,
