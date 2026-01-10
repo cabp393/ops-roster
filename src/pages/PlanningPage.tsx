@@ -55,9 +55,9 @@ import {
   getWeekRangeLabel,
   getWeekStartDate,
 } from '../lib/week'
-import { getEquipments, getTasks, getWorkers } from '../lib/storage'
-import { getWorkerDisplayName } from '../lib/workerName'
-import type { Equipment, Shift, Task, WeekPlan, Worker } from '../types'
+import { getEquipments, getRoles, getTasks, getWorkers } from '../lib/storage'
+import { getWorkerDisplayName, getWorkerFullName } from '../lib/workerName'
+import type { Equipment, Role, Shift, Task, WeekPlan, Worker } from '../types'
 
 const emptyPlan: WeekPlan = {
   weekStart: '2025-12-29',
@@ -438,6 +438,7 @@ export function PlanningPage({
   const [plan, setPlan] = useState<WeekPlan>(emptyPlan)
   const [tasks, setTasks] = useState<Task[]>([])
   const [workers, setWorkers] = useState<Worker[]>([])
+  const [roles, setRoles] = useState<Role[]>([])
   const [equipments, setEquipments] = useState<Equipment[]>([])
   const [hasLoadedPlan, setHasLoadedPlan] = useState(false)
   const [hasLoadedRoster, setHasLoadedRoster] = useState(false)
@@ -448,10 +449,15 @@ export function PlanningPage({
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [isOptionsMenuOpen, setIsOptionsMenuOpen] = useState(false)
   const optionsMenuRef = useRef<HTMLDivElement | null>(null)
+  const [roleFilter, setRoleFilter] = useState('')
+  const [contractFilter, setContractFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [nameFilter, setNameFilter] = useState('')
 
   useEffect(() => {
     setTasks(getTasks())
     setWorkers(getWorkers())
+    setRoles(getRoles())
     setEquipments(getEquipments())
     setHasLoadedRoster(true)
   }, [])
@@ -464,6 +470,23 @@ export function PlanningPage({
   const activeWorkerIds = useMemo(() => new Set(activeWorkers.map((worker) => worker.id)), [
     activeWorkers,
   ])
+  const matchesWorkerFilters = useMemo(() => {
+    const nameValue = nameFilter.trim().toLowerCase()
+    return (worker: Worker) => {
+      if (roleFilter && worker.roleCode !== roleFilter) return false
+      if (contractFilter && worker.contract !== contractFilter) return false
+      if (statusFilter) {
+        const isInactive = worker.isActive === false
+        if (statusFilter === 'active' && isInactive) return false
+        if (statusFilter === 'inactive' && !isInactive) return false
+      }
+      if (nameValue) {
+        const fullName = getWorkerFullName(worker).toLowerCase()
+        if (!fullName.includes(nameValue)) return false
+      }
+      return true
+    }
+  }, [roleFilter, contractFilter, statusFilter, nameFilter])
 
   const weekStartDate = useMemo(
     () => getWeekStartDate(weekNumber, weekYear),
@@ -1114,6 +1137,36 @@ export function PlanningPage({
           </div>
         </div>
       </div>
+      <div className="workers-toolbar planning-toolbar">
+        <div className="filters-card">
+          <div className="filters-row">
+            <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
+              <option value="">Cargo</option>
+              {roles.map((role) => (
+                <option key={role.id} value={role.code}>
+                  {role.name}
+                </option>
+              ))}
+            </select>
+            <select value={contractFilter} onChange={(event) => setContractFilter(event.target.value)}>
+              <option value="">Tipo de contrato</option>
+              <option value="Indefinido">Indefinido</option>
+              <option value="Plazo fijo">Plazo fijo</option>
+            </select>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+              <option value="">Estado</option>
+              <option value="active">Activo</option>
+              <option value="inactive">Inactivo</option>
+            </select>
+            <input
+              type="text"
+              value={nameFilter}
+              onChange={(event) => setNameFilter(event.target.value)}
+              placeholder="Nombre convencional"
+            />
+          </div>
+        </div>
+      </div>
       <DndContext
         sensors={sensors}
         // rectIntersection keeps cross-column hit-testing stable for groups/columns.
@@ -1125,14 +1178,18 @@ export function PlanningPage({
         <div className="planning-board">
           {planningShiftOrder.map((shift) => {
             const workerIds = plan.columns[shift] ?? []
-            const grouped = groupWorkerIdsByRole(workerIds, workerById)
+            const filteredWorkerIds = workerIds.filter((id) => {
+              const worker = workerById.get(id)
+              return worker ? matchesWorkerFilters(worker) : false
+            })
+            const grouped = groupWorkerIdsByRole(filteredWorkerIds, workerById)
             const usedEquipmentIds = new Set(
               workerIds
                 .map((id) => plan.equipmentByWorkerId[id])
                 .filter((id): id is string => Boolean(id)),
             )
             return (
-              <ShiftColumn key={shift} shift={shift} workerIds={workerIds}>
+              <ShiftColumn key={shift} shift={shift} workerIds={filteredWorkerIds}>
                 <div className="shift-column-body" data-column={shift}>
                   {ROLE_ORDER.map((role) => {
                     const groupWorkerIds = grouped[role]

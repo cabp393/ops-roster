@@ -590,6 +590,10 @@ th {
   margin-bottom: 16px;
 }
 
+.planning-toolbar {
+  margin-top: 12px;
+}
+
 .filters-card {
   padding: 8px 12px;
   border-radius: 12px;
@@ -601,7 +605,7 @@ th {
 .filters-row {
   display: grid;
   gap: 8px;
-  grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr) minmax(180px, 2fr);
+  grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr) minmax(140px, 1fr) minmax(180px, 2fr);
   align-items: center;
 }
 
