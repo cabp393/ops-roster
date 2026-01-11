@@ -497,6 +497,16 @@ export function PlanningPage({
 
   const weekLabel = useMemo(() => getWeekRangeLabel(weekNumber, weekYear), [weekNumber, weekYear])
 
+  const assignedCount = useMemo(
+    () => planningShiftOrder.reduce((sum, shift) => sum + (plan.columns[shift]?.length ?? 0), 0),
+    [plan.columns],
+  )
+  const inactiveCount = useMemo(
+    () => workers.filter((worker) => worker.isActive === false).length,
+    [workers],
+  )
+  const unassignedCount = Math.max(activeWorkers.length - assignedCount, 0)
+
   useEffect(() => {
     if (!hasLoadedRoster) return
     setHasLoadedPlan(false)
@@ -1003,143 +1013,175 @@ export function PlanningPage({
   }
 
   return (
-    <section>
-      <div className="planning-controls">
-        <div className="planning-week">
-          <label className="field">
-            Semana
-            <input
-              type="number"
-              min={1}
-              max={53}
-              value={weekNumber}
-              onChange={(event) => {
-                const value = Number(event.target.value)
-                if (!Number.isNaN(value)) onWeekChange(value, weekYear)
-              }}
-            />
-          </label>
-          <label className="field">
-            Año
-            <input
-              type="number"
-              min={2000}
-              max={2100}
-              value={weekYear}
-              onChange={(event) => {
-                const value = Number(event.target.value)
-                if (!Number.isNaN(value)) onWeekChange(weekNumber, value)
-              }}
-            />
-          </label>
-          <div className="week-range">{weekLabel}</div>
+    <section className="page planning-page">
+      <div className="summary-grid">
+        <div className="summary-card">
+          <span className="summary-label">Dotación activa</span>
+          <span className="summary-value">{activeWorkers.length}</span>
         </div>
-        <div className="planning-actions">
-          <div className="button-row">
-            <button
-              type="button"
-              className="icon-button"
-              onClick={() => handleWeekShift('prev')}
-              aria-label="Semana anterior"
-              title="Semana anterior"
-            >
-              <ArrowLeft size={14} />
-            </button>
-            <button
-              type="button"
-              className="icon-button"
-              onClick={() => handleWeekShift('next')}
-              aria-label="Semana siguiente"
-              title="Semana siguiente"
-            >
-              <ArrowRight size={14} />
-            </button>
-          </div>
-          <div className="button-row">
-            <button
-              type="button"
-              className="icon-button"
-              onClick={handleRotateShifts}
-              aria-label="Rotar turnos"
-              title="Rotar turnos"
-            >
-              <RefreshCcw size={14} />
-            </button>
-            <button
-              type="button"
-              className="icon-button"
-              onClick={handleAssignEquipments}
-              aria-label="Asignar equipos"
-              title="Asignar equipos"
-            >
-              <Users size={14} />
-            </button>
-            <button
-              type="button"
-              className="icon-button"
-              onClick={handleToggleAllGroups}
-              aria-label={hasCollapsedGroups ? 'Expandir grupos' : 'Colapsar grupos'}
-              title={hasCollapsedGroups ? 'Expandir grupos' : 'Colapsar grupos'}
-              disabled={visibleGroupKeys.length === 0}
-            >
-              {hasCollapsedGroups ? <Eye size={14} /> : <EyeOff size={14} />}
-            </button>
-            <div className="options-menu" ref={optionsMenuRef}>
+        <div className="summary-card">
+          <span className="summary-label">Asignados esta semana</span>
+          <span className="summary-value">{assignedCount}</span>
+        </div>
+        <div className="summary-card">
+          <span className="summary-label">Pendientes</span>
+          <span className="summary-value">{unassignedCount}</span>
+        </div>
+        <div className="summary-card">
+          <span className="summary-label">Inactivos</span>
+          <span className="summary-value">{inactiveCount}</span>
+        </div>
+      </div>
+      <div className="planning-top-grid">
+        <div className="panel compact">
+          <div className="panel-header">
+            <div>
+              <h3>Calendario operativo</h3>
+              <p>Selecciona la semana y navega rápidamente entre periodos.</p>
+            </div>
+            <div className="panel-actions">
               <button
                 type="button"
-                className="icon-button options-menu-toggle"
-                onClick={() => setIsOptionsMenuOpen((open) => !open)}
-                aria-label="Más opciones"
-                title="Más opciones"
-                aria-haspopup="menu"
-                aria-expanded={isOptionsMenuOpen}
+                className="ghost-button icon"
+                onClick={() => handleWeekShift('prev')}
+                aria-label="Semana anterior"
+                title="Semana anterior"
               >
-                <MoreHorizontal size={16} />
+                <ArrowLeft size={14} />
               </button>
-              {isOptionsMenuOpen ? (
-                <div className="options-menu-panel" role="menu">
-                  <button
-                    type="button"
-                    className="options-menu-item"
-                    onClick={() => {
-                      setIsOptionsMenuOpen(false)
-                      handleDownloadExcel()
-                    }}
-                    role="menuitem"
-                  >
-                    Descargar Excel
-                  </button>
-                  <button
-                    type="button"
-                    className="options-menu-item"
-                    onClick={() => {
-                      setIsOptionsMenuOpen(false)
-                      handleDownloadPdf()
-                    }}
-                    role="menuitem"
-                  >
-                    Descargar PDF
-                  </button>
-                  <button
-                    type="button"
-                    className="options-menu-item"
-                    onClick={() => {
-                      setIsOptionsMenuOpen(false)
-                      handleClear()
-                    }}
-                    role="menuitem"
-                  >
-                    Borrar semana
-                  </button>
-                </div>
-              ) : null}
+              <button
+                type="button"
+                className="ghost-button icon"
+                onClick={() => handleWeekShift('next')}
+                aria-label="Semana siguiente"
+                title="Semana siguiente"
+              >
+                <ArrowRight size={14} />
+              </button>
+            </div>
+          </div>
+          <div className="panel-body">
+            <div className="planning-week-inputs">
+              <label className="field">
+                Semana
+                <input
+                  type="number"
+                  min={1}
+                  max={53}
+                  value={weekNumber}
+                  onChange={(event) => {
+                    const value = Number(event.target.value)
+                    if (!Number.isNaN(value)) onWeekChange(value, weekYear)
+                  }}
+                />
+              </label>
+              <label className="field">
+                Año
+                <input
+                  type="number"
+                  min={2000}
+                  max={2100}
+                  value={weekYear}
+                  onChange={(event) => {
+                    const value = Number(event.target.value)
+                    if (!Number.isNaN(value)) onWeekChange(weekNumber, value)
+                  }}
+                />
+              </label>
+              <div className="week-range">{weekLabel}</div>
+            </div>
+          </div>
+        </div>
+        <div className="panel compact">
+          <div className="panel-header">
+            <div>
+              <h3>Acciones rápidas</h3>
+              <p>Optimiza la asignación y exportación del plan.</p>
+            </div>
+          </div>
+          <div className="panel-body">
+            <div className="actions-grid">
+              <button type="button" className="action-button" onClick={handleRotateShifts}>
+                <RefreshCcw size={16} />
+                Rotar turnos
+              </button>
+              <button type="button" className="action-button" onClick={handleAssignEquipments}>
+                <Users size={16} />
+                Asignar equipos
+              </button>
+              <button
+                type="button"
+                className="action-button"
+                onClick={handleToggleAllGroups}
+                disabled={visibleGroupKeys.length === 0}
+              >
+                {hasCollapsedGroups ? <Eye size={16} /> : <EyeOff size={16} />}
+                {hasCollapsedGroups ? 'Expandir grupos' : 'Colapsar grupos'}
+              </button>
+              <div className="options-menu" ref={optionsMenuRef}>
+                <button
+                  type="button"
+                  className="action-button"
+                  onClick={() => setIsOptionsMenuOpen((open) => !open)}
+                  aria-label="Más opciones"
+                  title="Más opciones"
+                  aria-haspopup="menu"
+                  aria-expanded={isOptionsMenuOpen}
+                >
+                  <MoreHorizontal size={16} />
+                  Exportar
+                </button>
+                {isOptionsMenuOpen ? (
+                  <div className="options-menu-panel" role="menu">
+                    <button
+                      type="button"
+                      className="options-menu-item"
+                      onClick={() => {
+                        setIsOptionsMenuOpen(false)
+                        handleDownloadExcel()
+                      }}
+                      role="menuitem"
+                    >
+                      Descargar Excel
+                    </button>
+                    <button
+                      type="button"
+                      className="options-menu-item"
+                      onClick={() => {
+                        setIsOptionsMenuOpen(false)
+                        handleDownloadPdf()
+                      }}
+                      role="menuitem"
+                    >
+                      Descargar PDF
+                    </button>
+                    <button
+                      type="button"
+                      className="options-menu-item"
+                      onClick={() => {
+                        setIsOptionsMenuOpen(false)
+                        handleClear()
+                      }}
+                      role="menuitem"
+                    >
+                      Borrar semana
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
         </div>
       </div>
-      <div className="workers-toolbar planning-toolbar">
-        <div className="filters-card">
-          <div className="filters-row">
+      <div className="panel filters-panel">
+        <div className="panel-header">
+          <div>
+            <h3>Filtros de asignación</h3>
+            <p>Refina la vista por cargo, contrato o disponibilidad.</p>
+          </div>
+        </div>
+        <div className="panel-body">
+          <div className="filters-grid">
             <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
               <option value="">Cargo</option>
               {roles.map((role) => (
@@ -1162,7 +1204,7 @@ export function PlanningPage({
               type="text"
               value={nameFilter}
               onChange={(event) => setNameFilter(event.target.value)}
-              placeholder="Nombre convencional"
+              placeholder="Nombre o apellido"
             />
           </div>
         </div>

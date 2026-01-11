@@ -188,10 +188,27 @@ export function EquipmentsPage() {
   }
 
   return (
-    <section>
-      <div className="workers-toolbar">
-        <div className="filters-card">
-          <div className="filters-row equipment-filters">
+    <section className="page">
+      <header className="page-header">
+        <div>
+          <h2>Flota y equipos</h2>
+          <p>Controla el inventario, estado y asignación de maquinaria.</p>
+        </div>
+        <div className="page-actions">
+          <button type="button" className="primary-button" onClick={handleOpenNew}>
+            Nuevo equipo
+          </button>
+        </div>
+      </header>
+      <div className="panel filters-panel">
+        <div className="panel-header">
+          <div>
+            <h3>Filtros de flota</h3>
+            <p>Localiza equipos por tipo, variante o estado.</p>
+          </div>
+        </div>
+        <div className="panel-body">
+          <div className="filters-grid equipment-grid">
             <select value={typeFilter} onChange={(event) => handleTypeFilterChange(event.target.value)}>
               <option value="">Tipo</option>
               {equipmentTypes.map((type) => (
@@ -220,153 +237,156 @@ export function EquipmentsPage() {
               type="text"
               value={serieFilter}
               onChange={(event) => setSerieFilter(event.target.value)}
-              placeholder="Serie"
+              placeholder="Serie o código"
             />
           </div>
         </div>
-        <button
-          type="button"
-          className="add-worker-button"
-          onClick={handleOpenNew}
-          aria-label="Añadir equipo"
-          title="Añadir equipo"
-        >
-          +
-        </button>
       </div>
       {isFormOpen ? (
-        <form className="form-card" onSubmit={handleSubmit}>
-          <div className="form-header">
+        <form className="panel form-panel" onSubmit={handleSubmit}>
+          <div className="panel-header">
             <div>
-              <h2>{editingId ? 'Editar equipo' : 'Nuevo equipo'}</h2>
-              <p className="subtitle">Administra los equipos disponibles.</p>
+              <h3>{editingId ? 'Editar equipo' : 'Nuevo equipo'}</h3>
+              <p>Actualiza la serie, rol operativo y estado.</p>
             </div>
             <div className="button-row">
-              <button type="submit">{editingId ? 'Guardar cambios' : 'Agregar'}</button>
-              <button type="button" onClick={resetForm}>
+              <button type="submit" className="primary-button">
+                {editingId ? 'Guardar cambios' : 'Agregar'}
+              </button>
+              <button type="button" className="ghost-button" onClick={resetForm}>
                 Cancelar
               </button>
             </div>
           </div>
-          <div className="form-grid">
-            <label className="field">
-              Serie
-              <input
-                type="text"
-                value={formState.serie}
-                onChange={(event) => setFormState((current) => ({ ...current, serie: event.target.value }))}
-                placeholder="Serie única"
-                required
-              />
-            </label>
-            <label className="field">
-              Rol
-              <select
-                value={formState.roleCode}
-                onChange={(event) =>
-                  setFormState((current) => ({ ...current, roleCode: event.target.value }))
-                }
-              >
-                {equipmentRoles.map((role) => (
-                  <option key={role.id} value={role.code}>
-                    {role.code}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              Tipo
-              <select value={formState.type} onChange={(event) => handleTypeChange(event.target.value)}>
-                {equipmentTypes.map((type) => (
-                  <option key={type.id} value={type.name}>
-                    {type.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              Variante
-              <select
-                value={formState.variant}
-                onChange={(event) =>
-                  setFormState((current) => ({ ...current, variant: event.target.value }))
-                }
-              >
-                {(variantsByType.get(formState.type) ?? []).map((variant) => (
-                  <option key={variant.id} value={variant.name}>
-                    {variant.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              Estado
-              <select
-                value={formState.status}
-                onChange={(event) =>
-                  setFormState((current) => ({ ...current, status: event.target.value }))
-                }
-              >
-                {equipmentStatuses.map((status) => (
-                  <option key={status.id} value={status.name}>
-                    {status.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <div className="panel-body">
+            <div className="form-grid">
+              <label className="field">
+                Serie
+                <input
+                  type="text"
+                  value={formState.serie}
+                  onChange={(event) => setFormState((current) => ({ ...current, serie: event.target.value }))}
+                  placeholder="Serie única"
+                  required
+                />
+              </label>
+              <label className="field">
+                Rol
+                <select
+                  value={formState.roleCode}
+                  onChange={(event) =>
+                    setFormState((current) => ({ ...current, roleCode: event.target.value }))
+                  }
+                >
+                  {equipmentRoles.map((role) => (
+                    <option key={role.id} value={role.code}>
+                      {role.code}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                Tipo
+                <select value={formState.type} onChange={(event) => handleTypeChange(event.target.value)}>
+                  {equipmentTypes.map((type) => (
+                    <option key={type.id} value={type.name}>
+                      {type.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                Variante
+                <select
+                  value={formState.variant}
+                  onChange={(event) =>
+                    setFormState((current) => ({ ...current, variant: event.target.value }))
+                  }
+                >
+                  {(variantsByType.get(formState.type) ?? []).map((variant) => (
+                    <option key={variant.id} value={variant.name}>
+                      {variant.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                Estado
+                <select
+                  value={formState.status}
+                  onChange={(event) =>
+                    setFormState((current) => ({ ...current, status: event.target.value }))
+                  }
+                >
+                  {equipmentStatuses.map((status) => (
+                    <option key={status.id} value={status.name}>
+                      {status.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
           </div>
         </form>
       ) : null}
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Serie</th>
-              <th>Rol</th>
-              <th>Tipo</th>
-              <th>Variante</th>
-              <th>Estado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredEquipments.map((equipment) => (
-              <tr key={equipment.id}>
-                <td>{equipment.serie}</td>
-                <td>{equipment.roleCode}</td>
-                <td>{equipment.type}</td>
-                <td>{equipment.variant}</td>
-                <td>
-                  <span className="status-pill" data-status={statusToKey(equipment.status)}>
-                    {equipment.status}
-                  </span>
-                </td>
-                <td>
-                  <div className="button-row">
-                    <button
-                      type="button"
-                      className="icon-button"
-                      onClick={() => loadForEdit(equipment)}
-                      aria-label="Editar"
-                      title="Editar"
-                    >
-                      <Pencil size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      className="icon-button"
-                      onClick={() => handleDelete(equipment.id)}
-                      aria-label="Borrar"
-                      title="Borrar"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </td>
+      <div className="panel table-panel">
+        <div className="panel-header">
+          <div>
+            <h3>Equipos disponibles</h3>
+            <p>{filteredEquipments.length} unidades según filtros activos.</p>
+          </div>
+        </div>
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Serie</th>
+                <th>Rol</th>
+                <th>Tipo</th>
+                <th>Variante</th>
+                <th>Estado</th>
+                <th>Acciones</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filteredEquipments.map((equipment) => (
+                <tr key={equipment.id}>
+                  <td>{equipment.serie}</td>
+                  <td>{equipment.roleCode}</td>
+                  <td>{equipment.type}</td>
+                  <td>{equipment.variant}</td>
+                  <td>
+                    <span className="status-pill" data-status={statusToKey(equipment.status)}>
+                      {equipment.status}
+                    </span>
+                  </td>
+                  <td>
+                    <div className="button-row">
+                      <button
+                        type="button"
+                        className="icon-button"
+                        onClick={() => loadForEdit(equipment)}
+                        aria-label="Editar"
+                        title="Editar"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-button"
+                        onClick={() => handleDelete(equipment.id)}
+                        aria-label="Borrar"
+                        title="Borrar"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
   )

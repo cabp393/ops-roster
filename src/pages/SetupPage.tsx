@@ -492,129 +492,138 @@ export function SetupPage() {
   }
 
   return (
-    <section className="setup-page">
-      <div className="setup-section">
-        <div className="setup-section-header">
-          <div>
-            <h2>Roles</h2>
-            <p className="subtitle">Define los cargos disponibles y su estado.</p>
+    <section className="page setup-page">
+      <header className="page-header">
+        <div>
+          <h2>Parámetros base</h2>
+          <p>Actualiza catálogos clave para la operación diaria.</p>
+        </div>
+      </header>
+      <div className="setup-grid">
+        <div className="panel setup-panel">
+          <div className="panel-header">
+            <div>
+              <h3>Roles</h3>
+              <p>Define cargos disponibles y estado operativo.</p>
+            </div>
+            <button
+              type="button"
+              className="icon-square"
+              onClick={handleOpenNewRole}
+              aria-label="Añadir rol"
+              title="Añadir rol"
+            >
+              +
+            </button>
           </div>
-          <button
-            type="button"
-            className="add-worker-button"
-            onClick={handleOpenNewRole}
-            aria-label="Añadir rol"
-            title="Añadir rol"
-          >
-            +
-          </button>
-        </div>
-        {isRoleFormOpen ? (
-          <form className="form-card" onSubmit={handleRoleSubmit}>
-            <div className="form-header">
-              <div>
-                <h3>{roleEditingId ? 'Editar rol' : 'Nuevo rol'}</h3>
-                <p className="subtitle">Gestiona el código y nombre del rol.</p>
+          {isRoleFormOpen ? (
+            <form className="form-panel" onSubmit={handleRoleSubmit}>
+              <div className="form-header">
+                <div>
+                  <h4>{roleEditingId ? 'Editar rol' : 'Nuevo rol'}</h4>
+                  <p>Gestiona código y nombre del rol.</p>
+                </div>
+                <div className="button-row">
+                  <button type="submit" className="primary-button">
+                    {roleEditingId ? 'Guardar cambios' : 'Agregar'}
+                  </button>
+                  <button type="button" className="ghost-button" onClick={resetRoleForm}>
+                    Cancelar
+                  </button>
+                </div>
               </div>
-              <div className="button-row">
-                <button type="submit">{roleEditingId ? 'Guardar cambios' : 'Agregar'}</button>
-                <button type="button" onClick={resetRoleForm}>
-                  Cancelar
-                </button>
+              <div className="form-grid">
+                <label className="field">
+                  Código
+                  <input
+                    value={roleForm.code}
+                    onChange={(event) => setRoleForm((prev) => ({ ...prev, code: event.target.value }))}
+                    placeholder="Código"
+                    required
+                  />
+                </label>
+                <label className="field">
+                  Nombre
+                  <input
+                    value={roleForm.name}
+                    onChange={(event) => setRoleForm((prev) => ({ ...prev, name: event.target.value }))}
+                    placeholder="Nombre"
+                    required
+                  />
+                </label>
+                <label className="field">
+                  Estado
+                  <select
+                    value={roleForm.isActive ? 'active' : 'inactive'}
+                    onChange={(event) =>
+                      setRoleForm((prev) => ({ ...prev, isActive: event.target.value === 'active' }))
+                    }
+                  >
+                    <option value="active">Activo</option>
+                    <option value="inactive">Inactivo</option>
+                  </select>
+                </label>
               </div>
-            </div>
-            <div className="form-grid">
-              <label className="field">
-                Código
-                <input
-                  value={roleForm.code}
-                  onChange={(event) => setRoleForm((prev) => ({ ...prev, code: event.target.value }))}
-                  placeholder="Código"
-                  required
-                />
-              </label>
-              <label className="field">
-                Nombre
-                <input
-                  value={roleForm.name}
-                  onChange={(event) => setRoleForm((prev) => ({ ...prev, name: event.target.value }))}
-                  placeholder="Nombre"
-                  required
-                />
-              </label>
-              <label className="field">
-                Nombre
-                <select
-                  value={roleForm.isActive ? 'active' : 'inactive'}
-                  onChange={(event) =>
-                    setRoleForm((prev) => ({ ...prev, isActive: event.target.value === 'active' }))
-                  }
-                >
-                  <option value="active">Activo</option>
-                  <option value="inactive">Inactivo</option>
-                </select>
-              </label>
-            </div>
-          </form>
-        ) : null}
-        <div className="table-wrap">
-          <table className="setup-table">
-            <thead>
-              <tr>
-                <th>Código</th>
-                <th>Nombre</th>
-                <th>Estado</th>
-                <th className="cell-actions">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {roles.map((role) => (
-                <tr key={role.id}>
-                  <td>{role.code}</td>
-                  <td>{role.name}</td>
-                  <td>
-                    <span className="status-pill" data-status={role.isActive ? 'activo' : 'inactivo'}>
-                      {role.isActive ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </td>
-                  <td className="cell-actions">
-                    <div className="button-row">
-                      <button
-                        type="button"
-                        className="icon-button"
-                        onClick={() => handleEditRole(role)}
-                        aria-label="Editar rol"
-                        title="Editar rol"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        className="icon-button"
-                        onClick={() => handleDeleteRole(role.id)}
-                        aria-label="Borrar rol"
-                        title="Borrar rol"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </td>
+            </form>
+          ) : null}
+          <div className="table-wrap">
+            <table className="data-table compact">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Nombre</th>
+                  <th>Estado</th>
+                  <th className="cell-actions">Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {roles.map((role) => (
+                  <tr key={role.id}>
+                    <td>{role.code}</td>
+                    <td>{role.name}</td>
+                    <td>
+                      <span className="status-pill" data-status={role.isActive ? 'activo' : 'inactivo'}>
+                        {role.isActive ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </td>
+                    <td className="cell-actions">
+                      <div className="button-row">
+                        <button
+                          type="button"
+                          className="icon-button"
+                          onClick={() => handleEditRole(role)}
+                          aria-label="Editar rol"
+                          title="Editar rol"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          className="icon-button"
+                          onClick={() => handleDeleteRole(role.id)}
+                          aria-label="Borrar rol"
+                          title="Borrar rol"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
       </div>
 
-      <div className="setup-section">
-        <div className="setup-section-header">
+      <div className="panel setup-panel">
+        <div className="panel-header">
           <div>
-            <h2>Funciones</h2>
-            <p className="subtitle">Configura las tareas disponibles y su relación con roles y equipos.</p>
+            <h3>Funciones</h3>
+            <p>Configura tareas disponibles y relación con equipos.</p>
           </div>
           <button
             type="button"
-            className="add-worker-button"
+            className="icon-square"
             onClick={handleOpenNewTask}
             aria-label="Añadir función"
             title="Añadir función"
@@ -623,15 +632,17 @@ export function SetupPage() {
           </button>
         </div>
         {isTaskFormOpen ? (
-          <form className="form-card" onSubmit={handleTaskSubmit}>
+          <form className="form-panel" onSubmit={handleTaskSubmit}>
             <div className="form-header">
               <div>
-                <h3>{taskEditingId ? 'Editar función' : 'Nueva función'}</h3>
-                <p className="subtitle">Selecciona rol y equipo según corresponda.</p>
+                <h4>{taskEditingId ? 'Editar función' : 'Nueva función'}</h4>
+                <p>Selecciona rol y equipo según corresponda.</p>
               </div>
               <div className="button-row">
-                <button type="submit">{taskEditingId ? 'Guardar cambios' : 'Agregar'}</button>
-                <button type="button" onClick={resetTaskForm}>
+                <button type="submit" className="primary-button">
+                  {taskEditingId ? 'Guardar cambios' : 'Agregar'}
+                </button>
+                <button type="button" className="ghost-button" onClick={resetTaskForm}>
                   Cancelar
                 </button>
               </div>
@@ -641,7 +652,9 @@ export function SetupPage() {
                 Rol
                 <select
                   value={taskForm.allowedRoleCode}
-                  onChange={(event) => setTaskForm((prev) => ({ ...prev, allowedRoleCode: event.target.value }))}
+                  onChange={(event) =>
+                    setTaskForm((prev) => ({ ...prev, allowedRoleCode: event.target.value }))
+                  }
                 >
                   <option value="">Sin rol</option>
                   {roles.map((role) => (
@@ -684,7 +697,9 @@ export function SetupPage() {
                 Variante
                 <select
                   value={taskForm.equipmentVariant}
-                  onChange={(event) => setTaskForm((prev) => ({ ...prev, equipmentVariant: event.target.value }))}
+                  onChange={(event) =>
+                    setTaskForm((prev) => ({ ...prev, equipmentVariant: event.target.value }))
+                  }
                   disabled={!taskForm.equipmentType}
                 >
                   <option value="">Sin variante</option>
@@ -711,7 +726,7 @@ export function SetupPage() {
           </form>
         ) : null}
         <div className="table-wrap">
-          <table className="setup-table">
+          <table className="data-table compact">
             <thead>
               <tr>
                 <th>Rol</th>
@@ -762,16 +777,15 @@ export function SetupPage() {
           </table>
         </div>
       </div>
-
-      <div className="setup-section">
-        <div className="setup-section-header">
+      <div className="panel setup-panel">
+        <div className="panel-header">
           <div>
-            <h2>Tipos de equipo</h2>
-            <p className="subtitle">Define los tipos disponibles y el rol asociado.</p>
+            <h3>Tipos de equipo</h3>
+            <p>Define tipos disponibles y el rol asociado.</p>
           </div>
           <button
             type="button"
-            className="add-worker-button"
+            className="icon-square"
             onClick={handleOpenNewEquipmentType}
             aria-label="Añadir tipo de equipo"
             title="Añadir tipo de equipo"
@@ -780,15 +794,17 @@ export function SetupPage() {
           </button>
         </div>
         {isEquipmentTypeFormOpen ? (
-          <form className="form-card" onSubmit={handleEquipmentTypeSubmit}>
+          <form className="form-panel" onSubmit={handleEquipmentTypeSubmit}>
             <div className="form-header">
               <div>
-                <h3>{equipmentTypeEditingId ? 'Editar tipo' : 'Nuevo tipo'}</h3>
-                <p className="subtitle">Asigna un rol principal al tipo de equipo.</p>
+                <h4>{equipmentTypeEditingId ? 'Editar tipo' : 'Nuevo tipo'}</h4>
+                <p>Asigna un rol principal al tipo de equipo.</p>
               </div>
               <div className="button-row">
-                <button type="submit">{equipmentTypeEditingId ? 'Guardar cambios' : 'Agregar'}</button>
-                <button type="button" onClick={resetEquipmentTypeForm}>
+                <button type="submit" className="primary-button">
+                  {equipmentTypeEditingId ? 'Guardar cambios' : 'Agregar'}
+                </button>
+                <button type="button" className="ghost-button" onClick={resetEquipmentTypeForm}>
                   Cancelar
                 </button>
               </div>
@@ -814,7 +830,9 @@ export function SetupPage() {
                 Tipo
                 <input
                   value={equipmentTypeForm.name}
-                  onChange={(event) => setEquipmentTypeForm((prev) => ({ ...prev, name: event.target.value }))}
+                  onChange={(event) =>
+                    setEquipmentTypeForm((prev) => ({ ...prev, name: event.target.value }))
+                  }
                   placeholder="Tipo"
                   required
                 />
@@ -835,7 +853,7 @@ export function SetupPage() {
           </form>
         ) : null}
         <div className="table-wrap">
-          <table className="setup-table">
+          <table className="data-table compact">
             <thead>
               <tr>
                 <th>Rol</th>
@@ -882,16 +900,15 @@ export function SetupPage() {
           </table>
         </div>
       </div>
-
-      <div className="setup-section">
-        <div className="setup-section-header">
+      <div className="panel setup-panel">
+        <div className="panel-header">
           <div>
-            <h2>Variantes de equipo</h2>
-            <p className="subtitle">Configura las variantes por tipo.</p>
+            <h3>Variantes de equipo</h3>
+            <p>Configura variantes por tipo disponible.</p>
           </div>
           <button
             type="button"
-            className="add-worker-button"
+            className="icon-square"
             onClick={handleOpenNewEquipmentVariant}
             aria-label="Añadir variante"
             title="Añadir variante"
@@ -900,15 +917,17 @@ export function SetupPage() {
           </button>
         </div>
         {isEquipmentVariantFormOpen ? (
-          <form className="form-card" onSubmit={handleEquipmentVariantSubmit}>
+          <form className="form-panel" onSubmit={handleEquipmentVariantSubmit}>
             <div className="form-header">
               <div>
-                <h3>{equipmentVariantEditingId ? 'Editar variante' : 'Nueva variante'}</h3>
-                <p className="subtitle">Relaciona la variante con un tipo específico.</p>
+                <h4>{equipmentVariantEditingId ? 'Editar variante' : 'Nueva variante'}</h4>
+                <p>Relaciona la variante con un tipo específico.</p>
               </div>
               <div className="button-row">
-                <button type="submit">{equipmentVariantEditingId ? 'Guardar cambios' : 'Agregar'}</button>
-                <button type="button" onClick={resetEquipmentVariantForm}>
+                <button type="submit" className="primary-button">
+                  {equipmentVariantEditingId ? 'Guardar cambios' : 'Agregar'}
+                </button>
+                <button type="button" className="ghost-button" onClick={resetEquipmentVariantForm}>
                   Cancelar
                 </button>
               </div>
@@ -957,7 +976,7 @@ export function SetupPage() {
           </form>
         ) : null}
         <div className="table-wrap">
-          <table className="setup-table">
+          <table className="data-table compact">
             <thead>
               <tr>
                 <th>Tipo</th>
@@ -1007,16 +1026,15 @@ export function SetupPage() {
           </table>
         </div>
       </div>
-
-      <div className="setup-section">
-        <div className="setup-section-header">
+      <div className="panel setup-panel">
+        <div className="panel-header">
           <div>
-            <h2>Estados de equipo</h2>
-            <p className="subtitle">Define los estados posibles para los equipos.</p>
+            <h3>Estados de equipo</h3>
+            <p>Define estados posibles para los equipos.</p>
           </div>
           <button
             type="button"
-            className="add-worker-button"
+            className="icon-square"
             onClick={handleOpenNewEquipmentStatus}
             aria-label="Añadir estado"
             title="Añadir estado"
@@ -1025,15 +1043,17 @@ export function SetupPage() {
           </button>
         </div>
         {isEquipmentStatusFormOpen ? (
-          <form className="form-card" onSubmit={handleEquipmentStatusSubmit}>
+          <form className="form-panel" onSubmit={handleEquipmentStatusSubmit}>
             <div className="form-header">
               <div>
-                <h3>{equipmentStatusEditingId ? 'Editar estado' : 'Nuevo estado'}</h3>
-                <p className="subtitle">Controla la disponibilidad de los equipos.</p>
+                <h4>{equipmentStatusEditingId ? 'Editar estado' : 'Nuevo estado'}</h4>
+                <p>Controla la disponibilidad de los equipos.</p>
               </div>
               <div className="button-row">
-                <button type="submit">{equipmentStatusEditingId ? 'Guardar cambios' : 'Agregar'}</button>
-                <button type="button" onClick={resetEquipmentStatusForm}>
+                <button type="submit" className="primary-button">
+                  {equipmentStatusEditingId ? 'Guardar cambios' : 'Agregar'}
+                </button>
+                <button type="button" className="ghost-button" onClick={resetEquipmentStatusForm}>
                   Cancelar
                 </button>
               </div>
@@ -1066,7 +1086,7 @@ export function SetupPage() {
           </form>
         ) : null}
         <div className="table-wrap">
-          <table className="setup-table">
+          <table className="data-table compact">
             <thead>
               <tr>
                 <th>Nombre</th>
@@ -1114,32 +1134,34 @@ export function SetupPage() {
           </table>
         </div>
       </div>
-
-      <div className="setup-section">
-        <div className="setup-section-header">
+      <div className="panel setup-panel">
+        <div className="panel-header">
           <div>
-            <h2>Exportar e importar</h2>
-            <p className="subtitle">
+            <h3>Exportar e importar</h3>
+            <p>
               Descarga o carga un archivo con toda la información guardada en este dispositivo.
               Importar reemplazará todo el contenido anterior.
             </p>
           </div>
         </div>
-        <div className="button-row">
-          <button type="button" onClick={handleExportData}>
-            Exportar
-          </button>
-          <button type="button" onClick={handleImportClick}>
-            Importar
-          </button>
+        <div className="panel-body">
+          <div className="button-row">
+            <button type="button" className="primary-button" onClick={handleExportData}>
+              Exportar
+            </button>
+            <button type="button" className="ghost-button" onClick={handleImportClick}>
+              Importar
+            </button>
+          </div>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept="application/json"
+            onChange={handleImportData}
+            style={{ display: 'none' }}
+          />
         </div>
-        <input
-          ref={importInputRef}
-          type="file"
-          accept="application/json"
-          onChange={handleImportData}
-          style={{ display: 'none' }}
-        />
+      </div>
       </div>
     </section>
   )

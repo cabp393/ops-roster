@@ -4,7 +4,7 @@ import { PlanningPage } from './pages/PlanningPage'
 import { WorkersPage } from './pages/WorkersPage'
 import { SetupPage } from './pages/SetupPage'
 import { EquipmentsPage } from './pages/EquipmentsPage'
-import { getIsoWeekNumber, getIsoWeekYear } from './lib/week'
+import { getIsoWeekNumber, getIsoWeekYear, getWeekRangeLabel } from './lib/week'
 
 const fallbackWeekNumber = 1
 const fallbackWeekYear = 2025
@@ -32,27 +32,76 @@ export function App() {
     setWeekYear(nextWeekYear)
   }
 
+  const tabMeta = {
+    planning: {
+      title: 'Plan semanal',
+      description: 'Distribuye turnos, roles y equipos en una vista compacta.',
+    },
+    workers: {
+      title: 'Equipo operativo',
+      description: 'Gestiona personal, contratos y restricciones de turno.',
+    },
+    equipments: {
+      title: 'Flota y equipos',
+      description: 'Controla disponibilidad, variantes y estado operativo.',
+    },
+    setup: {
+      title: 'Parámetros base',
+      description: 'Ajusta roles, tareas y catálogos de apoyo.',
+    },
+  } as const
+
+  const activeMeta = tabMeta[activeTab]
+  const weekRangeLabel = getWeekRangeLabel(weekNumber, weekYear)
+
   return (
-    <div className="app">
-      <header className="header">
-        <h1>Ops Roster</h1>
-      </header>
-      <Tabs activeTab={activeTab} onChange={setActiveTab} />
-      <main className="content">
-        {activeTab === 'planning' ? (
-          <PlanningPage
-            weekNumber={weekNumber}
-            weekYear={weekYear}
-            onWeekChange={handleWeekChange}
-          />
-        ) : activeTab === 'workers' ? (
-          <WorkersPage />
-        ) : activeTab === 'equipments' ? (
-          <EquipmentsPage />
-        ) : (
-          <SetupPage />
-        )}
-      </main>
+    <div className="app-shell">
+      <aside className="app-sidebar">
+        <div className="brand">
+          <span className="brand-title">Ops Roster</span>
+          <span className="brand-subtitle">Centro operativo</span>
+        </div>
+        <Tabs activeTab={activeTab} onChange={setActiveTab} />
+        <div className="sidebar-footer">
+          <span className="status-dot" aria-hidden="true" />
+          <span className="sidebar-foot-text">Sistema listo</span>
+        </div>
+      </aside>
+      <div className="app-main">
+        <header className="app-header">
+          <div>
+            <span className="header-kicker">Panel operativo</span>
+            <h1>{activeMeta.title}</h1>
+            <p>{activeMeta.description}</p>
+          </div>
+          {activeTab === 'planning' ? (
+            <div className="header-meta">
+              <div className="meta-card">
+                <span className="meta-label">Semana activa</span>
+                <span className="meta-value">
+                  {weekNumber} · {weekYear}
+                </span>
+                <span className="meta-muted">{weekRangeLabel}</span>
+              </div>
+            </div>
+          ) : null}
+        </header>
+        <main className="page-content">
+          {activeTab === 'planning' ? (
+            <PlanningPage
+              weekNumber={weekNumber}
+              weekYear={weekYear}
+              onWeekChange={handleWeekChange}
+            />
+          ) : activeTab === 'workers' ? (
+            <WorkersPage />
+          ) : activeTab === 'equipments' ? (
+            <EquipmentsPage />
+          ) : (
+            <SetupPage />
+          )}
+        </main>
+      </div>
     </div>
   )
 }

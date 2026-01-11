@@ -227,10 +227,27 @@ export function WorkersPage() {
   }
 
   return (
-    <section>
-      <div className="workers-toolbar">
-        <div className="filters-card">
-          <div className="filters-row">
+    <section className="page">
+      <header className="page-header">
+        <div>
+          <h2>Equipo operativo</h2>
+          <p>Administra contratos, roles críticos y restricciones de turno.</p>
+        </div>
+        <div className="page-actions">
+          <button type="button" className="primary-button" onClick={handleOpenNew}>
+            Nuevo trabajador
+          </button>
+        </div>
+      </header>
+      <div className="panel filters-panel">
+        <div className="panel-header">
+          <div>
+            <h3>Filtros rápidos</h3>
+            <p>Combina criterios para encontrar perfiles con rapidez.</p>
+          </div>
+        </div>
+        <div className="panel-body">
+          <div className="filters-grid">
             <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
               <option value="">Cargo</option>
               {roles.map((role) => (
@@ -253,152 +270,165 @@ export function WorkersPage() {
               type="text"
               value={nameFilter}
               onChange={(event) => setNameFilter(event.target.value)}
-              placeholder="Nombre convencional"
+              placeholder="Buscar por nombre"
             />
           </div>
         </div>
-        <button
-          type="button"
-          className="add-worker-button"
-          onClick={handleOpenNew}
-          aria-label="Añadir trabajador"
-          title="Añadir trabajador"
-        >
-          +
-        </button>
       </div>
       {isFormOpen ? (
-        <form className="form-card" onSubmit={handleSubmit}>
-          <div className="form-header">
+        <form className="panel form-panel" onSubmit={handleSubmit}>
+          <div className="panel-header">
             <div>
-              <h2>{editingId ? 'Editar trabajador' : 'Nuevo trabajador'}</h2>
-              <p className="subtitle">Administra los datos base de cada trabajador.</p>
+              <h3>{editingId ? 'Editar trabajador' : 'Nuevo trabajador'}</h3>
+              <p>Completa la ficha con datos personales y restricciones.</p>
             </div>
             <div className="button-row">
-              <button type="submit">{editingId ? 'Guardar cambios' : 'Agregar'}</button>
-              <button type="button" onClick={resetForm}>
+              <button type="submit" className="primary-button">
+                {editingId ? 'Guardar cambios' : 'Agregar'}
+              </button>
+              <button type="button" className="ghost-button" onClick={resetForm}>
                 Cancelar
               </button>
             </div>
           </div>
-          <div className="form-grid">
-            <label className="field">
-              ID
-              <input
-                type="number"
-                min={1}
-                value={formState.id}
-                onChange={(event) => setFormState((current) => ({ ...current, id: event.target.value }))}
-                placeholder="ID del trabajador"
-                required
-              />
-            </label>
-            <label className="field">
-              Primer nombre
-              <input
-                type="text"
-                value={formState.firstName}
-                onChange={(event) => setFormState((current) => ({ ...current, firstName: event.target.value }))}
-                placeholder="Primer nombre"
-                required
-              />
-            </label>
-            <label className="field">
-              Segundo nombre
-              <input
-                type="text"
-                value={formState.secondName}
-                onChange={(event) => setFormState((current) => ({ ...current, secondName: event.target.value }))}
-                placeholder="Segundo nombre"
-              />
-            </label>
-            <label className="field">
-              Apellido paterno
-              <input
-                type="text"
-                value={formState.lastName}
-                onChange={(event) => setFormState((current) => ({ ...current, lastName: event.target.value }))}
-                placeholder="Apellido paterno"
-                required
-              />
-            </label>
-            <label className="field">
-              Apellido materno
-              <input
-                type="text"
-                value={formState.motherLastName}
-                onChange={(event) => setFormState((current) => ({ ...current, motherLastName: event.target.value }))}
-                placeholder="Apellido materno"
-              />
-            </label>
-            <label className="field">
-              Rol
-              <select value={formState.roleCode} onChange={(event) => handleRoleChange(event.target.value)}>
-                {roles.map((role) => (
-                  <option key={role.id} value={role.code}>
-                    {role.code}
-                  </option>
+          <div className="panel-body">
+            <div className="form-grid">
+              <label className="field">
+                ID
+                <input
+                  type="number"
+                  min={1}
+                  value={formState.id}
+                  onChange={(event) => setFormState((current) => ({ ...current, id: event.target.value }))}
+                  placeholder="ID del trabajador"
+                  required
+                />
+              </label>
+              <label className="field">
+                Primer nombre
+                <input
+                  type="text"
+                  value={formState.firstName}
+                  onChange={(event) =>
+                    setFormState((current) => ({ ...current, firstName: event.target.value }))
+                  }
+                  placeholder="Primer nombre"
+                  required
+                />
+              </label>
+              <label className="field">
+                Segundo nombre
+                <input
+                  type="text"
+                  value={formState.secondName}
+                  onChange={(event) =>
+                    setFormState((current) => ({ ...current, secondName: event.target.value }))
+                  }
+                  placeholder="Segundo nombre"
+                />
+              </label>
+              <label className="field">
+                Apellido paterno
+                <input
+                  type="text"
+                  value={formState.lastName}
+                  onChange={(event) => setFormState((current) => ({ ...current, lastName: event.target.value }))}
+                  placeholder="Apellido paterno"
+                  required
+                />
+              </label>
+              <label className="field">
+                Apellido materno
+                <input
+                  type="text"
+                  value={formState.motherLastName}
+                  onChange={(event) =>
+                    setFormState((current) => ({ ...current, motherLastName: event.target.value }))
+                  }
+                  placeholder="Apellido materno"
+                />
+              </label>
+              <label className="field">
+                Rol
+                <select value={formState.roleCode} onChange={(event) => handleRoleChange(event.target.value)}>
+                  {roles.map((role) => (
+                    <option key={role.id} value={role.code}>
+                      {role.code}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                Especialidad
+                <select
+                  value={formState.specialtyTaskId}
+                  onChange={(event) =>
+                    setFormState((current) => ({ ...current, specialtyTaskId: event.target.value }))
+                  }
+                >
+                  <option value="">Sin especialidad</option>
+                  {(taskOptionsByRole.get(formState.roleCode) ?? []).map((task) => (
+                    <option key={task.id} value={task.id}>
+                      {task.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                Contrato
+                <select
+                  value={formState.contract}
+                  onChange={(event) =>
+                    setFormState((current) => ({
+                      ...current,
+                      contract: event.target.value as Worker['contract'],
+                    }))
+                  }
+                >
+                  <option value="Indefinido">Indefinido</option>
+                  <option value="Plazo fijo">Plazo fijo</option>
+                </select>
+              </label>
+              <label className="field">
+                Activo
+                <select
+                  value={formState.isActive ? 'active' : 'inactive'}
+                  onChange={(event) =>
+                    setFormState((current) => ({ ...current, isActive: event.target.value === 'active' }))
+                  }
+                >
+                  <option value="active">Activo</option>
+                  <option value="inactive">Inactivo</option>
+                </select>
+              </label>
+            </div>
+            <div className="field">
+              Turnos permitidos
+              <div className="checkbox-row">
+                {SHIFTS.map((shift) => (
+                  <label key={shift} className="checkbox-pill">
+                    <input
+                      type="checkbox"
+                      checked={formState.allowedShifts[shift]}
+                      onChange={(event) => handleAllowedShiftChange(shift, event.target.checked)}
+                    />
+                    {shift}
+                  </label>
                 ))}
-              </select>
-            </label>
-            <label className="field">
-              Especialidad
-              <select
-                value={formState.specialtyTaskId}
-                onChange={(event) => setFormState((current) => ({ ...current, specialtyTaskId: event.target.value }))}
-              >
-                <option value="">Sin especialidad</option>
-                {(taskOptionsByRole.get(formState.roleCode) ?? []).map((task) => (
-                  <option key={task.id} value={task.id}>
-                    {task.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              Contrato
-              <select
-                value={formState.contract}
-                onChange={(event) =>
-                  setFormState((current) => ({ ...current, contract: event.target.value as Worker['contract'] }))
-                }
-              >
-                <option value="Indefinido">Indefinido</option>
-                <option value="Plazo fijo">Plazo fijo</option>
-              </select>
-            </label>
-            <label className="field">
-              Activo
-              <select
-                value={formState.isActive ? 'active' : 'inactive'}
-                onChange={(event) =>
-                  setFormState((current) => ({ ...current, isActive: event.target.value === 'active' }))
-                }
-              >
-                <option value="active">Activo</option>
-                <option value="inactive">Inactivo</option>
-              </select>
-            </label>
-          </div>
-          <div className="field">
-            Turnos permitidos
-            <div className="checkbox-row">
-              {SHIFTS.map((shift) => (
-                <label key={shift} className="checkbox-pill">
-                  <input
-                    type="checkbox"
-                    checked={formState.allowedShifts[shift]}
-                    onChange={(event) => handleAllowedShiftChange(shift, event.target.checked)}
-                  />
-                  {shift}
-                </label>
-              ))}
+              </div>
             </div>
           </div>
         </form>
       ) : null}
-      <div className="table-wrap">
-        <table>
+      <div className="panel table-panel">
+        <div className="panel-header">
+          <div>
+            <h3>Listado actual</h3>
+            <p>{filteredWorkers.length} registros visibles según filtros.</p>
+          </div>
+        </div>
+        <div className="table-wrap">
+          <table className="data-table">
           <thead>
             <tr>
               <th>ID</th>
@@ -457,7 +487,8 @@ export function WorkersPage() {
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
     </section>
   )
