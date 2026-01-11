@@ -23,6 +23,7 @@ import { CSS } from '@dnd-kit/utilities'
 import {
   ArrowLeft,
   ArrowRight,
+  Calendar,
   ChevronDown,
   ChevronRight,
   Eye,
@@ -991,6 +992,13 @@ export function PlanningPage({
     onWeekChange(getIsoWeekNumber(nextDate), getIsoWeekYear(nextDate))
   }
 
+  function handleWeekDateChange(value: string) {
+    if (!value) return
+    const nextDate = new Date(`${value}T00:00:00Z`)
+    if (Number.isNaN(nextDate.getTime())) return
+    onWeekChange(getIsoWeekNumber(nextDate), getIsoWeekYear(nextDate))
+  }
+
   function handleToggleAllGroups() {
     const shouldCollapse = !hasCollapsedGroups
     setCollapsedGroups((current) => {
@@ -1008,29 +1016,14 @@ export function PlanningPage({
         <div className="planning-week">
           <label className="field">
             Semana
-            <input
-              type="number"
-              min={1}
-              max={53}
-              value={weekNumber}
-              onChange={(event) => {
-                const value = Number(event.target.value)
-                if (!Number.isNaN(value)) onWeekChange(value, weekYear)
-              }}
-            />
-          </label>
-          <label className="field">
-            Año
-            <input
-              type="number"
-              min={2000}
-              max={2100}
-              value={weekYear}
-              onChange={(event) => {
-                const value = Number(event.target.value)
-                if (!Number.isNaN(value)) onWeekChange(weekNumber, value)
-              }}
-            />
+            <div className="field-date">
+              <Calendar size={16} aria-hidden="true" />
+              <input
+                type="date"
+                value={weekStart}
+                onChange={(event) => handleWeekDateChange(event.target.value)}
+              />
+            </div>
           </label>
           <div className="week-range">{weekLabel}</div>
         </div>

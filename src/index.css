@@ -148,6 +148,23 @@ th {
   border: 1px solid #d1d5db;
 }
 
+.field-date {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.field-date svg {
+  position: absolute;
+  left: 10px;
+  color: #6b7280;
+  pointer-events: none;
+}
+
+.field-date input {
+  padding-left: 32px;
+}
+
 .planning-controls {
   display: flex;
   flex-wrap: wrap;
